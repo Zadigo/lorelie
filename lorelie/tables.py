@@ -57,208 +57,208 @@ class AbstractTable(metaclass=BaseTable):
             validates_values.append(validated_value)
         return validates_values
 
-    def all(self):
-        all_sql = self.backend.SELECT.format_map({
-            'fields': self.backend.comma_join(['rowid', '*']),
-            'table': self.name
-        })
-        sql = [all_sql]
-        query = self.query_class(self.backend, sql, table=self)
-        query._table = self
-        query.run()
-        return query.result_cache
-        # return QuerySet(query)
+    # def all(self):
+    #     all_sql = self.backend.SELECT.format_map({
+    #         'fields': self.backend.comma_join(['rowid', '*']),
+    #         'table': self.name
+    #     })
+    #     sql = [all_sql]
+    #     query = self.query_class(self.backend, sql, table=self)
+    #     query._table = self
+    #     query.run()
+    #     return query.result_cache
+    #     # return QuerySet(query)
 
-    def filter(self, **kwargs):
-        """Filter the data in the database based on
-        a set of criteria
+    # def filter(self, **kwargs):
+    #     """Filter the data in the database based on
+    #     a set of criteria
 
-        >>> self.filter(name='Kendall')
-        ... self.filter(name__eq='Kendall')
-        ... self.filter(age__gt=15)
-        ... self.filter(name__in=['Kendall'])
-        """
-        tokens = self.backend.decompose_filters(**kwargs)
-        filters = self.backend.build_filters(tokens)
+    #     >>> self.filter(name='Kendall')
+    #     ... self.filter(name__eq='Kendall')
+    #     ... self.filter(age__gt=15)
+    #     ... self.filter(name__in=['Kendall'])
+    #     """
+    #     tokens = self.backend.decompose_filters(**kwargs)
+    #     filters = self.backend.build_filters(tokens)
 
-        if len(filters) > 1:
-            filters = [' and '.join(filters)]
+    #     if len(filters) > 1:
+    #         filters = [' and '.join(filters)]
 
-        select_sql = self.backend.SELECT.format_map({
-            'fields': self.backend.comma_join(['rowid', '*']),
-            'table': self.name,
-        })
-        where_clause = self.backend.WHERE_CLAUSE.format_map({
-            'params': self.backend.comma_join(filters)
-        })
-        sql = [select_sql, where_clause]
-        query = self.query_class(self.backend, sql, table=self)
-        query._table = self
-        query.run()
-        return query.result_cache
+    #     select_sql = self.backend.SELECT.format_map({
+    #         'fields': self.backend.comma_join(['rowid', '*']),
+    #         'table': self.name,
+    #     })
+    #     where_clause = self.backend.WHERE_CLAUSE.format_map({
+    #         'params': self.backend.comma_join(filters)
+    #     })
+    #     sql = [select_sql, where_clause]
+    #     query = self.query_class(self.backend, sql, table=self)
+    #     query._table = self
+    #     query.run()
+    #     return query.result_cache
 
-    def first(self):
-        """Returns the first row from
-        a database table"""
-        result = self.all()
-        return result[0]
+    # def first(self):
+    #     """Returns the first row from
+    #     a database table"""
+    #     result = self.all()
+    #     return result[0]
 
-    def last(self):
-        """Returns the last row from
-        a database table"""
-        result = self.all()
-        return result[-1]
+    # def last(self):
+    #     """Returns the last row from
+    #     a database table"""
+    #     result = self.all()
+    #     return result[-1]
 
-    def create(self, **kwargs):
-        """Creates a new row in the database table
+    # def create(self, **kwargs):
+    #     """Creates a new row in the database table
 
-        >>> self.create(name='Kendall')
-        """
-        fields, values = self.backend.dict_to_sql(kwargs, quote_values=False)
-        values = self.validate_values(fields, values)
+    #     >>> self.create(name='Kendall')
+    #     """
+    #     fields, values = self.backend.dict_to_sql(kwargs, quote_values=False)
+    #     values = self.validate_values(fields, values)
 
-        joined_fields = self.backend.comma_join(fields)
-        joined_values = self.backend.comma_join(values)
-        sql = self.backend.INSERT.format(
-            table=self.name,
-            fields=joined_fields,
-            values=joined_values
-        )
-        query = self.query_class(self.backend, [sql])
-        query._table = self
-        query.run(commit=True)
-        return self.last()
+    #     joined_fields = self.backend.comma_join(fields)
+    #     joined_values = self.backend.comma_join(values)
+    #     sql = self.backend.INSERT.format(
+    #         table=self.name,
+    #         fields=joined_fields,
+    #         values=joined_values
+    #     )
+    #     query = self.query_class(self.backend, [sql])
+    #     query._table = self
+    #     query.run(commit=True)
+    #     return self.last()
 
-    def bulk_create(self, objs):
-        new_objects = []
+    # def bulk_create(self, objs):
+    #     new_objects = []
 
-        # Use a namedtuple to ensure that the values
-        # that are entered match the fields on the
-        # database. In other words, the data entered
-        # always matches the fields of the database
-        true_field_names = list(
-            filter(lambda x: x != 'rowid', self.field_names))
-        defaults = [None] * len(true_field_names)
-        item = namedtuple(self.name, true_field_names, defaults=defaults)
+    #     # Use a namedtuple to ensure that the values
+    #     # that are entered match the fields on the
+    #     # database. In other words, the data entered
+    #     # always matches the fields of the database
+    #     true_field_names = list(
+    #         filter(lambda x: x != 'rowid', self.field_names))
+    #     defaults = [None] * len(true_field_names)
+    #     item = namedtuple(self.name, true_field_names, defaults=defaults)
 
-        for obj in objs:
-            if isinstance(obj, dict):
-                new_objects.append(item(**obj))
+    #     for obj in objs:
+    #         if isinstance(obj, dict):
+    #             new_objects.append(item(**obj))
 
-            # https://stackoverflow.com/questions/2166818/how-to-check-if-an-object-is-an-instance-of-a-namedtuple
-            if hasattr(obj, '_fields'):
-                new_objects.append(obj)
+    #         # https://stackoverflow.com/questions/2166818/how-to-check-if-an-object-is-an-instance-of-a-namedtuple
+    #         if hasattr(obj, '_fields'):
+    #             new_objects.append(obj)
 
-        new_item = {}
-        for obj in new_objects:
-            for field in obj._fields:
-                new_item[field] = getattr(obj, field)
-            self.create(**new_item)
+    #     new_item = {}
+    #     for obj in new_objects:
+    #         for field in obj._fields:
+    #             new_item[field] = getattr(obj, field)
+    #         self.create(**new_item)
 
-    def get(self, **kwargs):
-        """Returns a specific row from the database
-        based on a set of criteria
+    # def get(self, **kwargs):
+    #     """Returns a specific row from the database
+    #     based on a set of criteria
 
-        >>> self.get(id__eq=1)
-        ... self.get(id=1)
-        """
-        base_return_fields = ['rowid', '*']
-        filters = self.backend.build_filters(
-            self.backend.decompose_filters(**kwargs)
-        )
+    #     >>> self.get(id__eq=1)
+    #     ... self.get(id=1)
+    #     """
+    #     base_return_fields = ['rowid', '*']
+    #     filters = self.backend.build_filters(
+    #         self.backend.decompose_filters(**kwargs)
+    #     )
 
-        # Functions SQL: select rowid, *, lower(url) from table
-        select_sql = self.backend.SELECT.format_map({
-            'fields': self.backend.comma_join(base_return_fields),
-            'table': self.name
-        })
-        sql = [select_sql]
+    #     # Functions SQL: select rowid, *, lower(url) from table
+    #     select_sql = self.backend.SELECT.format_map({
+    #         'fields': self.backend.comma_join(base_return_fields),
+    #         'table': self.name
+    #     })
+    #     sql = [select_sql]
 
-        # Filters SQL: select rowid, * from table where url='http://'
-        joined_statements = ' and '.join(filters)
-        where_clause = self.backend.WHERE_CLAUSE.format_map({
-            'params': joined_statements
-        })
-        sql.extend([where_clause])
+    #     # Filters SQL: select rowid, * from table where url='http://'
+    #     joined_statements = ' and '.join(filters)
+    #     where_clause = self.backend.WHERE_CLAUSE.format_map({
+    #         'params': joined_statements
+    #     })
+    #     sql.extend([where_clause])
 
-        query = self.query_class(self.backend, sql, table=self)
-        query._table = self
-        query.run()
+    #     query = self.query_class(self.backend, sql, table=self)
+    #     query._table = self
+    #     query.run()
 
-        if not query.result_cache:
-            return None
+    #     if not query.result_cache:
+    #         return None
 
-        if len(query.result_cache) > 1:
-            raise ValueError('Returned more than 1 value')
+    #     if len(query.result_cache) > 1:
+    #         raise ValueError('Returned more than 1 value')
 
-        return query.result_cache[0]
+    #     return query.result_cache[0]
 
-    def annotate(self, **kwargs):
-        """Annotations implements the usage of
-        functions in the query
+    # def annotate(self, **kwargs):
+    #     """Annotations implements the usage of
+    #     functions in the query
 
-        For example, if we want the iteration of each
-        value in the database to be returned in lowercase
-        or in uppercase
+    #     For example, if we want the iteration of each
+    #     value in the database to be returned in lowercase
+    #     or in uppercase
 
-        >>> self.annotate(lowered_name=Lower('name'))
-        ... self.annotate(uppered_name=Upper('name'))
+    #     >>> self.annotate(lowered_name=Lower('name'))
+    #     ... self.annotate(uppered_name=Upper('name'))
 
-        If we want to return only the year section of a date
+    #     If we want to return only the year section of a date
 
-        >>> self.annotate(year=ExtractYear('created_on'))
-        """
-        base_return_fields = ['rowid', '*']
-        fields = self.backend.build_annotation(**kwargs)
-        base_return_fields.extend(fields)
-        self.field_names = self.field_names + list(kwargs.keys())
+    #     >>> self.annotate(year=ExtractYear('created_on'))
+    #     """
+    #     base_return_fields = ['rowid', '*']
+    #     fields = self.backend.build_annotation(**kwargs)
+    #     base_return_fields.extend(fields)
+    #     self.field_names = self.field_names + list(kwargs.keys())
 
-        sql = self.backend.SELECT.format_map({
-            'fields': self.backend.comma_join(base_return_fields),
-            'table': self.name
-        })
+    #     sql = self.backend.SELECT.format_map({
+    #         'fields': self.backend.comma_join(base_return_fields),
+    #         'table': self.name
+    #     })
 
-        # TODO: Create a query and only run it when
-        # we need with QuerySet for the other functions
-        query = Query(self.backend, [sql], table=self)
-        query._table = self
-        # query.run()
-        # return query.result_cache
-        return QuerySet(query)
+    #     # TODO: Create a query and only run it when
+    #     # we need with QuerySet for the other functions
+    #     query = Query(self.backend, [sql], table=self)
+    #     query._table = self
+    #     # query.run()
+    #     # return query.result_cache
+    #     return QuerySet(query)
 
-    def order_by(self, *fields):
-        base_return_fields = ['rowid', '*']
-        ascending_fields = set()
-        descending_fields = set()
+    # def order_by(self, *fields):
+    #     base_return_fields = ['rowid', '*']
+    #     ascending_fields = set()
+    #     descending_fields = set()
 
-        for field in fields:
-            if field.startswith('-'):
-                descending_fields.add(field.removeprefix('-'))
-                continue
-            ascending_fields.add(field)
+    #     for field in fields:
+    #         if field.startswith('-'):
+    #             descending_fields.add(field.removeprefix('-'))
+    #             continue
+    #         ascending_fields.add(field)
 
-        sql = self.backend.SELECT.format_map({
-            'fields': self.backend.comma_join(base_return_fields),
-            'table': self.name
-        })
+    #     sql = self.backend.SELECT.format_map({
+    #         'fields': self.backend.comma_join(base_return_fields),
+    #         'table': self.name
+    #     })
 
-        ascending_fields = [
-            self.backend.ASCENDING.format(field=field)
-            for field in ascending_fields
-        ]
-        descending_fields = [
-            self.backend.DESCENDNIG.format(field=field)
-            for field in descending_fields
-        ]
-        conditions = ascending_fields + descending_fields
+    #     ascending_fields = [
+    #         self.backend.ASCENDING.format(field=field)
+    #         for field in ascending_fields
+    #     ]
+    #     descending_fields = [
+    #         self.backend.DESCENDNIG.format(field=field)
+    #         for field in descending_fields
+    #     ]
+    #     conditions = ascending_fields + descending_fields
 
-        order_by_clause = self.backend.ORDER_BY.format_map({
-            'conditions': self.backend.comma_join(conditions)
-        })
-        sql = [sql, order_by_clause]
-        query = Query(self.backend, sql, table=self)
-        query.run()
-        return query.result_cache
+    #     order_by_clause = self.backend.ORDER_BY.format_map({
+    #         'conditions': self.backend.comma_join(conditions)
+    #     })
+    #     sql = [sql, order_by_clause]
+    #     query = Query(self.backend, sql, table=self)
+    #     query.run()
+    #     return query.result_cache
 
 
 class Table(AbstractTable):
@@ -362,10 +362,15 @@ class DatabaseManager:
 
     def __init__(self):
         self.table_map = {}
+        self.database = None
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__}: {self.database}>'
 
     def __get__(self, instance, cls=None):
         if not self.table_map:
             self.table_map = instance.table_map
+            self.database = instance
         return self
 
     def first(self, table):

@@ -33,8 +33,10 @@ database.migrate()
 # print('Last', database.objects.last('url'))
 # print('Filter', database.objects.filter('url', id__eq=3))
 # print('Get', database.objects.get('url', id__eq=1))
-print('Get', database.objects.annotate('url', lowered_url=Lower('url')))
+# print('Get', database.objects.annotate('url', lowered_url=Lower('url')))
 # print(dict(database.objects.first('url')))
+database.objects.create('business', name='Gucci')
+
 
 # def make_migrations(*tables):
 #     """Writes the physical changes to the

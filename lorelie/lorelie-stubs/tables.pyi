@@ -1,13 +1,13 @@
 from ast import List
 from typing import Any, Literal, OrderedDict, Type, Union, NamedTuple
 
-from kryptone.backends import BaseRow, SQLiteBackend
-from kryptone.constraints import CheckConstraint
-from kryptone.fields import Field
-from kryptone.indexes import Index
-from kryptone.migrations import Migrations
-from kryptone.queries import Query, QuerySet
-from kryptone.functions import Functions
+from lorelie.backends import BaseRow, SQLiteBackend
+from lorelie.constraints import CheckConstraint
+from lorelie.fields import Field
+from lorelie.indexes import Index
+from lorelie.migrations import Migrations
+from lorelie.queries import Query, QuerySet
+from lorelie.functions import Functions
 
 
 class BaseTable(type):

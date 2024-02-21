@@ -1,12 +1,9 @@
 import pathlib
 import unittest
 
-from kryptone.conf import settings
-from kryptone.backends import SQL
-from kryptone.backends import Lower
-
-settings['PROJECT_PATH'] = pathlib.Path(
-    __file__).parent.parent.absolute().joinpath('testproject')
+from lorelie import PROJECT_PATH
+from lorelie.backends import SQL
+from lorelie.backends import Lower
 
 
 class TestSQL(unittest.TestCase):

@@ -1,6 +1,6 @@
 
-from kryptone.fields import Field
-from kryptone.tables import Table
+from lorelie.fields import Field
+from lorelie.tables import Table
 
 
 def create_table(create=False):

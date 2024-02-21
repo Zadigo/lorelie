@@ -1,7 +1,7 @@
 import unittest
 
-from kryptone.backends import BaseRow
-from kryptone.queries import Query
+from lorelie.backends import BaseRow
+from lorelie.queries import Query
 from tests.db import create_table
 
 

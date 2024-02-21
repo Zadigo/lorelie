@@ -1,6 +1,6 @@
 from typing import Any
 
-from kryptone.backends import SQLiteBackend
+from lorelie.backends import SQLiteBackend
 
 
 class CheckConstraint:

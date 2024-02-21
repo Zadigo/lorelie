@@ -1,7 +1,7 @@
 import unittest
 
-from kryptone.fields import BooleanField, Field, IntegerField
-from kryptone.tables import Table
+from lorelie.fields import BooleanField, Field, IntegerField
+from lorelie.tables import Table
 
 
 class TestField(unittest.TestCase):

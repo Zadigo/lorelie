@@ -1,4 +1,4 @@
-from kryptone.backends import SQLiteBackend
+from lorelie.backends import SQLiteBackend
 
 
 class Functions:

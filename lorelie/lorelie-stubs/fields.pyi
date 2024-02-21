@@ -1,6 +1,6 @@
 from typing import Any, Callable, Tuple, Type, Union
 
-from kryptone.tables import Table
+from lorelie.tables import Table
 
 
 class Field:

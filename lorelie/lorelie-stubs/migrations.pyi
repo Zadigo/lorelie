@@ -2,9 +2,9 @@ import pathlib
 from functools import cached_property
 from typing import DefaultDict, List, Type
 
-from kryptone.backends import SQLiteBackend
-from kryptone.fields import Field
-from kryptone.tables import Table
+from lorelie.backends import SQLiteBackend
+from lorelie.fields import Field
+from lorelie.tables import Table
 
 
 class Migrations:

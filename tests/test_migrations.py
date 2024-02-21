@@ -1,14 +1,10 @@
 import pathlib
 import unittest
 
-from kryptone.backends import Migrations
-from kryptone.conf import settings
-from kryptone.backends import Table
-from kryptone.backends import Field
-
-
-settings['PROJECT_PATH'] = pathlib.Path(
-    __file__).parent.parent.absolute().joinpath('testproject')
+from lorelie.backends import Migrations
+from lorelie import PROJECT_PATH
+from lorelie.backends import Table
+from lorelie.backends import Field
 
 
 TEST_MIGRATION = {

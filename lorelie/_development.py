@@ -10,7 +10,8 @@ from sqlite3 import Row
 
 import pytz
 
-from lorelie.conf import settings
+from lorelie import PROJECT_PATH
+# from lorelie.conf import settings
 
 DATABASE = 'scraping'
 
@@ -636,7 +637,7 @@ class Migrations:
     backend_class = SQLiteBackend
 
     def __init__(self):
-        self.file = settings.PROJECT_PATH / 'migrations.json'
+        self.file = PROJECT_PATH / 'migrations.json'
         self.CACHE = self.read_content
         self.file_id = self.CACHE['id']
 
@@ -808,7 +809,7 @@ class Migrations:
         """Creates a blank initial migration file"""
         migration_content = {}
 
-        file_path = settings.PROJECT_PATH / 'migrations.json'
+        file_path = PROJECT_PATH / 'migrations.json'
         if not file_path.exists():
             file_path.touch()
 
@@ -826,7 +827,7 @@ class Migrations:
         # necessary e.g. dropped tables, changed fields
         if self.has_migrations:
             cache_copy = self.CACHE.copy()
-            with open(settings.PROJECT_PATH / 'migrations.json', mode='w+') as f:
+            with open(PROJECT_PATH / 'migrations.json', mode='w+') as f:
                 cache_copy['id'] = secrets.token_hex(5)
                 cache_copy['date'] = str(datetime.datetime.now())
                 cache_copy['number'] = self.CACHE['number'] + 1

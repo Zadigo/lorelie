@@ -4,7 +4,8 @@ import secrets
 from collections import defaultdict
 from functools import cached_property
 
-from lorelie.conf import settings
+# from lorelie.conf import settings
+from lorelie import PROJECT_PATH
 from lorelie.backends import SQLiteBackend
 from lorelie.fields import Field
 from lorelie.queries import Query
@@ -18,7 +19,7 @@ class Migrations:
     backend_class = SQLiteBackend
 
     def __init__(self, database_name=None):
-        self.file = settings.PROJECT_PATH / 'migrations.json'
+        self.file = PROJECT_PATH / 'migrations.json'
         self.database_name = database_name
         self.CACHE = self.read_content
         self.file_id = self.CACHE['id']
@@ -194,7 +195,7 @@ class Migrations:
         """Creates a blank initial migration file"""
         migration_content = {}
 
-        file_path = settings.PROJECT_PATH / 'migrations.json'
+        file_path = PROJECT_PATH / 'migrations.json'
         if not file_path.exists():
             file_path.touch()
 
@@ -219,7 +220,7 @@ class Migrations:
             # )
 
             cache_copy = self.CACHE.copy()
-            with open(settings.PROJECT_PATH / 'migrations.json', mode='w+') as f:
+            with open(PROJECT_PATH / 'migrations.json', mode='w+') as f:
                 cache_copy['id'] = secrets.token_hex(5)
                 cache_copy['date'] = str(datetime.datetime.now())
                 cache_copy['number'] = self.CACHE['number'] + 1

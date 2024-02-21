@@ -1,8 +1,8 @@
 import datetime
 import pathlib
 from collections import namedtuple
-from lorelie.conf import settings
-from lorelie.db import tables
+# from lorelie.conf import settings
+from lorelie import tables
 from lorelie.fields import BooleanField, CharField, Field, JSONField
 from lorelie.functions import ExtractYear, Lower, Max
 from lorelie.migrations import Migrations
@@ -16,7 +16,7 @@ from lorelie.tables import Database, Table
 # table = Table('something_urls', database_name='scraping', fields=fields)
 # table.prepare()
 
-setattr(settings, 'PROJECT_PATH', pathlib.Path('.'))
+# setattr(settings, 'PROJECT_PATH', pathlib.Path('.'))
 
 table1 = Table('url', fields=[
     CharField('url')
@@ -33,8 +33,8 @@ database.migrate()
 # print('Last', database.objects.last('url'))
 # print('Filter', database.objects.filter('url', id__eq=3))
 # print('Get', database.objects.get('url', id__eq=1))
-# print('Get', database.objects.annotate('url', lowered_url=Lower('url')))
-print(dict(database.objects.first('url')))
+print('Get', database.objects.annotate('url', lowered_url=Lower('url')))
+# print(dict(database.objects.first('url')))
 
 # def make_migrations(*tables):
 #     """Writes the physical changes to the

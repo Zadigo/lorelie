@@ -1,3 +1,8 @@
+import pathlib
+
+PROJECT_PATH = pathlib.Path(__file__).parent.parent.absolute()
+
+
 class BaseConnection:
     connection_settings = None
     configured = False
@@ -5,5 +10,5 @@ class BaseConnection:
     def connect(self):
         pass
 
-DATABASE = 'scraping'
 
+DATABASE = 'scraping'

@@ -1,6 +1,6 @@
 import json
 
-from lorelie.db.constraints import MaxLengthConstraint
+from lorelie.constraints import MaxLengthConstraint
 
 
 class Field:
@@ -108,7 +108,7 @@ class Field:
         return base_field_parameters
 
     def prepare(self, table):
-        from lorelie.db.tables import Table
+        from lorelie.tables import Table
         if not isinstance(table, Table):
             raise ValueError(f"{table} should be an instance of Table")
         self.table = table

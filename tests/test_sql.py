@@ -2,10 +2,11 @@ import pathlib
 import unittest
 
 from kryptone.conf import settings
-from kryptone.db.backends import SQL
-from kryptone.db.backends import Lower
+from kryptone.backends import SQL
+from kryptone.backends import Lower
 
-settings['PROJECT_PATH'] = pathlib.Path(__file__).parent.parent.absolute().joinpath('testproject')
+settings['PROJECT_PATH'] = pathlib.Path(
+    __file__).parent.parent.absolute().joinpath('testproject')
 
 
 class TestSQL(unittest.TestCase):
@@ -32,10 +33,11 @@ class TestSQL(unittest.TestCase):
 
     def test_finalize_sql(self):
         self.assertTrue(self.instance.finalize_sql('a').endswith(';'))
-    
+
     def test_de_sqlize_statement(self):
-        self.assertTrue(not self.instance.de_sqlize_statement('a;').endswith(';'))
-    
+        self.assertTrue(
+            not self.instance.de_sqlize_statement('a;').endswith(';'))
+
     def test_quote_wildcard(self):
         self.assertTrue(self.instance.quote_startswith('name') == "'name%'")
         self.assertTrue(self.instance.quote_endswith('name') == "'%name'")
@@ -54,7 +56,8 @@ class TestSQL(unittest.TestCase):
             [{'name__lte': 'Kendall'}, [('name', '<=', 'Kendall')]],
             [{'name__gte': 'Kendall'}, [('name', '>=', 'Kendall')]],
             [{'name__contains': 'Kendall'}, [('name', 'like', 'Kendall')]],
-            [{'name__startswith': 'Kendall'}, [('name', 'startswith', 'Kendall')]],
+            [{'name__startswith': 'Kendall'}, [
+                ('name', 'startswith', 'Kendall')]],
             [{'name__endswith': 'Kendall'}, [('name', 'endswith', 'Kendall')]],
             [{'name__range': 'Kendall'}, [('name', 'between', 'Kendall')]],
             [{'name__ne': 'Kendall'}, [('name', '!=', 'Kendall')]],
@@ -79,7 +82,8 @@ class TestSQL(unittest.TestCase):
             [[('name', 'startswith', 'Kendall')], ["name like 'Kendall%'"]],
             [[('name', 'endswith', 'Kendall')], ["name like '%Kendall'"]],
             [[('name', 'between', [1, 2])], ["between 1 and 2"]],
-            [[('name', 'in',  ['Kendall', 'Kylie'])], ["name in ('Kendall', 'Kylie')"]],
+            [[('name', 'in',  ['Kendall', 'Kylie'])],
+             ["name in ('Kendall', 'Kylie')"]],
             # TODO: Implement
             # [[('name', 'isnull', 'Kendall')], ["name = '1'"]]
         ]
@@ -88,7 +92,6 @@ class TestSQL(unittest.TestCase):
             with self.subTest(argument=argument):
                 result = self.instance.build_filters(argument[0])
                 self.assertListEqual(result, argument[1])
-
 
     def test_build_annotations(self):
         arguments = [

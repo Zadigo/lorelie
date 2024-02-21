@@ -1,7 +1,7 @@
 import sqlite3
 
-from lorelie.db.functions import Functions
-from lorelie.db.queries import Query
+from lorelie.functions import Functions
+from lorelie.queries import Query
 
 
 class BaseRow:

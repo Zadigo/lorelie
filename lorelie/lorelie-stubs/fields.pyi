@@ -1,6 +1,7 @@
 from typing import Any, Callable, Tuple, Type, Union
 
-from kryptone.db.tables import Table
+from kryptone.tables import Table
+
 
 class Field:
     python_type: Type[Union[str, bool, list, dict]] = ...
@@ -60,11 +61,11 @@ class IntegerField(Field):
     max_value: int = ...
 
     def __init__(
-        self, 
-        name: str, 
-        *, 
-        min_value: int= ...,
-        max_value: int=...,
+        self,
+        name: str,
+        *,
+        min_value: int = ...,
+        max_value: int = ...,
         **kwargs
     ) -> None: ...
 
@@ -79,8 +80,8 @@ class BooleanField(Field):
 
 
 class AutoField(Field):
-    python_type : Type[int] = ...
-    
+    python_type: Type[int] = ...
+
     def __init__(self):
         self.base_field_parameters['auto increment'] = True
         super().__init__('id', primary_key=True)

@@ -1,6 +1,6 @@
 
-from kryptone.db.fields import Field
-from kryptone.db.tables import Table
+from kryptone.fields import Field
+from kryptone.tables import Table
 
 
 def create_table(create=False):
@@ -11,4 +11,3 @@ def create_table(create=False):
     if create:
         table.create(name='Kendall Jenner')
     return table
-    

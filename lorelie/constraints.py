@@ -1,6 +1,6 @@
 import secrets
 
-from lorelie.db.backends import SQLiteBackend
+from lorelie.backends import SQLiteBackend
 
 
 class CheckConstraint:

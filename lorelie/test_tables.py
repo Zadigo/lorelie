@@ -1,8 +1,8 @@
 import unittest
-from lorelie.db.backends import BaseRow
+from lorelie.backends import BaseRow
 
-from lorelie.db.fields import CharField
-from lorelie.db.tables import Table
+from lorelie.fields import CharField
+from lorelie.tables import Table
 
 
 class TestTable(unittest.TestCase):

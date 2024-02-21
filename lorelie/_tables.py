@@ -1,6 +1,6 @@
-from lorelie.db.fields import CharField
-from lorelie.db.functions import Length
-from lorelie.db.tables import Table
+from lorelie.fields import CharField
+from lorelie.functions import Length
+from lorelie.tables import Table
 
 
 table = Table('single_table', inline_build=True, fields=[

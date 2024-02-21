@@ -1,13 +1,13 @@
 from ast import List
 from typing import Any, Literal, OrderedDict, Type, Union, NamedTuple
 
-from kryptone.db.backends import BaseRow, SQLiteBackend
-from kryptone.db.constraints import CheckConstraint
-from kryptone.db.fields import Field
-from kryptone.db.indexes import Index
-from kryptone.db.migrations import Migrations
-from kryptone.db.queries import Query, QuerySet
-from kryptone.db.functions import Functions
+from kryptone.backends import BaseRow, SQLiteBackend
+from kryptone.constraints import CheckConstraint
+from kryptone.fields import Field
+from kryptone.indexes import Index
+from kryptone.migrations import Migrations
+from kryptone.queries import Query, QuerySet
+from kryptone.functions import Functions
 
 
 class BaseTable(type):

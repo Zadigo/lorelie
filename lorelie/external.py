@@ -10,7 +10,7 @@ from googleapiclient.errors import HttpError
 from lorelie import logger
 from lorelie.conf import settings
 from lorelie.db import BaseConnection
-from lorelie.db.connections import redis_connection
+from lorelie.connections import redis_connection
 from lorelie.utils.file_readers import write_json_document
 
 AIRTABLE_ID_CACHE = set()

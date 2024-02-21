@@ -1,4 +1,4 @@
-from kryptone.db.backends import SQLiteBackend
+from kryptone.backends import SQLiteBackend
 
 
 class Functions:

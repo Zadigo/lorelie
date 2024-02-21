@@ -1,10 +1,10 @@
 from collections import OrderedDict, namedtuple
 
-from lorelie.db.backends import SQLiteBackend
-from lorelie.db.exceptions import ImproperlyConfiguredError
-from lorelie.db.fields import AutoField, Field
-from lorelie.db.migrations import Migrations
-from lorelie.db.queries import Query, QuerySet
+from lorelie.backends import SQLiteBackend
+from lorelie.exceptions import ImproperlyConfiguredError
+from lorelie.fields import AutoField, Field
+from lorelie.migrations import Migrations
+from lorelie.queries import Query, QuerySet
 
 
 class BaseTable(type):
@@ -447,13 +447,13 @@ class DatabaseManager:
         })
         sql = [select_sql, where_clause]
         query = selected_table.query_class(
-            selected_table.backend, 
-            sql, 
+            selected_table.backend,
+            sql,
             table=selected_table
         )
         query.run()
         return query.result_cache
-    
+
     def get(self, table, **kwargs):
         """Returns a specific row from the database
         based on a set of criteria
@@ -482,8 +482,8 @@ class DatabaseManager:
         sql.extend([where_clause])
 
         query = selected_table.query_class(
-            selected_table.backend, 
-            sql, 
+            selected_table.backend,
+            sql,
             table=selected_table
         )
         query.run()
@@ -515,7 +515,8 @@ class DatabaseManager:
         base_return_fields = ['rowid', '*']
         fields = selected_table.backend.build_annotation(**kwargs)
         base_return_fields.extend(fields)
-        selected_table.field_names = selected_table.field_names + list(kwargs.keys())
+        selected_table.field_names = selected_table.field_names + \
+            list(kwargs.keys())
 
         sql = selected_table.backend.SELECT.format_map({
             'fields': selected_table.backend.comma_join(base_return_fields),
@@ -525,13 +526,14 @@ class DatabaseManager:
         # TODO: Create a query and only run it when
         # we need with QuerySet for the other functions
         query = Query(
-            selected_table.backend, 
-            [sql], 
+            selected_table.backend,
+            [sql],
             table=selected_table
         )
         # query.run()
         # return query.result_cache
         return QuerySet(query)
+
 
 class Database:
     """This class links and unifies independent

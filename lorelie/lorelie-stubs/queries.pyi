@@ -1,7 +1,7 @@
 from typing import Generator, List
 
-from kryptone.db.backends import BaseRow, SQLiteBackend
-from kryptone.db.tables import Table
+from kryptone.backends import BaseRow, SQLiteBackend
+from kryptone.tables import Table
 
 
 class Query:

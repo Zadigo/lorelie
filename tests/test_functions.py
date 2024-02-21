@@ -1,7 +1,7 @@
 import unittest
-from kryptone.db.backends import SQLiteBackend
+from kryptone.backends import SQLiteBackend
 
-from kryptone.db.functions import Lower, Max, Upper, Length, ExtractYear
+from kryptone.functions import Lower, Max, Upper, Length, ExtractYear
 from tests.db import create_table
 
 

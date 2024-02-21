@@ -1,13 +1,14 @@
 import pathlib
 import unittest
 
-from kryptone.db.backends import Migrations
+from kryptone.backends import Migrations
 from kryptone.conf import settings
-from kryptone.db.backends import Table
-from kryptone.db.backends import Field
+from kryptone.backends import Table
+from kryptone.backends import Field
 
 
-settings['PROJECT_PATH'] = pathlib.Path(__file__).parent.parent.absolute().joinpath('testproject')
+settings['PROJECT_PATH'] = pathlib.Path(
+    __file__).parent.parent.absolute().joinpath('testproject')
 
 
 TEST_MIGRATION = {
@@ -79,11 +80,12 @@ class TestMigrations(unittest.TestCase):
         self.assertIsInstance(field_url, Field)
         self.assertTrue(field_url.name == 'url')
         # self.assertListEqual(
-        #     self.instance.get_table_fields('urls_seen')[1]['params'], 
+        #     self.instance.get_table_fields('urls_seen')[1]['params'],
         #     field_url.base_field_parameters
         # )
         self.assertTrue(field_id.primary_key)
         print(vars(field_id))
+
 
 if __name__ == '__main__':
     unittest.main()

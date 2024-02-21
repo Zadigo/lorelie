@@ -9,7 +9,7 @@ class Query:
     def __init__(self, backend, sql_tokens, table=None):
         self._table = table
 
-        from lorelie.db.backends import SQLiteBackend
+        from lorelie.backends import SQLiteBackend
         if not isinstance(backend, SQLiteBackend):
             raise ValueError('Connection should be an instance SQLiteBackend')
 

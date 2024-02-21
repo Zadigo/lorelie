@@ -3,10 +3,10 @@ import pathlib
 from collections import namedtuple
 from lorelie.conf import settings
 from lorelie.db import tables
-from lorelie.db.fields import BooleanField, CharField, Field, JSONField
-from lorelie.db.functions import ExtractYear, Lower, Max
-from lorelie.db.migrations import Migrations
-from lorelie.db.tables import Database, Table
+from lorelie.fields import BooleanField, CharField, Field, JSONField
+from lorelie.functions import ExtractYear, Lower, Max
+from lorelie.migrations import Migrations
+from lorelie.tables import Database, Table
 
 # fields = [
 #     CharField('url', max_length=500, unique=True),

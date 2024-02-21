@@ -2,9 +2,10 @@ import pathlib
 from functools import cached_property
 from typing import DefaultDict, List, Type
 
-from kryptone.db.backends import SQLiteBackend
-from kryptone.db.fields import Field
-from kryptone.db.tables import Table
+from kryptone.backends import SQLiteBackend
+from kryptone.fields import Field
+from kryptone.tables import Table
+
 
 class Migrations:
     CACHE: dict[str] = ...

@@ -1,5 +1,5 @@
 import unittest
-from kryptone.db.backends import BaseRow, SQLiteBackend
+from kryptone.backends import BaseRow, SQLiteBackend
 
 
 def create_sqlite_table(backend):

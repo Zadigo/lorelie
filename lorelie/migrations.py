@@ -5,9 +5,9 @@ from collections import defaultdict
 from functools import cached_property
 
 from lorelie.conf import settings
-from lorelie.db.backends import SQLiteBackend
-from lorelie.db.fields import Field
-from lorelie.db.queries import Query
+from lorelie.backends import SQLiteBackend
+from lorelie.fields import Field
+from lorelie.queries import Query
 
 
 class Migrations:
@@ -64,7 +64,7 @@ class Migrations:
         return indexes
 
     def create_migration_table(self):
-        from lorelie.db.tables import Table
+        from lorelie.tables import Table
         table_fields = [
             Field('name'),
             Field('applied')
@@ -73,7 +73,7 @@ class Migrations:
         table.prepare()
 
     def check(self, table_instances={}):
-        from lorelie.db.tables import Table
+        from lorelie.tables import Table
 
         errors = []
         for name, table_instance in table_instances.items():

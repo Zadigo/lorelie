@@ -1,7 +1,7 @@
 import unittest
 
-from kryptone.db.fields import BooleanField, Field, IntegerField
-from kryptone.db.tables import Table
+from kryptone.fields import BooleanField, Field, IntegerField
+from kryptone.tables import Table
 
 
 class TestField(unittest.TestCase):

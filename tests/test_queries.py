@@ -1,12 +1,12 @@
 import unittest
 
-from kryptone.db.backends import BaseRow
-from kryptone.db.queries import Query
+from kryptone.backends import BaseRow
+from kryptone.queries import Query
 from tests.db import create_table
 
 
 class TestQuery(unittest.TestCase):
-    def setUp(self):        
+    def setUp(self):
         backend = create_table()
         select_clause = backend.SELECT.format_map({
             'fields': backend.comma_join(['rowid', '*']),

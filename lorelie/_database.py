@@ -1,8 +1,8 @@
 # import pathlib
 
 # from lorelie.conf import settings
-# from lorelie.db.fields import CharField
-# from lorelie.db.tables import Database, Table
+# from lorelie.fields import CharField
+# from lorelie.tables import Database, Table
 
 # setattr(settings, 'PROJECT_PATH', pathlib.Path('.'))
 

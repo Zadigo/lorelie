@@ -33,3 +33,7 @@ class Min(Functions):
 
 class ExtractYear(Functions):
     ...
+
+
+class Count(Functions):
+    ...

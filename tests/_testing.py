@@ -4,7 +4,7 @@ from collections import namedtuple
 # from lorelie.conf import settings
 from lorelie import tables
 from lorelie.fields import BooleanField, CharField, Field, JSONField
-from lorelie.functions import ExtractYear, Lower, Max
+from lorelie.functions import Count, ExtractYear, Lower, Max
 from lorelie.migrations import Migrations
 from lorelie.tables import Database, Table
 
@@ -35,8 +35,11 @@ database.migrate()
 # print('Get', database.objects.get('url', id__eq=1))
 # print('Get', database.objects.annotate('url', lowered_url=Lower('url')))
 # print(dict(database.objects.first('url')))
-database.objects.create('business', name='Gucci')
-
+# database.objects.create('business', name='Gucci')
+# a = database.objects.annotate('business', url_count=Count('name'))
+# print([vars(x) for x in a])
+# print(database.objects.as_values('business', 'id', 'name'))
+print(database.objects.as_dataframe('business', 'id', 'name'))
 
 # def make_migrations(*tables):
 #     """Writes the physical changes to the

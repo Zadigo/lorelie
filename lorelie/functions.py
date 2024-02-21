@@ -13,7 +13,7 @@ class Functions:
 class Lower(Functions):
     """Returns each values of the given
     column in lowercase
-    
+
     >>> table.annotate(lowered_url=Lower('url'))
     """
 
@@ -27,7 +27,7 @@ class Lower(Functions):
 class Upper(Lower):
     """Returns each values of the given
     column in uppercase
-    
+
     >>> table.annotate(url_upper=Upper('url'))
     """
 
@@ -41,7 +41,7 @@ class Upper(Lower):
 class Length(Functions):
     """Returns length of each iterated values
     from the database
-    
+
     >>> table.annotate(url_length=Length('url'))
     """
 
@@ -54,16 +54,15 @@ class Length(Functions):
 
 class Max(Functions):
     """Returns the max value of a given
-    column. """
+    column"""
+
     def function_sql(self):
         # sql = self.backend.MAX.format_map({
         #     'field': self.field_name
         # })
         # return sql
 
-        # select rowid, *
-        # from seen_urls
-        # where rowid = (select max(rowid) from seen_urls)
+        # SELECT rowid, * FROM seen_urls WHERE rowid = (SELECT max(rowid) FROM seen_urls)
         select_clause = self.backend.SELECT.format_map({
             'fields': self.backend.comma_join(['rowid', '*']),
             'table': self.backend.table.name
@@ -85,6 +84,7 @@ class Max(Functions):
 class Min(Functions):
     """Returns the max value of a given
     column. """
+
     def function_sql(self):
         select_clause = self.backend.SELECT.format_map({
             'fields': self.backend.comma_join(['rowid', '*']),
@@ -107,7 +107,7 @@ class Min(Functions):
 class ExtractYear(Functions):
     """Extracts the year section of each
     iterated value
-    
+
     We can annotate a row  with a value
 
     >>> table.annotate(year=ExtractYear('created_on'))
@@ -116,9 +116,23 @@ class ExtractYear(Functions):
 
     >>> table.filter(year__gte=ExtractYear('created_on'))
     """
+
     def function_sql(self):
         sql = self.backend.STRFTIME.format_map({
             'format': self.backend.quote_value('%Y'),
             'value': self.field_name
+        })
+        return sql
+
+
+class Count(Functions):
+    """Counts the number of each value in the database
+
+    >>> instance.objects.annotate('my_table', count_of_names=Count('name'))
+    """
+
+    def function_sql(self):
+        sql = self.backend.COUNT.format_map({
+            'field': self.field_name
         })
         return sql

@@ -1,3 +1,4 @@
+import pandas
 from collections import OrderedDict, namedtuple
 
 from lorelie.backends import SQLiteBackend
@@ -479,8 +480,10 @@ class DatabaseManager:
         })
         sql = [select_sql]
 
+        # FIXME: Use operator_join
         # Filters SQL: select rowid, * from table where url='http://'
-        joined_statements = ' and '.join(filters)
+        # joined_statements = ' and '.join(filters)
+        joined_statements = selected_table.backend.operator_join(filters)
         where_clause = selected_table.backend.WHERE_CLAUSE.format_map({
             'params': joined_statements
         })
@@ -517,9 +520,13 @@ class DatabaseManager:
         >>> self.annotate(year=ExtractYear('created_on'))
         """
         selected_table = self.table_map[table]
+
         base_return_fields = ['rowid', '*']
-        fields = selected_table.backend.build_annotation(**kwargs)
+        sql_functions_dict, special_function_fields, fields = selected_table.backend.build_annotation(
+            **kwargs
+        )
         base_return_fields.extend(fields)
+
         selected_table.field_names = selected_table.field_names + \
             list(kwargs.keys())
 
@@ -528,6 +535,12 @@ class DatabaseManager:
             'table': selected_table.name
         })
 
+        if special_function_fields:
+            groupby_sql = selected_table.backend.GROUP_BY.format_map({
+                'conditions': selected_table.backend.comma_join(special_function_fields)
+            })
+            sql = selected_table.backend.simple_join([sql, groupby_sql])
+
         # TODO: Create a query and only run it when
         # we need with QuerySet for the other functions
         query = Query(
@@ -535,9 +548,36 @@ class DatabaseManager:
             [sql],
             table=selected_table
         )
-        # query.run()
-        # return query.result_cache
         return QuerySet(query)
+    
+    def as_values(self, table, *args):
+        """Returns data from the database as a list
+        of dictionnary values
+        
+        >>> instance.objects.as_values('my_table', 'id')
+        ... [{'id': 1}]
+        """
+        selected_table = self.table_map[table]
+        sql = selected_table.backend.SELECT.format_map({
+            'fields': selected_table.backend.comma_join(list(args)),
+            'table': selected_table.name
+        })
+        query = Query(selected_table.backend, [sql], table=selected_table)
+
+        def dict_iterator(values):
+            for row in values:
+                yield row._cached_data
+        query.run()
+        return list(dict_iterator(query.result_cache))
+
+    def as_dataframe(self, table, *args):
+        """Returns data from the database as a
+        pandas DataFrame object
+        
+        >>> instance.objects.as_dataframe('my_table', 'id')
+        ... pandas.DataFrame
+        """
+        return pandas.DataFrame(self.as_values(table, *args))
 
 
 class Database:

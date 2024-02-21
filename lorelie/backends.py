@@ -1,6 +1,6 @@
 import sqlite3
 
-from lorelie.functions import Functions
+from lorelie.functions import Count, Functions
 from lorelie.queries import Query
 
 
@@ -113,6 +113,7 @@ class SQL:
     DESCENDNIG = '{field} desc'
 
     ORDER_BY = 'order by {conditions}'
+    GROUP_BY = 'group by {conditions}'
     # UNIQUE_INDEX = 'create unique index {name} ON {table}({fields})'
 
     LOWER = 'lower({field})'
@@ -120,6 +121,7 @@ class SQL:
     LENGTH = 'length({field})'
     MAX = 'max({field})'
     MIN = 'min({field})'
+    COUNT = 'count({field})'
 
     STRFTIME = 'strftime({format}, {value})'
 
@@ -146,9 +148,9 @@ class SQL:
     @staticmethod
     def operator_join(values, operator='and'):
         """Joins a set of values using a valid
-        operator
+        operator: and, or
 
-        >>> self.condition_join(["name='Kendall'", "surname='Jenner'"])
+        >>> self.operator_join(["name='Kendall'", "surname='Jenner'"])
         ... "name='Kendall' and surname='Jenner'"
         """
         return f' {operator} '.join(values)
@@ -182,7 +184,8 @@ class SQL:
         return f"({value})"
 
     def quote_startswith(self, value):
-        """Adds a wildcard to quoted value
+        """Creates a startswith wildcard and returns
+        the quoted condition
 
         >>> self.quote_startswith(self, 'kendall')
         ... "'kendall%'"
@@ -191,7 +194,8 @@ class SQL:
         return self.quote_value(value)
 
     def quote_endswith(self, value):
-        """Adds a wildcard to quoted value
+        """Creates a endswith wildcard and returns
+        the quoted condition
 
         >>> self.quote_endswith(self, 'kendall')
         ... "'%kendall'"
@@ -200,7 +204,8 @@ class SQL:
         return self.quote_value(value)
 
     def quote_like(self, value):
-        """Adds a wildcard to quoted value
+        """Creates a like wildcard and returns
+        the quoted condition
 
         >>> self.quote_like(self, 'kendall')
         ... "'%kendall%'"
@@ -209,9 +214,9 @@ class SQL:
         return self.quote_value(value)
 
     def dict_to_sql(self, data, quote_values=True):
-        """Convert a values nested into a dictionnary
-        to a sql usable values. The values are quoted
-        by default before being returned
+        """Convert values nested into a dictionnary
+        to sql usable type values. The column values
+        are quoted by default
 
         >>> self.dict_to_sql({'name__eq': 'Kendall'})
         ... (['name'], ["'Kendall'"])
@@ -346,18 +351,35 @@ class SQL:
         return built_filters
 
     def build_annotation(self, **conditions):
-        function_filters = {}
-        for key, function in conditions.items():
+        """For each database function, creates a special
+        statement as in `count(column_name) as my_special_name`.
+        If we have Count function in our conditions, we have to
+        identify it since it requires a special """
+        sql_functions_dict = {}
+        for alias_name, function in conditions.items():
+            special_function_fields = set()
+
+            if isinstance(function, Count):
+                # The Count database function is a special
+                # function that should regroup the count of
+                # each value. So instead of having
+                # "a, a, b" -> "a - 3" we'd get "a - 2, b - 1"
+                special_function_fields.add(function.field_name)
+
             if isinstance(function, Functions):
                 function.backend = self
-                # Use key as alias instead of column named
-                # "lower(value)" in the returned results
-                function_filters[key] = self.simple_join(
-                    [function.function_sql(), f'as {key}']
+                # Uses "alias_name" as alias instead of the table column
+                # named in "lower(value)" in the returned results
+                statements_to_join = [
+                    function.function_sql(),
+                    f'as {alias_name}'
+                ]
+                sql_functions_dict[alias_name] = self.simple_join(
+                    statements_to_join
                 )
 
-        joined_fields = self.comma_join(function_filters.values())
-        return [joined_fields]
+        joined_fields = self.comma_join(sql_functions_dict.values())
+        return sql_functions_dict, list(special_function_fields), [joined_fields]
 
 
 class SQLiteBackend(SQL):

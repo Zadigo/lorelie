@@ -23,7 +23,6 @@ class Field:
             'not null': True,
             'unique': False
         }
-        # self.base_field_parameters = [self.field_type, 'not null']
 
         if max_length is not None:
             instance = MaxLengthConstraint(fields=[name])

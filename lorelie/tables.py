@@ -535,6 +535,8 @@ class DatabaseManager:
             'table': selected_table.name
         })
 
+        # TODO: Adapt this section so that the Case function
+        # can parsed and created
         if special_function_fields:
             groupby_sql = selected_table.backend.GROUP_BY.format_map({
                 'conditions': selected_table.backend.comma_join(special_function_fields)

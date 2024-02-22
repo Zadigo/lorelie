@@ -1,5 +1,7 @@
+import re
 import sqlite3
 
+from lorelie.expressions import Case
 from lorelie.functions import Count, Functions
 from lorelie.queries import Query
 
@@ -127,6 +129,24 @@ class SQL:
 
     CHECK_CONSTRAINT = 'check ({conditions})'
 
+    CASE = 'case {field} {conditions} end'
+    WHEN = 'when {condition} then {value}'
+
+    base_filters = {
+        'eq': '=',
+        'lt': '<',
+        'gt': '>',
+        'lte': '<=',
+        'gte': '>=',
+        'contains': 'like',
+        'startswith': 'startswith',
+        'endswith': 'endswith',
+        'range': 'between',
+        'ne': '!=',
+        'in': 'in',
+        'isnull': 'isnull'
+    }
+
     @staticmethod
     def quote_value(value):
         if isinstance(value, int):
@@ -232,27 +252,38 @@ class SQL:
     def build_script(self, *sqls):
         return '\n'.join(map(lambda x: self.finalize_sql(x), sqls))
 
-    def decompose_filters(self, **kwargs):
+    def decompose_filters_from_string(self, value):
         """Decompose a set of filters to a list of
-        key, operator and value list
+        key, operator and value list from a string
 
-        >>> self.decompose_filters({'rowid__eq': '1'})
+        >>> self.decompose_filters_from_string('rowid__eq=1')
         ... [('rowid', '=', '1')]
         """
-        base_filters = {
-            'eq': '=',
-            'lt': '<',
-            'gt': '>',
-            'lte': '<=',
-            'gte': '>=',
-            'contains': 'like',
-            'startswith': 'startswith',
-            'endswith': 'endswith',
-            'range': 'between',
-            'ne': '!=',
-            'in': 'in',
-            'isnull': 'isnull'
-        }
+        identified_operator = False
+        operators = self.base_filters.keys()
+        for operator in operators:
+            operator_to_identify = f'__{operator}='
+            if operator_to_identify in value:
+                identified_operator = True
+                break
+
+        if not identified_operator:
+            # Use regex to identify the unique
+            # possible existing pattern
+            result = re.match(r'\w+\=', value)
+            if not result:
+                raise ValueError('Could not identify the condition')
+
+        tokens = value.split('=')
+        return self.decompose_filters(**{tokens[0]: tokens[1]})
+
+    def decompose_filters(self, **kwargs):
+        """Decompose a set of filters to a list of
+        key, operator and value list from a dictionnary
+
+        >>> self.decompose_filters(rowid__eq=1)
+        ... [('rowid', '=', '1')]
+        """
         filters_map = []
         for key, value in kwargs.items():
             if '__' not in key:
@@ -263,7 +294,7 @@ class SQL:
                 raise ValueError(f'Filter is not valid. Got: {key}')
 
             lhv, rhv = tokens
-            operator = base_filters.get(rhv)
+            operator = self.base_filters.get(rhv)
             if operator is None:
                 raise ValueError(
                     f'Operator is not recognized. Got: {key}'
@@ -364,7 +395,13 @@ class SQL:
                 # function that should regroup the count of
                 # each value. So instead of having
                 # "a, a, b" -> "a - 3" we'd get "a - 2, b - 1"
+                # TODO: Adapt this section to include the Case
+                # function when using annotations
                 special_function_fields.add(function.field_name)
+                # special_function_fields.add((
+                #     function.__class_.__name__,
+                #     function.field_name
+                # ))
 
             if isinstance(function, Functions):
                 function.backend = self

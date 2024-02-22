@@ -1,8 +1,10 @@
 import datetime
 import pathlib
 from collections import namedtuple
+
 # from lorelie.conf import settings
 from lorelie import tables
+from lorelie.expressions import Case, When
 from lorelie.fields import BooleanField, CharField, Field, JSONField
 from lorelie.functions import Count, ExtractYear, Lower, Max
 from lorelie.migrations import Migrations
@@ -39,7 +41,12 @@ database.migrate()
 # a = database.objects.annotate('business', url_count=Count('name'))
 # print([vars(x) for x in a])
 # print(database.objects.as_values('business', 'id', 'name'))
-print(database.objects.as_dataframe('business', 'id', 'name'))
+# print(database.objects.as_dataframe('business', 'id', 'name'))
+
+# cases = When('name__eq=Gucci', 'Vuitton')
+# case = Case(cases)
+# print(database.objects.annotate('business', simple=case))
+
 
 # def make_migrations(*tables):
 #     """Writes the physical changes to the

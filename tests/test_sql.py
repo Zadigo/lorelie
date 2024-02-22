@@ -142,6 +142,16 @@ class TestSQL(unittest.TestCase):
         expected_result = "name = 'Kendall' and surname = 'Jenner'"
         self.assertTrue(statement == expected_result)
 
+    def test_decompose_filters_from_string(self):
+        conditions = [
+            ('name__eq=Kendall', [('name', '=', 'Kendall')])
+        ]
+        for condition in conditions:
+            with self.subTest(condition=condition):
+                lhv, expected = condition
+                result = self.instance.decompose_filters_from_string(lhv)
+                self.assertListEqual(result, expected)
+
 
 class TestFunctionsSQL(unittest.TestCase):
     def setUp(self):

@@ -1,9 +1,34 @@
 import re
 import sqlite3
 
-from lorelie.expressions import Case
 from lorelie.functions import Count, Functions
 from lorelie.queries import Query
+
+
+class Connections:
+    """A class that remembers the different connections
+    that were created"""
+
+    connections_map = {}
+    created_connections = set()
+
+    def __repr__(self):
+        return f'<Connections: count={len(self.connections_map.keys())}>'
+
+    def __getitem__(self, name):
+        return self.connections_map[name]
+
+    def get_last_connection(self):
+        """Return the last connection from the
+        connection map"""
+        return list(self.created_connections)[-1]
+
+    def register(self, name, connection):
+        self.connections_map[name] = connection
+        self.created_connections.add(connection)
+
+
+connections = Connections()
 
 
 class BaseRow:
@@ -18,14 +43,17 @@ class BaseRow:
     ... 1
     """
 
-    _marked_for_update = False
+    # Indicate that this specific row
+    # values have been changed and could
+    # eligible for saving
+    mark_for_update = False
 
     def __init__(self, cursor, fields, data):
         self._cursor = cursor
         self._fields = fields
         self._cached_data = data
         self._backend = None
-        self._table = None
+        self.updated_fields = {}
 
         for key, value in self._cached_data.items():
             setattr(self, key, value)
@@ -34,15 +62,35 @@ class BaseRow:
         id_or_rowid = getattr(self, 'rowid', getattr(self, 'id', None))
         return f'<id: {id_or_rowid}>'
 
-    def __setitem__(self, key, value):
-        self._marked_for_update = True
-        setattr(self, key, value)
-        result = self._backend.save_row(self, [key, value])
-        self._marked_for_update = False
-        return result
+    # def __setitem__(self, key, value):
+    #     self.mark_for_update = True
+    #     setattr(self, key, value)
+    #     self.updated_fields[key] = [key, value]
+    #     # result = self._backend.save_row(self, [key, value])
+    #     # self._marked_for_update = False
+
+    def __setitem__(self, name, value):
+        self.mark_for_update = True
+        # We don't really care if the user
+        # sets a field that does not actually
+        # exist on the database. We'll simply
+        # invalidate the field in the final SQL
+        # setattr(self, name, value)
+        self.updated_fields[name] = [name, value]
+        self.__dict__[name] = value
 
     def __getitem__(self, name):
         return getattr(self, name)
+
+    # def __setattr__(self, name, value):
+    #     self.mark_for_update = True
+    #     # We don't really care if the user
+    #     # sets a field that does not actually
+    #     # exist on the database. We'll simply
+    #     # invalidate the field in the final SQL
+    #     # setattr(self, name, value)
+    #     self.updated_fields[name] = [name, value]
+    #     self.__dict__[name] = value
 
     def __hash__(self):
         return hash((self.rowid))
@@ -65,15 +113,63 @@ class BaseRow:
     def __eq__(self, value):
         return any((self[key] == value for key in self._fields))
 
+    def save(self):
+        """Changes the data on the actual row
+        by calling `save_row_object`
+
+        >>> row = database.objects.last('my_table')
+        ... row.name = 'some name'
+        ... row['name'] = 'some other name'
+        ... row.save()
+        """
+        if self.mark_for_update:
+            fields_to_set = []
+            for _, values in self.updated_fields.items():
+                lhv, rhv = values
+                fields_to_set.append(
+                    self._backend.EQUALITY.format_map({
+                        'field': lhv,
+                        'value': self._backend.quote_value(rhv)
+                    })
+                )
+            fields_to_set = self._backend.comma_join(fields_to_set)
+            update_sql = self._backend.UPDATE.format_map({
+                'table': self._backend.current_table.name,
+                'params': fields_to_set
+            })
+            where_sql = self._backend.WHERE_CLAUSE.format_map({
+                'params': self._backend.EQUALITY.format_map({
+                    'field': 'id',
+                    'value': self.id
+                })
+            })
+            self._backend.save_row_object(self, [update_sql, where_sql])
+            return self
+
     def delete(self):
-        pass
+        """Deletes the row from the database
+
+        >>> row = database.objects.last('my_table')
+        ... row.delete()
+        """
+        delete_sql = self._backend.DELETE.format_map({
+            'table': self._backend.current_table.name
+        })
+        where_sql = self._backend.WHERE_CLAUSE.format_map({
+            'params': self._backend.EQUALITY.format_map({
+                'field': 'id',
+                'value': self.id
+            })
+        })
+        self._backend.delete_row_object(self, [delete_sql, where_sql])
+        return self
 
 
 def row_factory(backend):
-    """Base function to generate row that implement
-    additional functionnalities on the results
-    of the database. This function overrides the default
-    class used for the data in the database."""
+    """Base function for generation custom SQLite Row
+    that implements additional functionnalities on the 
+    results of the database. This function overrides the 
+    default class used for the data in the database."""
     def inner_factory(cursor, row):
         fields = [column[0] for column in cursor.description]
         data = {key: value for key, value in zip(fields, row)}
@@ -177,6 +273,11 @@ class SQL:
 
     @staticmethod
     def simple_join(values, space_characters=True):
+        """Joins a set of tokens with a simple space
+
+        >>> self.simple_join(["select * from table", "where name = 'Kendall'"])
+        ... "select * from table where name = 'Kendall'"
+        """
         def check_integers(value):
             if isinstance(value, (int, float)):
                 return str(value)
@@ -189,12 +290,16 @@ class SQL:
 
     @staticmethod
     def finalize_sql(sql):
+        """Ensures that a statement ends
+        with `;` to be considered valid"""
         if sql.endswith(';'):
             return sql
         return f'{sql};'
 
     @staticmethod
     def de_sqlize_statement(sql):
+        """Returns an sql statement without 
+        `;` at the end"""
         if sql.endswith(';'):
             return sql.removesuffix(';')
         return sql
@@ -202,6 +307,12 @@ class SQL:
     @staticmethod
     def wrap_parenthentis(value):
         return f"({value})"
+
+    @staticmethod
+    def build_alias(condition, alias):
+        """Returns the alias statement for a given sql
+        statement like in `count(name) as top_names`"""
+        return f'{condition} as {alias}'
 
     def quote_startswith(self, value):
         """Creates a startswith wildcard and returns
@@ -433,9 +544,15 @@ class SQLiteBackend(SQL):
         connection = sqlite3.connect(database_name)
         # connection.create_function('hash', 1, Hash())
         # connection.row_factory = BaseRow
-        connection.row_factory = row_factory(self)
         self.connection = connection
-        self.table = table
+        self.current_table = None
+        connection.row_factory = row_factory(self)
+        connections.register(database_name, self)
+
+    def set_current_table(self, table):
+        """Set the table on which current operations
+        a run in the database"""
+        self.current_table = table
 
     def list_table_columns_sql(self, table):
         sql = f'pragma table_info({table.name})'
@@ -515,41 +632,15 @@ class SQLiteBackend(SQL):
         query.run()
         return query.result_cache
 
-    def save_row(self, row, updated_values):
-        if not isinstance(row, BaseRow):
-            raise ValueError()
+    def save_row_object(self, row, sql_tokens):
+        """Creates the SQL statement required for
+        saving a row in the database. For example in:
+        """
+        query = Query(self, sql_tokens)
+        query.run(commit=True)
+        return query
 
-        if row._marked_for_update:
-            # TODO: Pass the current table somewhere
-            # either in the row or [...]
-            update_sql = self.UPDATE.format_map({
-                'table': 'seen_urls',
-                'params': self.EQUALITY.format_map({
-                    'field': updated_values[0],
-                    'value': self.quote_value(updated_values[1])
-                })
-            })
-            where_clause = self.WHERE_CLAUSE.format_map({
-                'params': self.EQUALITY.format_map({
-                    'field': 'rowid',
-                    'value': row['rowid']
-                })
-            })
-            sql = [update_sql, where_clause]
-
-            query = Query(self, sql, table=None)
-            query.run(commit=True)
-        return row
-
-    # def delete(self):
-    #     backend = self.initialize_backend
-    #     delete_sql = backend.DELETE.format(table='')
-    #     where_clause = backend.WHERE_CLAUSE.format_map({
-    #         'params': backend.EQUALITY.format_map({
-    #             'lhv': 'rowid',
-    #             'rhv': self['rowid']
-    #         })
-    #     })
-    #     sql = [delete_sql, where_clause]
-    #     query = Query(backend, sql, table=None)
-    #     query.run(commit=True)
+    def delete_row_object(self, row, sql_tokens):
+        query = Query(self, sql_tokens)
+        query.run(commit=True)
+        return query

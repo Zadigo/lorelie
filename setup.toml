@@ -1,0 +1,4 @@
+packages = [
+  {include = "lorelie"},
+  {include = "lorelie/py.typed"},
+]

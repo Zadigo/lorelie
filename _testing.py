@@ -1,4 +1,6 @@
-import datetime
+import secrets
+import asyncio
+import time
 import pathlib
 from collections import namedtuple
 
@@ -9,6 +11,8 @@ from lorelie.fields import BooleanField, CharField, Field, JSONField
 from lorelie.functions import Count, ExtractYear, Lower, Max
 from lorelie.migrations import Migrations
 from lorelie.tables import Database, Table
+from lorelie.backends import connections
+from lorelie.tables import databases
 
 # fields = [
 #     CharField('url', max_length=500, unique=True),
@@ -29,10 +33,25 @@ table2 = Table('business', fields=[
 database = Database('my_database', table1, table2)
 database.make_migrations()
 database.migrate()
+
+# print(databases.database_map)
+# print(connections.connections_map)
+# print(connections.created_connections)
+
+print(database.objects.filter('business', id__in=[15]))
 # print('New object', database.objects.create('url', url='http://google.com'))
 # print('All', database.objects.all('url'))
 # print('First', database.objects.first('url'))
-# print('Last', database.objects.last('url'))
+# a = database.objects.last('business')
+
+# a = database.objects.get('business', id__eq=12)
+# a.delete()
+# a['name'] = 'Kendall is love'
+# # a.name = 'I changed this value'
+# b = a.save()
+# print(b)
+# print(b.name)
+# print(a.name)
 # print('Filter', database.objects.filter('url', id__eq=3))
 # print('Get', database.objects.get('url', id__eq=1))
 # print('Get', database.objects.annotate('url', lowered_url=Lower('url')))
@@ -47,6 +66,41 @@ database.migrate()
 # case = Case(cases)
 # print(database.objects.annotate('business', simple=case))
 
+
+# while True:
+#     name = secrets.token_hex(nbytes=5)
+#     database.objects.create('business', name=f'Kendall_{name}')
+#     item = database.objects.as_values('business', 'id', 'name')
+#     print(item)
+#     time.sleep(20)
+
+
+# async def get_data():
+#     return database.objects.last('business')
+
+
+# async def save1(t):
+#     h = secrets.token_hex(nbytes=5)
+#     database.objects.create('business', name=f'Julie_{h}')
+#     d = await t.create_task(get_data())
+#     print(d)
+#     await asyncio.sleep(10)
+
+
+# async def save2(t):
+#     h = secrets.token_hex(nbytes=5)
+#     database.objects.create('business', name=f'Kylie_{h}')
+#     await asyncio.sleep(13)
+
+
+# async def main():
+#     while True:
+#         async with asyncio.TaskGroup() as t:
+#             await t.create_task(save1(t))
+#             await t.create_task(save2(t))
+#         await asyncio.sleep(5)
+
+# asyncio.run(main())
 
 # def make_migrations(*tables):
 #     """Writes the physical changes to the
@@ -142,3 +196,9 @@ database.migrate()
 #     count = count + 1
 #     time.sleep(5)
 #     print(table.all())
+
+
+# from django.db.models import Model
+
+# m = Model.objects.get()
+# m.save()

@@ -1,3 +1,4 @@
+from asgiref.sync import sync_to_async
 from collections import OrderedDict, namedtuple
 
 from lorelie.backends import SQLiteBackend
@@ -271,7 +272,11 @@ class DatabaseManager:
         filters = selected_table.backend.build_filters(tokens)
 
         if len(filters) > 1:
-            filters = [' and '.join(filters)]
+            filters = [
+                selected_table.backend.wrap_parenthentis(
+                    ' and '.join(filters)
+                )
+            ]
 
         select_sql = selected_table.backend.SELECT.format_map({
             'fields': selected_table.backend.comma_join(['rowid', '*']),
@@ -289,6 +294,9 @@ class DatabaseManager:
         )
         query.run()
         return query.result_cache
+
+    # async def aget(self, table, **kwargs):
+    #     return await sync_to_async(self.get)(table, **kwargs)
 
     def get(self, table, **kwargs):
         """Returns a specific row from the database

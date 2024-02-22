@@ -14,6 +14,8 @@ from lorelie.tables import Database, Table
 from lorelie.backends import connections
 from lorelie.tables import databases
 
+# https://code.djangoproject.com/ticket/17741
+
 # fields = [
 #     CharField('url', max_length=500, unique=True),
 #     BooleanField('visited', default=False),
@@ -38,7 +40,17 @@ database.migrate()
 # print(connections.connections_map)
 # print(connections.created_connections)
 
-print(database.objects.filter('business', id__in=[15]))
+
+# async def main():
+#     value = await database.objects.aget('business', id=12)
+#     print(value)
+
+# asyncio.run(main())
+
+# print(database.objects.filter('business',
+#     id__in=[15],
+#     name__contains='Kendall')
+# )
 # print('New object', database.objects.create('url', url='http://google.com'))
 # print('All', database.objects.all('url'))
 # print('First', database.objects.first('url'))
@@ -200,5 +212,5 @@ print(database.objects.filter('business', id__in=[15]))
 
 # from django.db.models import Model
 
-# m = Model.objects.get()
-# m.save()
+# m = Model.objects.aget()
+# m.asave()

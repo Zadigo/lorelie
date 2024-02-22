@@ -154,7 +154,7 @@ class Migrations:
 
             for index in table.indexes:
                 index._backend = backend
-                index_sqls.append(index.function_sql())
+                index_sqls.append(index.as_sql())
 
         # Remove obsolete indexes
         for database_index in database_indexes:

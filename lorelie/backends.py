@@ -408,7 +408,7 @@ class SQL:
                 # Uses "alias_name" as alias instead of the table column
                 # named in "lower(value)" in the returned results
                 statements_to_join = [
-                    function.function_sql(),
+                    function.as_sql(),
                     f'as {alias_name}'
                 ]
                 sql_functions_dict[alias_name] = self.simple_join(

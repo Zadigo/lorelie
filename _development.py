@@ -28,7 +28,7 @@ class Functions:
         self.field_name = field
         self.backend = None
 
-    def function_sql(self):
+    def as_sql(self):
         pass
 
 
@@ -42,7 +42,7 @@ class Lower(Functions):
     def __str__(self):
         return f'<{self.__class__.__name__}({self.field_name})>'
 
-    def function_sql(self):
+    def as_sql(self):
         sql = self.backend.LOWER.format_map({
             'field': self.field_name
         })
@@ -56,7 +56,7 @@ class Upper(Lower):
     >>> table.annotate(url_upper=Upper('url'))
     """
 
-    def function_sql(self):
+    def as_sql(self):
         sql = self.backend.UPPER.format_map({
             'field': self.field_name
         })
@@ -70,7 +70,7 @@ class Length(Functions):
     >>> table.annotate(url_length=Length('url'))
     """
 
-    def function_sql(self):
+    def as_sql(self):
         sql = self.backend.LENGTH.format_map({
             'field': self.field_name
         })
@@ -85,7 +85,7 @@ class ExtractYear(Functions):
     >>> table.filter(year__gte=ExtractYear('created_on'))
     """
 
-    def function_sql(self):
+    def as_sql(self):
         sql = self.backend.STRFTIME.format_map({
             'format': self.backend.quote_value('%Y'),
             'value': self.field_name
@@ -104,7 +104,7 @@ class Index:
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.index_name}>'
 
-    def function_sql(self):
+    def as_sql(self):
         sql = self._backend.CREATE_INDEX.format_map({
             'name': self.index_name,
             'table': 'seen_urls',
@@ -379,7 +379,7 @@ class SQL:
                 # Use key as alias instead of column named
                 # "lower(value)" in the returned results
                 function_filters[key] = self.simple_join(
-                    [function.function_sql(), f'as {key}']
+                    [function.as_sql(), f'as {key}']
                 )
 
         joined_fields = self.comma_join(function_filters.values())
@@ -768,7 +768,7 @@ class Migrations:
 
             for index in table.indexes:
                 index._backend = backend
-                index_sqls.append(index.function_sql())
+                index_sqls.append(index.as_sql())
 
         # Remove obsolete indexes
         for database_index in database_indexes:

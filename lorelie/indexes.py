@@ -9,7 +9,7 @@ class Index:
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.index_name}>'
 
-    def function_sql(self):
+    def as_sql(self):
         sql = self._backend.CREATE_INDEX.format_map({
             'name': self.index_name,
             'table': 'seen_urls',

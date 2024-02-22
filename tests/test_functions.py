@@ -10,7 +10,7 @@ class TestFunctions(unittest.TestCase):
         table = create_table()
         instance = Max('age')
         instance.backend = table.backend
-        sql = instance.function_sql()
+        sql = instance.as_sql()
         expected_sql = "select rowid, * from celebrities where age=(select max(age) from celebrities)"
         self.assertTrue(sql == expected_sql)
 
@@ -18,7 +18,7 @@ class TestFunctions(unittest.TestCase):
         table = create_table()
         instance = Lower('age')
         instance.backend = table.backend
-        sql = instance.function_sql()
+        sql = instance.as_sql()
         expected_sql = 'lower(age)'
         self.assertEqual(sql, expected_sql)
 
@@ -26,7 +26,7 @@ class TestFunctions(unittest.TestCase):
         table = create_table()
         instance = Upper('age')
         instance.backend = table.backend
-        sql = instance.function_sql()
+        sql = instance.as_sql()
         expected_sql = 'upper(age)'
         self.assertEqual(sql, expected_sql)
 
@@ -34,7 +34,7 @@ class TestFunctions(unittest.TestCase):
         table = create_table()
         instance = Length('age')
         instance.backend = table.backend
-        sql = instance.function_sql()
+        sql = instance.as_sql()
         expected_sql = 'length(age)'
         self.assertEqual(sql, expected_sql)
 
@@ -42,7 +42,7 @@ class TestFunctions(unittest.TestCase):
         table = create_table()
         instance = ExtractYear('date_of_birth')
         instance.backend = table.backend
-        sql = instance.function_sql()
+        sql = instance.as_sql()
         expected_sql = "strftime('%Y', date_of_birth)"
         self.assertEqual(sql, expected_sql)
 

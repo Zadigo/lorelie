@@ -11,7 +11,7 @@ class BaseExpression:
     def __str__(self):
         return f'<{self.__class__.__name__}: {self.sql_statement}>'
 
-    def function_sql(self):
+    def as_sql(self):
         pass
 
 
@@ -22,7 +22,7 @@ class When(BaseExpression):
         self.then_case = then_case
         self.else_case = else_case
 
-    def function_sql(self):
+    def as_sql(self):
         decomposed_filter = backend.decompose_filters_from_string(
             self.condition
         )
@@ -46,8 +46,8 @@ class Case(BaseExpression):
                 raise ValueError('Value should be an instance of When')
         self.cases = list(cases)
 
-    def function_sql(self):
-        statements_to_join = [case.function_sql() for case in self.cases]
+    def as_sql(self):
+        statements_to_join = [case.as_sql() for case in self.cases]
         self.sql_statement = sql = backend.CASE.format_map({
             'field': self.field_name,
             'conditions': backend.simple_join(statements_to_join)
@@ -60,5 +60,5 @@ class Case(BaseExpression):
 # condition2 = When('name__eq=Kylie', 'Julie', else_case=None)
 # case = Case(condition1, condition2)
 # case.field_name = 'something'
-# case.function_sql()
+# case.as_sql()
 # print(case)

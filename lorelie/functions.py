@@ -6,7 +6,7 @@ class Functions:
     def __str__(self):
         return f'<{self.__class__.__name__}({self.field_name})>'
 
-    def function_sql(self):
+    def as_sql(self):
         pass
 
 
@@ -17,7 +17,7 @@ class Lower(Functions):
     >>> table.annotate(lowered_url=Lower('url'))
     """
 
-    def function_sql(self):
+    def as_sql(self):
         sql = self.backend.LOWER.format_map({
             'field': self.field_name
         })
@@ -31,7 +31,7 @@ class Upper(Lower):
     >>> table.annotate(url_upper=Upper('url'))
     """
 
-    def function_sql(self):
+    def as_sql(self):
         sql = self.backend.UPPER.format_map({
             'field': self.field_name
         })
@@ -45,7 +45,7 @@ class Length(Functions):
     >>> table.annotate(url_length=Length('url'))
     """
 
-    def function_sql(self):
+    def as_sql(self):
         sql = self.backend.LENGTH.format_map({
             'field': self.field_name
         })
@@ -56,7 +56,7 @@ class Max(Functions):
     """Returns the max value of a given
     column"""
 
-    def function_sql(self):
+    def as_sql(self):
         # sql = self.backend.MAX.format_map({
         #     'field': self.field_name
         # })
@@ -85,7 +85,7 @@ class Min(Functions):
     """Returns the max value of a given
     column. """
 
-    def function_sql(self):
+    def as_sql(self):
         select_clause = self.backend.SELECT.format_map({
             'fields': self.backend.comma_join(['rowid', '*']),
             'table': self.backend.table.name
@@ -117,7 +117,7 @@ class ExtractYear(Functions):
     >>> table.filter(year__gte=ExtractYear('created_on'))
     """
 
-    def function_sql(self):
+    def as_sql(self):
         sql = self.backend.STRFTIME.format_map({
             'format': self.backend.quote_value('%Y'),
             'value': self.field_name
@@ -131,7 +131,7 @@ class Count(Functions):
     >>> instance.objects.annotate('my_table', count_of_names=Count('name'))
     """
 
-    def function_sql(self):
+    def as_sql(self):
         sql = self.backend.COUNT.format_map({
             'field': self.field_name
         })

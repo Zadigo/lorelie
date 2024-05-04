@@ -232,7 +232,7 @@ class DatabaseManager:
         """Creates a new row in the table of 
         the current database
 
-        >>> database.objects.create('table_name', name='Kendall')
+        >>> database.objects.create('celebrities', name='Kendall')
         """
         selected_table = self.table_map[table]
         selected_table.set_current_table()
@@ -260,10 +260,10 @@ class DatabaseManager:
         """Filter the data in the database based on
         a set of criteria
 
-        >>> database.objects.filter(name='Kendall')
-        ... database.objects.filter(name__eq='Kendall')
-        ... database.objects.filter(age__gt=15)
-        ... database.objects.filter(name__in=['Kendall'])
+        >>> database.objects.filter('celebrities', name='Kendall')
+        ... database.objects.filter('celebrities', name__eq='Kendall')
+        ... database.objects.filter('celebrities', age__gt=15)
+        ... database.objects.filter('celebrities', name__in=['Kendall'])
         """
         selected_table = self.table_map[table]
         selected_table.set_current_table()
@@ -302,8 +302,8 @@ class DatabaseManager:
         """Returns a specific row from the database
         based on a set of criteria
 
-        >>> instance.objects.get('table_name', id__eq=1)
-        ... instance.objects.get('table_name', id=1)
+        >>> instance.objects.get('celebrities', id__eq=1)
+        ... instance.objects.get('celebrities', id=1)
         """
         selected_table = self.table_map[table]
         selected_table.set_current_table()
@@ -352,8 +352,8 @@ class DatabaseManager:
         value in the database to be returned in lowercase
         or in uppercase
 
-        >>> instance.objects.annotate(lowered_name=Lower('name'))
-        ... instance.objects.annotate(uppered_name=Upper('name'))
+        >>> instance.objects.annotate('celebrities', lowered_name=Lower('name'))
+        ... instance.objects.annotate('celebrities', uppered_name=Upper('name'))
 
         If we want to return only the year section of a date
 
@@ -397,7 +397,7 @@ class DatabaseManager:
         """Returns data from the database as a list
         of dictionnary values
 
-        >>> instance.objects.as_values('my_table', 'id')
+        >>> instance.objects.as_values('celebrities', 'id')
         ... [{'id': 1}]
         """
         selected_table = self.table_map[table]
@@ -419,7 +419,7 @@ class DatabaseManager:
         """Returns data from the database as a
         pandas DataFrame object
 
-        >>> instance.objects.as_dataframe('my_table', 'id')
+        >>> instance.objects.as_dataframe('celebrities', 'id')
         ... pandas.DataFrame
         """
         import pandas

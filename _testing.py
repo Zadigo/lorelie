@@ -33,8 +33,9 @@ table2 = Table('business', fields=[
     CharField('name')
 ])
 database = Database('my_database', table1, table2)
-database.make_migrations()
-database.migrate()
+# database.make_migrations()
+# database.migrate()
+database.objects.filter('url', )
 
 # print(databases.database_map)
 # print(connections.connections_map)

@@ -308,32 +308,9 @@ class DatabaseManager:
         selected_table = self.table_map[table]
         selected_table.set_current_table()
 
-        base_return_fields = ['rowid', '*']
-        filters = selected_table.backend.build_filters(
-            selected_table.backend.decompose_filters(**kwargs)
-        )
-
-        # Functions SQL: select rowid, *, lower(url) from table
-        select_sql = selected_table.backend.SELECT.format_map({
-            'fields': selected_table.backend.comma_join(base_return_fields),
-            'table': selected_table.name
-        })
-        sql = [select_sql]
-
-        # FIXME: Use operator_join
-        # Filters SQL: select rowid, * from table where url='http://'
-        # joined_statements = ' and '.join(filters)
-        joined_statements = selected_table.backend.operator_join(filters)
-        where_clause = selected_table.backend.WHERE_CLAUSE.format_map({
-            'params': joined_statements
-        })
-        sql.extend([where_clause])
-
-        query = selected_table.query_class(
-            selected_table.backend,
-            sql,
-            table=selected_table
-        )
+        query = Query(table=selected_table)
+        query.prepare_query(selected_table.backend)
+        query.create_select(kwargs)
         query.run()
 
         if not query.result_cache:
@@ -341,7 +318,6 @@ class DatabaseManager:
 
         if len(query.result_cache) > 1:
             raise ValueError('Returned more than 1 value')
-
         return query.result_cache[0]
 
     def annotate(self, table, **kwargs):

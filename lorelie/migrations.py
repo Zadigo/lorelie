@@ -89,8 +89,11 @@ class Migrations:
 
         if not table_instances:
             return
-
-        backend = self.backend_class(database_name=self.database_name)
+        # FIXME: This re-creates another connection when we can probably use the one that is already open
+        # backend = self.backend_class(database_name=self.database_name)
+        from lorelie.backends import connections
+        
+        backend = connections.get_last_connection()
         database_tables = backend.list_tables_sql()
         # When the table is in the migration file
         # and not in the database, it needs to be

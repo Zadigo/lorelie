@@ -556,7 +556,7 @@ class SQLiteBackend(SQL):
 
     def list_table_columns_sql(self, table):
         sql = f'pragma table_info({table.name})'
-        query = Query(self, [sql], table=table)
+        query = Query(self, table=table, sql_tokens=[sql])
         query.run()
         return query.result_cache
 
@@ -588,26 +588,36 @@ class SQLiteBackend(SQL):
             query.run(commit=True)
 
     def list_tables_sql(self):
-        sql = self.SELECT.format(
-            fields=self.comma_join(['rowid', 'name']),
-            table='sqlite_schema'
-        )
-        not_like_clause = self.NOT_LIKE.format(
-            field='name',
-            wildcard=self.quote_value('sqlite_%')
-        )
-        where_clause = self.WHERE_CLAUSE.format(
-            params=self.simple_join([
-                self.EQUALITY.format(
-                    field='type',
-                    value=self.quote_value('table')
-                ),
-                self.AND.format(rhv=not_like_clause)
-            ])
-        )
-        query = Query(self, [sql, where_clause])
+        query = Query(table='sqlite_schema')
+        query.create_select(fields=['rowid', 'name'])
+        where_clause = query.create_where_clause({'type': 'table'})
+
+        not_like_clause = query.create_not_like_clause('name', 'sqlite_%')
+        and_clause = query._backend.AND.format_map({'rhv': not_like_clause})
+        query.coerce_tokens(where_clause, and_clause)
         query.run()
         return query.result_cache
+    
+        # sql = self.SELECT.format(
+        #     fields=self.comma_join(['rowid', 'name']),
+        #     table='sqlite_schema'
+        # )
+        # not_like_clause = self.NOT_LIKE.format(
+        #     field='name',
+        #     wildcard=self.quote_value('sqlite_%')
+        # )
+        # where_clause = self.WHERE_CLAUSE.format(
+        #     params=self.simple_join([
+        #         self.EQUALITY.format(
+        #             field='type',
+        #             value=self.quote_value('table')
+        #         ),
+        #         self.AND.format(rhv=not_like_clause)
+        #     ])
+        # )
+        # query = Query(sql_tokens=[sql, where_clause])
+        # query.run()
+        # return query.result_cache
 
     def list_database_indexes(self):
         base_fields = ['type', 'name', 'tbl_name', 'sql']

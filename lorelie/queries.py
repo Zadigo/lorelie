@@ -1,4 +1,5 @@
 
+
 class Query:
     """This class represents an sql statement query
     and is responsible for executing the query on the
@@ -6,23 +7,22 @@ class Query:
     the `result_cache`
     """
 
-    def __init__(self, backend, sql_tokens, table=None):
+    def __init__(self, table=None, sql_tokens=[], backend=None):
+        from lorelie.tables import Table
+        from lorelie.backends import connections
+
+        if not isinstance(table, (Table, str)):
+            raise ValueError(
+                'Table should be either a string or an instance or table')
+
         self._table = table
-
-        from lorelie.backends import SQLiteBackend
-        if not isinstance(backend, SQLiteBackend):
-            raise ValueError('Connection should be an instance SQLiteBackend')
-
-        self._backend = backend
         self._sql = None
         self._sql_tokens = sql_tokens
         self.result_cache = []
+        self._backend = backend or connections.get_last_connection()
 
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self._sql}]>'
-
-    # def __del__(self):
-    #     self._backend.connection.close()
 
     @classmethod
     def run_multiple(cls, backend, *sqls, **kwargs):
@@ -36,6 +36,15 @@ class Query:
     def create(cls, backend, sql_tokens, table=None):
         """Creates a new `Query` class to be executed"""
         return cls(backend, sql_tokens, table=table)
+
+    @classmethod
+    def run_script(cls, backend, sql_tokens):
+        instance = cls(backend, sql_tokens)
+        if sql_tokens:
+            result = instance._backend.connection.executescript(sql_tokens[0])
+            instance._backend.connection.commit()
+            instance.result_cache = list(result)
+        return instance
 
     def prepare_sql(self):
         """Prepares a statement before it is sent
@@ -62,14 +71,54 @@ class Query:
                 self._backend.connection.commit()
             self.result_cache = list(result)
 
-    @classmethod
-    def run_script(cls, backend, sql_tokens):
-        instance = cls(backend, sql_tokens)
-        if sql_tokens:
-            result = instance._backend.connection.executescript(sql_tokens[0])
-            instance._backend.connection.commit()
-            instance.result_cache = list(result)
-        return instance
+    def prepare_query(self, backend):
+        from lorelie.backends import SQLiteBackend
+        if not isinstance(backend, SQLiteBackend):
+            raise ValueError('Backend should be an instance of SQLiteBackend')
+        self._backend = backend
+
+    def create_not_like_clause(self, name, condition):
+        not_like_clause = self._backend.NOT_LIKE.format_map({
+            'field': name,
+            'wildcard': self._backend.quote_value(condition)
+        })
+        return not_like_clause
+
+    def coerce_tokens(self, *tokens):
+        self._sql_tokens.extend(list(tokens))
+
+    def create_order_by_clause(self):
+        pass
+
+    def create_where_clause(self, filters):
+        built_filters = self._backend.build_filters(self._backend.decompose_filters(
+            **filters
+        ))
+        joined_statements = self._backend.operator_join(built_filters)
+        where_clause = self._backend.WHERE_CLAUSE.format_map({
+            'params': joined_statements
+        })
+        return where_clause
+
+    def create_select(self, fields=[]):
+        from lorelie.tables import Table
+
+        if self._table is None:
+            raise ValueError('Select requires a table name')
+
+        base_return_fields = fields or ['rowid', '*']
+
+        table_name = None
+        if isinstance(self._table, Table):
+            table_name = self._table.name
+        else:
+            table_name = self._table
+
+        select_sql = self._backend.SELECT.format_map({
+            'fields': self._backend.comma_join(base_return_fields),
+            'table': table_name
+        })
+        self._sql_tokens.append(select_sql)
 
 
 class QuerySet:

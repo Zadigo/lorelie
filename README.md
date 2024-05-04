@@ -44,9 +44,7 @@ database.objects.annotate('table_name', new_column_name=Lower('column_name'))
 ```
 
 ```sql
-SELECT LOWER(column_name) 
-AS new_column_name 
-FROM table_name;
+SELECT LOWER(column_name) AS new_column_name FROM table_name;
 ```
 
 __parameters__
@@ -69,9 +67,7 @@ database.objects.annotate('table_name', new_column_name=Upper('column_name'))
 ```
 
 ```sql
-SELECT UPPER(column_name) 
-AS new_column_name 
-FROM table_name;
+SELECT UPPER(column_name) AS new_column_name FROM table_name;
 ```
 
 __parameters__
@@ -93,9 +89,7 @@ database.objects.annotate('table_name', new_column_name=Length('column_name'))
 ```
 
 ```sql
-SELECT LEN(column_name) 
-AS new_column_name 
-FROM table_name;
+SELECT LEN(column_name) AS new_column_name FROM table_name;
 ```
 
 __parameters__

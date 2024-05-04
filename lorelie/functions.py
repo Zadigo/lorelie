@@ -14,7 +14,7 @@ class Lower(Functions):
     """Returns each values of the given
     column in lowercase
 
-    >>> table.annotate(lowered_url=Lower('url'))
+    >>> database.objects.annotate('celebrities', lowered_name=Lower('name'))
     """
 
     def as_sql(self):
@@ -28,7 +28,7 @@ class Upper(Lower):
     """Returns each values of the given
     column in uppercase
 
-    >>> table.annotate(url_upper=Upper('url'))
+    >>> database.objects.annotate('celebrities', uppered_name=Upper('name'))
     """
 
     def as_sql(self):
@@ -42,7 +42,7 @@ class Length(Functions):
     """Returns length of each iterated values
     from the database
 
-    >>> table.annotate(url_length=Length('url'))
+    >>> database.objects.annotate('celebrities', name_length=Length('url'))
     """
 
     def as_sql(self):
@@ -53,8 +53,7 @@ class Length(Functions):
 
 
 class Max(Functions):
-    """Returns the max value of a given
-    column"""
+    """Returns the max value of a given column"""
 
     def as_sql(self):
         # sql = self.backend.MAX.format_map({
@@ -82,8 +81,7 @@ class Max(Functions):
 
 
 class Min(Functions):
-    """Returns the max value of a given
-    column. """
+    """Returns the min value of a given column"""
 
     def as_sql(self):
         select_clause = self.backend.SELECT.format_map({
@@ -110,11 +108,11 @@ class ExtractYear(Functions):
 
     We can annotate a row  with a value
 
-    >>> table.annotate(year=ExtractYear('created_on'))
+    >>> database.objects.annotate('celebrities', year=ExtractYear('created_on'))
 
     Or filter data based on the return value of the function
 
-    >>> table.filter(year__gte=ExtractYear('created_on'))
+    >>> table.filter('celebrities', year__gte=ExtractYear('created_on'))
     """
 
     def as_sql(self):
@@ -128,7 +126,7 @@ class ExtractYear(Functions):
 class Count(Functions):
     """Counts the number of each value in the database
 
-    >>> instance.objects.annotate('my_table', count_of_names=Count('name'))
+    >>> instance.objects.annotate('celebrities', count_of_names=Count('name'))
     """
 
     def as_sql(self):

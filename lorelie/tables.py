@@ -59,7 +59,9 @@ class AbstractTable(metaclass=BaseTable):
         return validates_values
 
     def set_current_table(self):
-        setattr(self.backend, 'current_table', self)
+        from lorelie.backends import connections
+        # setattr(self.backend, 'current_table', self)
+        self.backend = connections.get_last_connection()
 
 
 class Table(AbstractTable):

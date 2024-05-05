@@ -48,6 +48,10 @@ class DatabaseManager:
             self.database = instance
         return self
 
+    def before_action(self, table_name):
+        table = self.table_map[table_name]
+        table.backend.set_current_table(table)
+
     def first(self, table):
         """Returns the first row from
         a database table"""

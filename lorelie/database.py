@@ -1,5 +1,3 @@
-import pandas
-
 from lorelie.backends import SQLiteBackend
 from lorelie.migrations import Migrations
 from lorelie.queries import Query, QuerySet
@@ -66,6 +64,9 @@ class DatabaseManager:
 
     def all(self, table):
         selected_table = self.table_map[table]
+        selected_table.load_current_connection()
+        self.before_action(selected_table)
+
         all_sql = selected_table.backend.SELECT.format_map({
             'fields': selected_table.backend.comma_join(['rowid', '*']),
             'table': selected_table.name
@@ -84,11 +85,16 @@ class DatabaseManager:
         """Creates a new row in the table of 
         the current database
 
-        >>> database.objects.create('table_name', name='Kendall')
+        >>> database.objects.create('celebrities', name='Kendall')
         """
         selected_table = self.table_map[table]
+        selected_table.load_current_connection()
+        self.before_action(selected_table)
+
         fields, values = selected_table.backend.dict_to_sql(
-            kwargs, quote_values=False)
+            kwargs,
+            quote_values=False
+        )
         values = selected_table.validate_values(fields, values)
 
         joined_fields = selected_table.backend.comma_join(fields)
@@ -110,17 +116,24 @@ class DatabaseManager:
         """Filter the data in the database based on
         a set of criteria
 
-        >>> database.objects.filter(name='Kendall')
-        ... database.objects.filter(name__eq='Kendall')
-        ... database.objects.filter(age__gt=15)
-        ... database.objects.filter(name__in=['Kendall'])
+        >>> database.objects.filter('celebrities', name='Kendall')
+        ... database.objects.filter('celebrities', name__eq='Kendall')
+        ... database.objects.filter('celebrities', age__gt=15)
+        ... database.objects.filter('celebrities', name__in=['Kendall'])
         """
         selected_table = self.table_map[table]
+        selected_table.load_current_connection()
+        self.before_action(selected_table)
+
         tokens = selected_table.backend.decompose_filters(**kwargs)
         filters = selected_table.backend.build_filters(tokens)
 
         if len(filters) > 1:
-            filters = [' and '.join(filters)]
+            filters = [
+                selected_table.backend.wrap_parenthentis(
+                    ' and '.join(filters)
+                )
+            ]
 
         select_sql = selected_table.backend.SELECT.format_map({
             'fields': selected_table.backend.comma_join(['rowid', '*']),
@@ -129,23 +142,30 @@ class DatabaseManager:
         where_clause = selected_table.backend.WHERE_CLAUSE.format_map({
             'params': selected_table.backend.comma_join(filters)
         })
-        sql = [select_sql, where_clause]
+        # TODO: Use the Query class on the table
+        # or whether to import and call it directly ?
         query = selected_table.query_class(
             selected_table.backend,
-            sql,
+            [select_sql, where_clause],
             table=selected_table
         )
         query.run()
         return query.result_cache
 
+    # async def aget(self, table, **kwargs):
+    #     return await sync_to_async(self.get)(table, **kwargs)
+
     def get(self, table, **kwargs):
         """Returns a specific row from the database
         based on a set of criteria
 
-        >>> instance.objects.get('table_name', id__eq=1)
-        ... instance.objects.get('table_name', id=1)
+        >>> instance.objects.get('celebrities', id__eq=1)
+        ... instance.objects.get('celebrities', id=1)
         """
         selected_table = self.table_map[table]
+        selected_table.load_current_connection()
+        self.before_action(selected_table)
+
         base_return_fields = ['rowid', '*']
         filters = selected_table.backend.build_filters(
             selected_table.backend.decompose_filters(**kwargs)
@@ -190,14 +210,16 @@ class DatabaseManager:
         value in the database to be returned in lowercase
         or in uppercase
 
-        >>> instance.objects.annotate(lowered_name=Lower('name'))
-        ... instance.objects.annotate(uppered_name=Upper('name'))
+        >>> instance.objects.annotate('celebrities', lowered_name=Lower('name'))
+        ... instance.objects.annotate('celebrities', uppered_name=Upper('name'))
 
         If we want to return only the year section of a date
 
         >>> self.annotate(year=ExtractYear('created_on'))
         """
         selected_table = self.table_map[table]
+        selected_table.load_current_connection()
+        self.before_action(selected_table)
 
         base_return_fields = ['rowid', '*']
         sql_functions_dict, special_function_fields, fields = selected_table.backend.build_annotation(
@@ -234,10 +256,13 @@ class DatabaseManager:
         """Returns data from the database as a list
         of dictionnary values
 
-        >>> instance.objects.as_values('my_table', 'id')
+        >>> instance.objects.as_values('celebrities', 'id')
         ... [{'id': 1}]
         """
         selected_table = self.table_map[table]
+        selected_table.load_current_connection()
+        self.before_action(selected_table)
+
         sql = selected_table.backend.SELECT.format_map({
             'fields': selected_table.backend.comma_join(list(args)),
             'table': selected_table.name
@@ -254,10 +279,14 @@ class DatabaseManager:
         """Returns data from the database as a
         pandas DataFrame object
 
-        >>> instance.objects.as_dataframe('my_table', 'id')
+        >>> instance.objects.as_dataframe('celebrities', 'id')
         ... pandas.DataFrame
         """
+        import pandas
         return pandas.DataFrame(self.as_values(table, *args))
+
+    # def bulk_create(self, *objs):
+    # def order_by(self, *fields):
 
 
 class Database:
@@ -268,12 +297,21 @@ class Database:
     Creating a new database can be done by doing the following steps:
 
     >>> table = Table('my_table', 'my_database', fields=[Field('url')])
-    ... database = Database('my_database', table)
-    ... database.make_migrations()
+    ... database = Database(table, name='my_database')
+
+    Providing a name is optional. If present, an sqlite dabase is created
+    in the local project's path otherwise it is created in memory and
+    therefore deleted once the project is teared down.
+
+    Migrating the database is an optional step that helps tracking
+    the tables and in the fields that were created in a `migrations.json`
+    local file:
+
+    >>> database.make_migrations()
     ... database.migrate()
 
     Once the database is created, we can then run various operations
-    on the tables:
+    on the tables that it contains:
 
     >>> database.objects.create('my_table', url='http://example.com')
 
@@ -294,7 +332,7 @@ class Database:
     backend_class = SQLiteBackend
     objects = DatabaseManager()
 
-    def __init__(self, name, *tables):
+    def __init__(self, *tables, name=None):
         self.database_name = name
         self.migrations = self.migrations_class(database_name=name)
 
@@ -306,14 +344,9 @@ class Database:
         for table in tables:
             if not isinstance(table, Table):
                 raise ValueError('Value should be an instance of Table')
-
+            table.load_current_connection()
             # if table.backend is None:
-            #     table.backend = table.backend_class(
-            #         database_name=self.database_name,
-            #         table=table
-            #     )
-            if table.backend is None:
-                table.backend = new_connection
+            #     table.backend = new_connection
             self.table_map[table.name] = table
 
         self.table_instances = list(tables)
@@ -325,6 +358,14 @@ class Database:
 
     def __getitem__(self, table_name):
         return self.table_map[table_name]
+
+    # TODO: This allows us to use for ex database.celebrities_table
+    # directly on the Database instance
+    # def __getattribute__(self, name):
+    #     if name.endswith('_table'):
+    #         lhv, _ = name.split('_table')
+    #         return self.table_map[lhv]
+    #     return super().__getattribute__(name)
 
     def __hash__(self):
         return hash((self.database_name))
@@ -341,6 +382,8 @@ class Database:
         self.migrations.make_migrations(self.table_instances)
 
     def migrate(self):
-        """Implements the changes to the migration
-        file into the SQLite database"""
+        """Implements the changes from the migration
+        file to the database for example by creating the
+        tables, implementing the constraints and all other
+        table parameters specified by on the table"""
         self.migrations.check(self.table_map)

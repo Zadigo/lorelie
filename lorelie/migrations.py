@@ -4,9 +4,8 @@ import secrets
 from collections import defaultdict
 from functools import cached_property
 
-# from lorelie.conf import settings
 from lorelie import PROJECT_PATH
-from lorelie.backends import SQLiteBackend
+from lorelie.backends import SQLiteBackend, connections
 from lorelie.fields import Field
 from lorelie.queries import Query
 
@@ -29,6 +28,7 @@ class Migrations:
             self.tables = self.CACHE['tables']
         except KeyError:
             raise KeyError('Migration file is not valid')
+
         self.migration_table_map = [table['name'] for table in self.tables]
         self.fields_map = defaultdict(list)
 
@@ -105,20 +105,18 @@ class Migrations:
         database_tables = backend.list_tables_sql()
 
         # When the table is in the migration file
-        # and not in the database, it needs to be
-        # created
+        # and not in the database tables that we
+        # listed above, it needs to be created
         for table_name in self.migration_table_map:
             if not table_name in database_tables:
                 self.tables_for_creation.add(table_name)
 
         # When the table is not in the migration
-        # file but present in the database
-        # it needs to be deleted
+        # file but present in the database tables
+        # that we listed above, it needs to be deleted
         for database_row in database_tables:
             if database_row['name'] not in self.migration_table_map:
                 self.tables_for_deletion.add(database_row)
-
-        sqls_to_run = []
 
         if self.tables_for_creation:
             for table_name in self.tables_for_creation:
@@ -126,8 +124,13 @@ class Migrations:
                 if table is None:
                     continue
 
+                # This is the specific section
+                # that actually creates the table
+                # in the datbase
                 table.prepare()
             self.has_migrations = True
+
+        other_sqls_to_run = []
 
         if self.tables_for_deletion:
             sql_script = []
@@ -136,8 +139,9 @@ class Migrations:
                     table=database_row['name']
                 )
                 sql_script.append(sql)
+
             sql = backend.build_script(*sql_script)
-            sqls_to_run.append(sql)
+            other_sqls_to_run.append(sql)
             self.has_migrations = True
 
         # For existing tables, check that the
@@ -154,8 +158,9 @@ class Migrations:
 
             self.check_fields(table_instances[database_row['name']], backend)
 
-        Query.run_script(backend, sqls_to_run)
-        # self.migrate(table_instances)
+        # The database might require another set of
+        # parameters (ex. indexes) that we run here
+        Query.run_script(backend, other_sqls_to_run)
 
         # Create indexes for each table
         database_indexes = backend.list_database_indexes()
@@ -223,13 +228,6 @@ class Migrations:
         # Write to the migrations.json file only if
         # necessary e.g. dropped tables, changed fields
         if self.has_migrations:
-            # Since the table does not connect to sqlite
-            # because of the "inline_build=False" we have
-            # to associate each table with a backend
-            # temporary_connection = self.backend_class(
-            #     database_name=self.database_name
-            # )
-
             cache_copy = self.CACHE.copy()
             with open(PROJECT_PATH / 'migrations.json', mode='w+') as f:
                 cache_copy['id'] = secrets.token_hex(5)

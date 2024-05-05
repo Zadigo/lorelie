@@ -23,6 +23,7 @@ class Migrations:
         self.database_name = database_name
         self.CACHE = self.read_content
         self.file_id = self.CACHE['id']
+        self.in_memory = database_name is None
 
         try:
             self.tables = self.CACHE['tables']

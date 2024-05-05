@@ -539,8 +539,9 @@ class SQLiteBackend(SQL):
         self.database_name = database_name
 
         connection = sqlite3.connect(database_name)
-        # connection.create_function('hash', 1, Hash())
-        # connection.row_factory = BaseRow
+        connection.create_function('hash', 1, Hash.create_function())
+        connection.row_factory = row_factory(self)
+
         self.connection = connection
         self.current_table = None
         connection.row_factory = row_factory(self)

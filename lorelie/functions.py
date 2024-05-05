@@ -1,10 +1,18 @@
+import hashlib
+
 class Functions:
+    custom_sql = None
+
     def __init__(self, field_name):
         self.field_name = field_name
         self.backend = None
 
     def __str__(self):
         return f'<{self.__class__.__name__}({self.field_name})>'
+
+    @staticmethod
+    def create_function():
+        pass
 
     def as_sql(self):
         pass
@@ -131,6 +139,23 @@ class Count(Functions):
 
     def as_sql(self):
         sql = self.backend.COUNT.format_map({
+            'field': self.field_name
+        })
+        return sql
+
+
+class Hash(Functions):
+    custom_sql = 'Hash({field})'
+
+    @staticmethod
+    def create_function():
+        def callback(text):
+            text = str(text).encode('utf-8')
+            return hashlib.md5(text).hexdigest()
+        return callback
+    
+    def as_sql(self):
+        sql = self.custom_sql.format_map({
             'field': self.field_name
         })
         return sql

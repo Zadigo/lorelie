@@ -12,8 +12,7 @@ class TestDatabase(unittest.TestCase):
             CharField('lastname'),
             IntegerField('followers')
         ])
-        database = Database(table, name='followings')
-        # database.make_migrations()
+        database = Database(table)
         database.migrate()
         self.database = database
 
@@ -34,10 +33,11 @@ class TestDatabase(unittest.TestCase):
             'celebrities',
             firstname='Kendall'
         )
+        # celebrity = queryset[0]
         self.assertIsInstance(celebrity, BaseRow)
         self.assertIsInstance(celebrity.id, int)
-        print(vars(celebrity))
-        # self.assertTrue(celebrity.firstname == 'Kendall')
+        self.assertTrue(celebrity.firstname == 'Kendall')
+        self.assertIsInstance(celebrity, BaseRow)
 
 
 if __name__ == '__main__':

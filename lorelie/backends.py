@@ -80,17 +80,14 @@ class BaseRow:
         self.__dict__[name] = value
 
     def __getitem__(self, name):
-        return getattr(self, name)
+        value = getattr(self, name)
+        # Before returning the value,
+        # get the field responsible for 
+        # converting said value to a Python
+        # usable object
+        table_field = self._backend.current_table.get_field(name)
+        return table_field.to_python(value)
 
-    # def __setattr__(self, name, value):
-    #     self.mark_for_update = True
-    #     # We don't really care if the user
-    #     # sets a field that does not actually
-    #     # exist on the database. We'll simply
-    #     # invalidate the field in the final SQL
-    #     # setattr(self, name, value)
-    #     self.updated_fields[name] = [name, value]
-    #     self.__dict__[name] = value
 
     def __hash__(self):
         return hash((self.rowid))

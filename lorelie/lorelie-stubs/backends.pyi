@@ -5,6 +5,7 @@ from typing import Any, Callable, List, Literal, Tuple
 from lorelie.functions import Functions
 from lorelie.tables import Table
 
+
 class Connections:
     connections_map: dict[str, SQLiteBackend] = ...
     created_connections: set[SQLiteBackend] = ...
@@ -30,7 +31,7 @@ class BaseRow(Row):
 
     def __init__(
         self, cursor: Cursor,
-        fields: list[str], 
+        fields: list[str],
         data: tuple[str]
     ): ...
 
@@ -152,10 +153,10 @@ class SQLiteBackend(SQL):
 
     def __init__(
         self,
-        database_name: str = ...,
-        table: Table = ...
+        database_name: str = ...
     ) -> None: ...
 
+    def set_current_table(self, table: Table) -> None: ...
     def list_table_columns_sql(self, table: Table) -> list[BaseRow]: ...
     def drop_indexes_sql(self, row: BaseRow) -> str: ...
 

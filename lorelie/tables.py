@@ -1,3 +1,4 @@
+from typing import Any
 from asgiref.sync import sync_to_async
 from collections import OrderedDict, namedtuple
 
@@ -29,11 +30,6 @@ class AbstractTable(metaclass=BaseTable):
     def __init__(self, database_name=None, inline_build=False):
         self.backend = None
         self.is_prepared = False
-        # if inline_build:
-        #     self.backend = self.backend_class(
-        #         database_name=database_name,
-        #         table=self
-        #     )
 
     def __hash__(self):
         return hash((self.name))
@@ -82,13 +78,15 @@ class Table(AbstractTable):
     ... database = Database('my_database', table)
     ... database.make_migrations()
     ... database.migrate()
-    ... table.create(url='http://example.com')
+    ... database.objects.create('url', url='http://example.com')
+    ... database.objects.all('url')
     """
 
     def __init__(self, name, *, database_name=None, inline_build=False, fields=[], index=[], constraints=[]):
         self.name = name
         self.indexes = index
         self.constraints = constraints
+        self.field_constraints = {}
         self.inline_build = inline_build
         super().__init__(
             database_name=database_name,
@@ -103,8 +101,14 @@ class Table(AbstractTable):
             field.prepare(self)
             self.fields_map[field.name] = field
 
-        # Automatically create an ID field
-        self.fields_map['id'] = AutoField()
+        # Automatically create an ID field and set
+        # it up with the table and backend
+        # Automatically create an ID field and set
+        # it up with the table and backend
+        id_field = AutoField()
+        id_field.prepare(self)
+        self.fields_map['id'] = id_field
+        self.fields_map['id'] = id_field
 
         field_names = list(self.fields_map.keys())
         field_names.append('rowid')
@@ -474,14 +478,9 @@ class Database:
         for table in tables:
             if not isinstance(table, Table):
                 raise ValueError('Value should be an instance of Table')
-
+            table.set_current_table()
             # if table.backend is None:
-            #     table.backend = table.backend_class(
-            #         database_name=self.database_name,
-            #         table=table
-            #     )
-            if table.backend is None:
-                table.backend = new_connection
+            #     table.backend = new_connection
             self.table_map[table.name] = table
 
         self.table_instances = list(tables)
@@ -493,6 +492,12 @@ class Database:
 
     def __getitem__(self, table_name):
         return self.table_map[table_name]
+
+    def __getattribute__(self, name):
+        if name.endswith('_table'):
+            lhv, _ = name.split('_table')
+            return self.table_map[lhv]
+        return super().__getattribute__(name)
 
     def __hash__(self):
         return hash((self.database_name))

@@ -175,7 +175,6 @@ class Migrations:
 
         self.tables_for_creation.clear()
         self.tables_for_deletion.clear()
-        backend.connection.close()
 
     def check_fields(self, table, backend):
         """Checks the migration file for fields

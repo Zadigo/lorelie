@@ -1,6 +1,5 @@
 import re
 import sqlite3
-
 from lorelie.functions import Count, Functions
 from lorelie.queries import Query
 
@@ -33,14 +32,24 @@ connections = Connections()
 
 class BaseRow:
     """Adds additional functionalities to
-    the default SQLite `Row` class. Rows
-    allows the data that comes from the database
-    to be interfaced
+    the default SQLite `Row`. Rows allows the data 
+    that comes from the database to be interfaced adding
+    extra python functionnalities to the generic value
 
-    >>> row = table.get(name='Kendall')
-    ... "<BaseRow [{'rowid': 1}]>"
-    ... row['rowid']
+    >>> row = database.objects.get(firstname='Kendall')
+
+    The value of a column can get retrieved as:
+
+    >>> row['rowid']
     ... 1
+
+    >>> row.firstname
+    ... "Kendall"
+
+    Or changed using __setitem__ as:
+
+    >>> row.firstname = 'Julie'
+    ... row.save()
     """
 
     # Indicate that this specific row
@@ -62,14 +71,13 @@ class BaseRow:
         id_or_rowid = getattr(self, 'rowid', getattr(self, 'id', None))
         return f'<id: {id_or_rowid}>'
 
-    # def __setitem__(self, key, value):
-    #     self.mark_for_update = True
-    #     setattr(self, key, value)
-    #     self.updated_fields[key] = [key, value]
-    #     # result = self._backend.save_row(self, [key, value])
-    #     # self._marked_for_update = False
-
     def __setitem__(self, name, value):
+        # Before saving the item to the database,
+        # call the field responsible for setting
+        # the value to a database usable object
+        # table_field = self._backend.current_table.get_field(name)
+        # value = table_field.to_database(value)
+
         self.mark_for_update = True
         # We don't really care if the user
         # sets a field that does not actually
@@ -88,6 +96,15 @@ class BaseRow:
         table_field = self._backend.current_table.get_field(name)
         return table_field.to_python(value)
 
+    # FIXME: When trying to set this up
+    # we get a recursion error for
+    # whatever reasons
+    def __setattr__(self, name, value):
+        # if name in self._fields:
+        #     self.mark_for_update = True
+        #     self.updated_fields[name] = [name, value]
+        #     self.__dict__[name] = value
+        super().__setattr__(name, value)
 
     def __hash__(self):
         return hash((self.rowid))
@@ -119,29 +136,31 @@ class BaseRow:
         ... row['name'] = 'some other name'
         ... row.save()
         """
-        if self.mark_for_update:
-            fields_to_set = []
-            for _, values in self.updated_fields.items():
-                lhv, rhv = values
-                fields_to_set.append(
-                    self._backend.EQUALITY.format_map({
-                        'field': lhv,
-                        'value': self._backend.quote_value(rhv)
-                    })
-                )
-            fields_to_set = self._backend.comma_join(fields_to_set)
-            update_sql = self._backend.UPDATE.format_map({
-                'table': self._backend.current_table.name,
-                'params': fields_to_set
-            })
-            where_sql = self._backend.WHERE_CLAUSE.format_map({
-                'params': self._backend.EQUALITY.format_map({
-                    'field': 'id',
-                    'value': self.id
+        fields_to_set = []
+
+        for _, values in self.updated_fields.items():
+            lhv, rhv = values
+            fields_to_set.append(
+                self._backend.EQUALITY.format_map({
+                    'field': lhv,
+                    'value': self._backend.quote_value(rhv)
                 })
+            )
+
+        fields_to_set = self._backend.comma_join(fields_to_set)
+        update_sql = self._backend.UPDATE.format_map({
+            'table': self._backend.current_table.name,
+            'params': fields_to_set
+        })
+        where_sql = self._backend.WHERE_CLAUSE.format_map({
+            'params': self._backend.EQUALITY.format_map({
+                'field': 'id',
+                'value': self.id
             })
-            self._backend.save_row_object(self, [update_sql, where_sql])
-            return self
+        })
+        self._backend.save_row_object(self, [update_sql, where_sql])
+        self.updated_fields.clear()
+        return self
 
     def delete(self):
         """Deletes the row from the database
@@ -170,6 +189,11 @@ def row_factory(backend):
     def inner_factory(cursor, row):
         fields = [column[0] for column in cursor.description]
         data = {key: value for key, value in zip(fields, row)}
+        # FIXME: We need to find a way to pass the
+        # table to the row so that we can use the
+        # table instances and backend at the row level
+        # FIXME: Instead of passing the backend, pass
+        # the table which contains the backend itself
         instance = BaseRow(cursor, fields, data)
         instance._backend = backend
         return instance
@@ -278,6 +302,9 @@ class SQL:
         def check_integers(value):
             if isinstance(value, (int, float)):
                 return str(value)
+
+            if getattr(value, 'to_python', None) is not None:
+                return value.to_python()
             return value
         values = map(check_integers, values)
 
@@ -410,7 +437,7 @@ class SQL:
             filters_map.append((lhv, operator, value))
         return filters_map
 
-    def build_filters(self, items):
+    def build_filters(self, items, space_characters=True):
         """Tranform a list of decomposed filters to
         be usable conditions in an sql statement
 
@@ -485,7 +512,10 @@ class SQL:
 
             value = self.quote_value(value)
             built_filters.append(
-                self.simple_join((field, operator, value))
+                self.simple_join(
+                    (field, operator, value),
+                    space_characters=space_characters
+                )
             )
         return built_filters
 
@@ -531,7 +561,9 @@ class SQLiteBackend(SQL):
     """Class that initiates and encapsulates a
     new connection to the database"""
 
-    def __init__(self, database_name=None, table=None):
+    def __init__(self, database_name=None):
+        from lorelie.functions import Hash
+
         if database_name is None:
             database_name = ':memory:'
         else:
@@ -544,12 +576,13 @@ class SQLiteBackend(SQL):
 
         self.connection = connection
         self.current_table = None
-        connection.row_factory = row_factory(self)
+
         connections.register(database_name, self)
 
     def set_current_table(self, table):
-        """Set the table on which current operations
-        a run in the database"""
+        """Track the current table that is being updated
+        or queried at the connection level for other parts
+        of the project that require this knowledge"""
         self.current_table = table
 
     def list_table_columns_sql(self, table):

@@ -90,8 +90,19 @@ class Migrations:
         if not table_instances:
             return
 
-        backend = self.backend_class(database_name=self.database_name)
+        # There is a case where makemigrations() is not
+        # called which infers that there is no migration
+        # file. However, that does not mean that the tables
+        # cannot or should not be created. In that case,
+        # use what we know which is the table_instances
+        # passed to this function containing both the table
+        # name and the Table instance
+        if not self.migration_table_map:
+            self.migration_table_map = list(table_instances.keys())
+
+        backend = connections.get_last_connection()
         database_tables = backend.list_tables_sql()
+
         # When the table is in the migration file
         # and not in the database, it needs to be
         # created

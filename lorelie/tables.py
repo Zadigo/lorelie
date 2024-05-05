@@ -120,6 +120,9 @@ class Table(AbstractTable):
     def has_field(self, name):
         return name in self.fields_map
 
+    def get_field(self, name):
+        return self.fields_map[name]
+
     def create_table_sql(self, fields):
         sql = self.backend.CREATE_TABLE.format_map({
             'table': self.name,

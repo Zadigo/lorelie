@@ -25,7 +25,7 @@ class Field:
         }
 
         if max_length is not None:
-            instance = MaxLengthConstraint(fields=[name])
+            instance = MaxLengthConstraint(self.max_length, self)
             self.base_constraints.append(instance)
 
     def __repr__(self):
@@ -74,9 +74,10 @@ class Field:
 
     def field_parameters(self):
         """Adapt the python function parameters to the
-        database field creation paramters
+        database field creation ones. For example: 
 
-        >>> Field('visited', default=False)
+        >>> field = CharField('visited', default=False)
+        ... field.field_parameters()
         ... ['visited', 'text', 'not null', 'default', 0]
         """
         field_type = None
@@ -100,10 +101,20 @@ class Field:
             value = self.table.backend.quote_value(database_value)
             initial_parameters.extend(['default', value])
 
-        true_parameters = list(
-            filter(lambda x: x[1] is True, self.base_field_parameters.items()))
+        true_parameters = list(filter(
+            lambda x: x[1] is True, 
+            self.base_field_parameters.items()
+        ))
         additional_parameters = list(map(lambda x: x[0], true_parameters))
         base_field_parameters = initial_parameters + additional_parameters
+
+        for constraint in self.base_constraints:
+            # FIXME: AutoField needs to be setup with
+            # AutoField.table.backend which is None otherwise
+            # it raises a NoneType error in this section
+            constraint_sql  = constraint.as_sql(self.table.backend)
+            base_field_parameters.append(constraint_sql)
+
         return base_field_parameters
 
     def prepare(self, table):
@@ -111,6 +122,7 @@ class Field:
         if not isinstance(table, Table):
             raise ValueError(f"{table} should be an instance of Table")
         self.table = table
+
 
     def deconstruct(self):
         return (self.name, self.field_parameters())

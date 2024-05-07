@@ -46,6 +46,15 @@ class DatabaseManager:
             self.database = instance
         return self
 
+    def _get_select_sql(self, selected_table, columns=['rowid', '*']):
+        # This function creates and returns the base SQL line for 
+        # selecting values in the database: "select rowid, * where rowid=1"
+        select_sql = selected_table.backend.SELECT.format_map({
+            'fields': selected_table.backend.comma_join(columns),
+            'table': selected_table.name,
+        })
+        return [select_sql]
+
     def before_action(self, table_name):
         table = self.table_map[table_name]
         table.backend.set_current_table(table)

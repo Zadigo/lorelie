@@ -1,3 +1,5 @@
+from asgiref.sync import sync_to_async
+
 from lorelie.backends import SQLiteBackend
 from lorelie.migrations import Migrations
 from lorelie.queries import Query, QuerySet
@@ -47,7 +49,7 @@ class DatabaseManager:
         return self
 
     def _get_select_sql(self, selected_table, columns=['rowid', '*']):
-        # This function creates and returns the base SQL line for 
+        # This function creates and returns the base SQL line for
         # selecting values in the database: "select rowid, * where rowid=1"
         select_sql = selected_table.backend.SELECT.format_map({
             'fields': selected_table.backend.comma_join(columns),
@@ -76,17 +78,25 @@ class DatabaseManager:
         selected_table.load_current_connection()
         self.before_action(selected_table)
 
-        all_sql = selected_table.backend.SELECT.format_map({
-            'fields': selected_table.backend.comma_join(['rowid', '*']),
-            'table': selected_table.name
-        })
-        sql = [all_sql]
+        # all_sql = selected_table.backend.SELECT.format_map({
+        #     'fields': selected_table.backend.comma_join(['rowid', '*']),
+        #     'table': selected_table.name
+        # })
+        # sql = [all_sql]
+
+        sql = self._get_select_sql(selected_table)
+
+        if bool(selected_table.ordering):
+            ordering_sql = selected_table.ordering.as_sql(
+                selected_table.backend
+            )
+            sql.append(ordering_sql)
+
         query = selected_table.query_class(
             selected_table.backend,
             sql,
             table=selected_table
         )
-        query._table = selected_table
         query.run()
         return query.result_cache
 
@@ -144,18 +154,21 @@ class DatabaseManager:
                 )
             ]
 
-        select_sql = selected_table.backend.SELECT.format_map({
-            'fields': selected_table.backend.comma_join(['rowid', '*']),
-            'table': selected_table.name,
-        })
+        # select_sql = selected_table.backend.SELECT.format_map({
+        #     'fields': selected_table.backend.comma_join(['rowid', '*']),
+        #     'table': selected_table.name,
+        # })
+        select_sql = self._get_select_sql(selected_table)
         where_clause = selected_table.backend.WHERE_CLAUSE.format_map({
             'params': selected_table.backend.comma_join(filters)
         })
+        select_sql.append(where_clause)
+
         # TODO: Use the Query class on the table
         # or whether to import and call it directly ?
         query = selected_table.query_class(
             selected_table.backend,
-            [select_sql, where_clause],
+            select_sql,
             table=selected_table
         )
         query.run()
@@ -181,11 +194,12 @@ class DatabaseManager:
         )
 
         # Functions SQL: select rowid, *, lower(url) from table
-        select_sql = selected_table.backend.SELECT.format_map({
-            'fields': selected_table.backend.comma_join(base_return_fields),
-            'table': selected_table.name
-        })
-        sql = [select_sql]
+        # select_sql = selected_table.backend.SELECT.format_map({
+        #     'fields': selected_table.backend.comma_join(base_return_fields),
+        #     'table': selected_table.name
+        # })
+        # sql = [select_sql]
+        select_sql = self._get_select_sql(selected_table)
 
         # FIXME: Use operator_join
         # Filters SQL: select rowid, * from table where url='http://'
@@ -194,11 +208,11 @@ class DatabaseManager:
         where_clause = selected_table.backend.WHERE_CLAUSE.format_map({
             'params': joined_statements
         })
-        sql.extend([where_clause])
+        select_sql.extend([where_clause])
 
         query = selected_table.query_class(
             selected_table.backend,
-            sql,
+            select_sql,
             table=selected_table
         )
         query.run()

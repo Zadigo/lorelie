@@ -308,7 +308,7 @@ class Database:
 
     Creating a new database can be done by doing the following steps:
 
-    >>> table = Table('my_table', 'my_database', fields=[Field('url')])
+    >>> table = Table('my_table', fields=[Field('url')])
     ... database = Database(table, name='my_database')
 
     Providing a name is optional. If present, an sqlite dabase is created

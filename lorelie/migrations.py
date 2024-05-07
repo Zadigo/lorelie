@@ -74,7 +74,7 @@ class Migrations:
         table = Table('migrations', '', fields=table_fields)
         table.prepare()
 
-    def check(self, table_instances={}):
+    def check(self, table_instances):
         from lorelie.tables import Table
 
         errors = []
@@ -103,7 +103,6 @@ class Migrations:
 
         backend = connections.get_last_connection()
         database_tables = backend.list_tables_sql()
-
         # When the table is in the migration file
         # and not in the database tables that we
         # listed above, it needs to be created

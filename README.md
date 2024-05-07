@@ -32,6 +32,33 @@ dataase.migrate()
 table = database.get_table('my_table')
 ```
 
+## Migrations
+
+```json
+{
+    "id": null,
+    "date": null,
+    "number": 0,
+    "indexes": [],
+    "tables": [
+        {
+            "name": "celebrities",
+            "fields": [
+                {
+                    "name": "name",
+                    "params": [
+                        "name",
+                        "varchar(300)",
+                        "not null",
+                    ]
+                }
+            ],
+            "indexes": {}
+        }
+    ]
+}
+```
+
 
 ## Functions
 

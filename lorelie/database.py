@@ -238,7 +238,13 @@ class DatabaseManager:
 
         If we want to return only the year section of a date
 
-        >>> self.annotate(year=ExtractYear('created_on'))
+        >>> database.objects.annotate(year=ExtractYear('created_on'))
+
+        We can also run cases:
+
+        >>> condition = When('firstname=Kendall', 'Kylie')
+        ... case = Case(condition, default='Custom name', output_field=CharField())
+        ... instance.objects.annotate('celebrities', alt_name=case)
         """
         selected_table = self.table_map[table]
         selected_table.load_current_connection()

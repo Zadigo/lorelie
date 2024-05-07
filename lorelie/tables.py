@@ -86,6 +86,13 @@ class Table(AbstractTable):
         self.constraints = constraints
         self.field_constraints = {}
         self.inline_build = inline_build
+        # The str_field is the name of the
+        # field to be used for representing
+        # the column in the BaseRow
+        self.str_field = str_field
+
+        self.ordering = OrderBy(ordering)
+        
         super().__init__(
             database_name=database_name,
             inline_build=inline_build

@@ -68,8 +68,15 @@ class BaseRow:
             setattr(self, key, value)
 
     def __repr__(self):
-        id_or_rowid = getattr(self, 'rowid', getattr(self, 'id', None))
-        return f'<id: {id_or_rowid}>'
+        # By default, show the rowid or id in the representation
+        # of the value a given column e.g. <id: 1> which can
+        # be changed for example to <id: Kendall Jenner> if the
+        # user chooses to use that column to represent the column
+        str_field = self._backend.current_table.str_field or 'id'
+        # The rowid is not necessary implemented by default in the
+        # sqlite database. Hence why we test for the id field
+        name_to_show = getattr(self, 'rowid', getattr(self, str_field, None))
+        return f'<{name_to_show}>'
 
     def __setitem__(self, name, value):
         # Before saving the item to the database,

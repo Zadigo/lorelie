@@ -297,6 +297,9 @@ class DatabaseManager:
     # def bulk_create(self, *objs):
     # def order_by(self, *fields):
 
+    # async def async_all(self, table):
+    #     return await sync_to_async(self.all)(table)
+
 
 class Database:
     """This class links and unifies independent

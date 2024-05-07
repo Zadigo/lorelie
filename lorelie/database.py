@@ -348,9 +348,10 @@ class Database:
         self.database_name = name
         self.migrations = self.migrations_class(database_name=name)
 
-        new_connection = self.backend_class(
-            database_name=name
-        )
+        # Create a connection to populate the
+        # connection pool for the rest of the
+        # operations
+        self.backend_class(database_name=name)
 
         self.table_map = {}
         for table in tables:

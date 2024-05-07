@@ -1,5 +1,6 @@
 import re
 import sqlite3
+
 from lorelie.functions import Count, Functions
 from lorelie.queries import Query
 
@@ -97,7 +98,7 @@ class BaseRow:
     def __getitem__(self, name):
         value = getattr(self, name)
         # Before returning the value,
-        # get the field responsible for 
+        # get the field responsible for
         # converting said value to a Python
         # usable object
         table_field = self._backend.current_table.get_field(name)

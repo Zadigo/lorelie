@@ -21,9 +21,6 @@ class Query:
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self._sql}]>'
 
-    # def __del__(self):
-    #     self._backend.connection.close()
-
     @classmethod
     def run_multiple(cls, backend, *sqls, **kwargs):
         """Runs multiple queries against the database"""

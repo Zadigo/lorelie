@@ -47,8 +47,9 @@ class Upper(Lower):
 
 
 class Length(Functions):
-    """Returns length of each iterated values
-    from the database
+    """Function is used to return the length 
+    of a string expression in the selected 
+    database items
 
     >>> database.objects.annotate('celebrities', name_length=Length('url'))
     """
@@ -120,7 +121,7 @@ class ExtractYear(Functions):
 
     Or filter data based on the return value of the function
 
-    >>> table.filter('celebrities', year__gte=ExtractYear('created_on'))
+    >>> database.objects.filter('celebrities', year__gte=ExtractYear('created_on'))
     """
 
     def as_sql(self):
@@ -132,9 +133,11 @@ class ExtractYear(Functions):
 
 
 class Count(Functions):
-    """Counts the number of each value in the database
+    """Function used to count the number of rows 
+    that match a specified condition or all rows in 
+    a table if no condition is specified
 
-    >>> instance.objects.annotate('celebrities', count_of_names=Count('name'))
+    >>> database.objects.annotate('celebrities', count_of_names=Count('name'))
     """
 
     def as_sql(self):

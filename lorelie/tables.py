@@ -120,8 +120,11 @@ class Table(AbstractTable):
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
 
-    def has_field(self, name):
-        return name in self.fields_map
+    def has_field(self, name, raise_exception=False):
+        result = name in self.fields_map
+        if raise_exception:
+            pass
+        return result
 
     def get_field(self, name):
         return self.fields_map[name]

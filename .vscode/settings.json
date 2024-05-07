@@ -1,9 +1,9 @@
-{
-    "python.analysis.autoImportCompletions": true,
-    "python.autoComplete.extraPaths": [
-        "${workspaceFolder}\\lorelie\\lorelie"
-    ],
-    "python.analysis.extraPaths": [
-        "${workspaceFolder}\\lorelie\\lorelie"
-    ]
-}
+// {
+//     "python.analysis.autoImportCompletions": true,
+//     "python.autoComplete.extraPaths": [
+//         "${workspaceFolder}\\lorelie\\lorelie"
+//     ],
+//     "python.analysis.extraPaths": [
+//         "${workspaceFolder}\\lorelie\\lorelie"
+//     ]
+// }

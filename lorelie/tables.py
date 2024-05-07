@@ -4,6 +4,7 @@ from asgiref.sync import sync_to_async
 
 from lorelie.backends import SQLiteBackend
 from lorelie.exceptions import ImproperlyConfiguredError
+from lorelie.expressions import OrderBy
 from lorelie.fields import AutoField, Field
 from lorelie.queries import Query
 
@@ -80,7 +81,7 @@ class Table(AbstractTable):
     ... database.objects.all('url')
     """
 
-    def __init__(self, name, *, database_name=None, inline_build=False, fields=[], index=[], constraints=[]):
+    def __init__(self, name, *, database_name=None, inline_build=False, fields=[], index=[], constraints=[], ordering=[], str_field='id'):
         self.name = name
         self.indexes = index
         self.constraints = constraints

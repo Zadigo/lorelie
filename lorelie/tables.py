@@ -27,7 +27,7 @@ class AbstractTable(metaclass=BaseTable):
     query_class = Query
     backend_class = SQLiteBackend
 
-    def __init__(self, database_name=None, inline_build=False):
+    def __init__(self):
         self.backend = None
         self.is_prepared = False
 
@@ -81,12 +81,12 @@ class Table(AbstractTable):
     ... database.objects.all('url')
     """
 
-    def __init__(self, name, *, database_name=None, inline_build=False, fields=[], index=[], constraints=[], ordering=[], str_field='id'):
+    def __init__(self, name, *, fields=[], index=[], constraints=[], ordering=[], str_field='id'):
         self.name = name
+        self.verbose_name = name.lower().title()
         self.indexes = index
         self.constraints = constraints
         self.field_constraints = {}
-        self.inline_build = inline_build
         # The str_field is the name of the
         # field to be used for representing
         # the column in the BaseRow
@@ -94,10 +94,7 @@ class Table(AbstractTable):
 
         self.ordering = OrderBy(ordering)
         
-        super().__init__(
-            database_name=database_name,
-            inline_build=inline_build
-        )
+        super().__init__()
         self.fields_map = OrderedDict()
 
         for field in fields:
@@ -159,12 +156,12 @@ class Table(AbstractTable):
         # Database class instead of building tables
         # individually. This allows us to better track
         # sets of tables for a given database
-        if not self.inline_build and self.backend is None:
-            message = (
-                "Calling the Table class outside of Database "
-                "requires that you set 'inline_build' to True"
-            )
-            raise ImproperlyConfiguredError(self, message)
+        # if not self.inline_build and self.backend is None:
+        #     message = (
+        #         "Calling the Table class outside of Database "
+        #         "requires that you set 'inline_build' to True"
+        #     )
+        #     raise ImproperlyConfiguredError(self, message)
 
         field_params = self.build_field_parameters()
         field_params = [

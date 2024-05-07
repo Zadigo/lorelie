@@ -357,9 +357,8 @@ class Database:
         for table in tables:
             if not isinstance(table, Table):
                 raise ValueError('Value should be an instance of Table')
+
             table.load_current_connection()
-            # if table.backend is None:
-            #     table.backend = new_connection
             self.table_map[table.name] = table
 
         self.table_instances = list(tables)

@@ -1,18 +1,18 @@
-from typing import Any, Literal, NamedTuple, OrderedDict, Type, Union
+from typing import Any, Literal, OrderedDict, Type
 
-import pandas
 
-from lorelie.backends import BaseRow, SQLiteBackend
+from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint
 from lorelie.fields import Field
-from lorelie.functions import Functions
 from lorelie.indexes import Index
-from lorelie.migrations import Migrations
-from lorelie.queries import Query, QuerySet
-
+from lorelie.queries import Query
 
 class BaseTable(type):
-    def __new__(cls, name: str, bases: tuple, attrs: dict) -> type: ...
+    def __new__(
+        cls, name: str, 
+        bases: tuple, 
+        attrs: dict
+    ) -> type: ...
     @classmethod
     def prepare(cls, table: type) -> None: ...
 
@@ -23,12 +23,7 @@ class AbstractTable(metaclass=BaseTable):
     backend: SQLiteBackend = ...
     is_prepared: bool = Literal[False]
 
-    def __init__(
-        self,
-        database_name: str = ...,
-        inline_build: bool = ...
-    ) -> None: ...
-
+    def __init__(self) -> None: ...
     def __hash__(self) -> int: ...
     def __eq__(self, value: Any) -> bool: ...
 
@@ -51,16 +46,20 @@ class Table(AbstractTable):
         self,
         name: str,
         *,
-        database_name: str = ...,
-        inline_build: bool = ...,
         fields: list[Field] = ...,
         index: list[Index],
-        constraints: list[CheckConstraint]
+        constraints: list[CheckConstraint],
+        str_field: str = Literal['id']
     ) -> None: ...
 
     def __repr__(self) -> str: ...
 
-    def has_field(self, name: str) -> bool: ...
+    def has_field(
+        self, 
+        name: str,
+        raise_exception: bool = Literal[False]
+    ) -> bool: ...
+
     def get_field(self, name: str) -> Field: ...
     def create_table_sql(self, fields: list[str]) -> list[str]: ...
     def drop_table_sql(self, name: str) -> list[str]: ...

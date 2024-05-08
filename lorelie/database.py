@@ -47,6 +47,9 @@ class DatabaseManager:
             self.table_map = instance.table_map
             self.database = instance
         return self
+    
+    def __bool__(self):
+        pass
 
     def _get_select_sql(self, selected_table, columns=['rowid', '*']):
         # This function creates and returns the base SQL line for
@@ -295,7 +298,7 @@ class DatabaseManager:
         )
         return QuerySet(query)
 
-    def as_values(self, table, *args):
+    def values(self, table, *args):
         """Returns data from the database as a list
         of dictionnary values
 
@@ -318,7 +321,7 @@ class DatabaseManager:
         query.run()
         return list(dict_iterator(query.result_cache))
 
-    def as_dataframe(self, table, *args):
+    def dataframe(self, table, *args):
         """Returns data from the database as a
         pandas DataFrame object
 
@@ -330,6 +333,25 @@ class DatabaseManager:
 
     # def bulk_create(self, *objs):
     # def order_by(self, *fields):
+    # def count()
+    # def dates()
+    # def datetimes
+    # def difference()
+    # def distinct()
+    # def earliest()
+    # def latest()
+    # def exclude()
+    # def first()
+    # def extra()
+    # def get_or_create()
+    # def only()
+    # def select_for_update()
+    # def select_related()
+    # def fetch_related()
+    # def update()
+    # def update_or_create()
+    # def resolve_expression()
+
 
     # async def async_all(self, table):
     #     return await sync_to_async(self.all)(table)

@@ -54,8 +54,8 @@ class Length(Functions):
     >>> database.objects.annotate('celebrities', name_length=Length('url'))
     """
 
-    def as_sql(self):
-        sql = self.backend.LENGTH.format_map({
+    def as_sql(self, backend):
+        sql = backend.LENGTH.format_map({
             'field': self.field_name
         })
         return sql
@@ -140,8 +140,8 @@ class Count(Functions):
     >>> database.objects.annotate('celebrities', count_of_names=Count('name'))
     """
 
-    def as_sql(self):
-        sql = self.backend.COUNT.format_map({
+    def as_sql(self, backend):
+        sql = backend.COUNT.format_map({
             'field': self.field_name
         })
         return sql

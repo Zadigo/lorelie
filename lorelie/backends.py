@@ -1,13 +1,18 @@
+import dataclasses
+import itertools
 import re
 import sqlite3
+from dataclasses import field
 
-from lorelie.functions import Count, Functions
+from lorelie.expressions import Case
+from lorelie.functions import Count, Functions, Length
 from lorelie.queries import Query
 
 
 class Connections:
-    """A class that remembers the different connections
-    that were created"""
+    """A class that remembers the different 
+    connections that were created to the
+    SQLite database"""
 
     connections_map = {}
     created_connections = set()
@@ -18,12 +23,20 @@ class Connections:
     def __getitem__(self, name):
         return self.connections_map[name]
 
+    def __enter__(self, *args, **kwargs):
+        return self
+    
+    def __exit__(self):
+        return False
+
     def get_last_connection(self):
         """Return the last connection from the
         connection map"""
         return list(self.created_connections)[-1]
 
-    def register(self, name, connection):
+    def register(self, connection, name=None):
+        if name is None:
+            name = 'default'
         self.connections_map[name] = connection
         self.created_connections.add(connection)
 
@@ -208,6 +221,32 @@ def row_factory(backend):
     return inner_factory
 
 
+@dataclasses.dataclass
+class AnnotationMap:
+    sql_statements_dict: dict = field(default_factory=dict)
+    alias_fields: list = field(default_factory=list)
+    field_names: list = field(default_factory=list)
+    annotation_type_map: dict = field(default_factory=dict)
+
+    @property
+    def joined_final_sql_fields(self):
+        statements = []
+        for alias, sql in self.sql_statements_dict.items():
+            if self.annotation_type_map[alias] == 'Case':
+                statements.append(f'{sql}')
+                continue
+            statements.append(f'{sql} as {alias}')
+        return list(itertools.chain(statements))
+
+    @property
+    def requires_grouping(self):
+        values = list(self.annotation_type_map.values())
+        return any([
+            'Count' in values,
+            'Length' in values
+        ])
+
+
 class SQL:
     """Base sql compiler"""
 
@@ -254,8 +293,12 @@ class SQL:
 
     CHECK_CONSTRAINT = 'check ({conditions})'
 
-    CASE = 'case {field} {conditions} end'
+    CASE = 'case {field} {conditions} end {alias}'
     WHEN = 'when {condition} then {value}'
+
+    SQL_REGEXES = [
+        re.compile(r'^select\s(.*)\sfrom\s(.*)\s(where)?\s(.*);?$')
+    ]
 
     base_filters = {
         'eq': '=',
@@ -532,37 +575,65 @@ class SQL:
         statement as in `count(column_name) as my_special_name`.
         If we have Count function in our conditions, we have to
         identify it since it requires a special """
-        sql_functions_dict = {}
+        annotation_map = AnnotationMap()
+
         for alias_name, function in conditions.items():
-            special_function_fields = set()
+            annotation_map.alias_fields.append(alias_name)
+            annotation_map.annotation_type_map[alias_name] = function.__class__.__name__
+            if isinstance(function, Case):
+                function.alias_name = alias_name
+                case_sql = function.as_sql(self.current_table.backend)
+                annotation_map.sql_statements_dict[alias_name] = case_sql
 
-            if isinstance(function, Count):
-                # The Count database function is a special
-                # function that should regroup the count of
-                # each value. So instead of having
-                # "a, a, b" -> "a - 3" we'd get "a - 2, b - 1"
-                # TODO: Adapt this section to include the Case
-                # function when using annotations
-                special_function_fields.add(function.field_name)
-                # special_function_fields.add((
-                #     function.__class_.__name__,
-                #     function.field_name
-                # ))
-
-            if isinstance(function, Functions):
-                function.backend = self
-                # Uses "alias_name" as alias instead of the table column
-                # named in "lower(value)" in the returned results
-                statements_to_join = [
-                    function.as_sql(),
-                    f'as {alias_name}'
-                ]
-                sql_functions_dict[alias_name] = self.simple_join(
-                    statements_to_join
+            if isinstance(function, (Count, Length)):
+                annotation_map.field_names.append(
+                    function.field_name
+                )
+                annotation_map.sql_statements_dict[alias_name] = function.as_sql(
+                    self.current_table.backend
                 )
 
-        joined_fields = self.comma_join(sql_functions_dict.values())
-        return sql_functions_dict, list(special_function_fields), [joined_fields]
+        return annotation_map
+
+        # sql_functions_dict = {}
+        # for alias_name, function in conditions.items():
+        #     special_function_fields = set()
+
+        #     if isinstance(function, Case):
+        #         # function.alias_name = alias_name
+        #         # annotation_map.special_function_fields.add(function.field_name)
+        #         # case_sql = function.as_sql(self.current_table.backend)
+        #         # annotation_map.sql_statements_dict[alias_name] = case_sql
+
+        #         # TODO: Remove
+        #         special_function_fields.add(function.field_name)
+        #         case_sql = function.as_sql(self.current_table.backend)
+        #         sql_functions_dict[alias_name] = case_sql
+
+        #     if isinstance(function, (Count)):
+        #         # The Count database function is a special
+        #         # function that should regroup the count of
+        #         # each value. So instead of having
+        #         # "a, a, b" -> "a - 3" we'd get "a - 2, b - 1"
+        #         # TODO: Adapt this section to include the Case
+        #         # function when using annotations
+        #         # annotation_map.aggregate_fields.append(alias_name)
+        #         special_function_fields.add(function.field_name)
+
+        #     if isinstance(function, Functions):
+        #         function.backend = self
+        #         # Uses "alias_name" as alias instead of the table column
+        #         # named in "lower(value)" in the returned results
+        #         statements_to_join = [
+        #             function.as_sql(),
+        #             f'as {alias_name}'
+        #         ]
+        #         sql_functions_dict[alias_name] = self.simple_join(
+        #             statements_to_join
+        #         )
+
+        # joined_fields = self.comma_join(sql_functions_dict.values())
+        # return sql_functions_dict, list(special_function_fields), [joined_fields]
 
 
 class SQLiteBackend(SQL):
@@ -585,7 +656,7 @@ class SQLiteBackend(SQL):
         self.connection = connection
         self.current_table = None
 
-        connections.register(database_name, self)
+        connections.register(self, name=database_name)
 
     def set_current_table(self, table):
         """Track the current table that is being updated

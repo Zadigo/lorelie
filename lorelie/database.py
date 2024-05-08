@@ -188,7 +188,7 @@ class DatabaseManager:
         selected_table.load_current_connection()
         self.before_action(selected_table)
 
-        base_return_fields = ['rowid', '*']
+        # base_return_fields = ['rowid', '*']
         filters = selected_table.backend.build_filters(
             selected_table.backend.decompose_filters(**kwargs)
         )
@@ -250,33 +250,47 @@ class DatabaseManager:
         selected_table.load_current_connection()
         self.before_action(selected_table)
 
+        alias_fields = list(kwargs.keys())
         base_return_fields = ['rowid', '*']
-        sql_functions_dict, special_function_fields, fields = selected_table.backend.build_annotation(
-            **kwargs
+        # sql_functions_dict, special_function_fields, fields = selected_table.backend.build_annotation(
+        #     **kwargs
+        # )
+        # base_return_fields.extend(fields)
+
+        annotation_map = selected_table.backend.build_annotation(**kwargs)
+        annotation_sql = selected_table.backend.comma_join(annotation_map.joined_final_sql_fields)
+        base_return_fields.append(annotation_sql)
+
+        # base_return_fields.extend(annotation_map.joined_final_sql_fields)
+
+        selected_table.field_names = selected_table.field_names + alias_fields
+        # sql = selected_table.backend.SELECT.format_map({
+        #     'fields': selected_table.backend.comma_join(base_return_fields),
+        #     'table': selected_table.name
+        # })
+        select_sql_tokens = self._get_select_sql(
+            selected_table,
+            columns=base_return_fields
         )
-        base_return_fields.extend(fields)
-
-        selected_table.field_names = selected_table.field_names + \
-            list(kwargs.keys())
-
-        sql = selected_table.backend.SELECT.format_map({
-            'fields': selected_table.backend.comma_join(base_return_fields),
-            'table': selected_table.name
-        })
 
         # TODO: Adapt this section so that the Case function
-        # can parsed and created
-        if special_function_fields:
+        # can be parsed and created
+        if annotation_map.requires_grouping:
+            grouping_fields = set(annotation_map.field_names)
             groupby_sql = selected_table.backend.GROUP_BY.format_map({
-                'conditions': selected_table.backend.comma_join(special_function_fields)
+                'conditions': selected_table.backend.comma_join(grouping_fields)
             })
-            sql = selected_table.backend.simple_join([sql, groupby_sql])
+            select_sql_tokens.append(groupby_sql)
+
+        # select_sql_tokens = [
+        #     selected_table.backend.simple_join(select_sql_tokens)
+        # ]
 
         # TODO: Create a query and only run it when
         # we need with QuerySet for the other functions
         query = Query(
             selected_table.backend,
-            [sql],
+            select_sql_tokens,
             table=selected_table
         )
         return QuerySet(query)
@@ -419,3 +433,12 @@ class Database:
         tables, implementing the constraints and all other
         table parameters specified by on the table"""
         self.migrations.check(self.table_map)
+
+    def foreign_key(self, left_table, right_table, on_delete, related_name=None):
+        pass
+
+    def many_to_many(self, left_table, right_table, primary_key=True, related_name=None):
+        pass
+
+    def one_to_one_key(self, left_table, right_table, on_delete, related_name=None):
+        pass

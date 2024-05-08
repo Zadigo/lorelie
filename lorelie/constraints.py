@@ -8,8 +8,17 @@ class CheckConstraint:
         self.name = name
         self.fields = fields
 
-    def __call__(self, value):
-        pass
+
+class UniqueConstraint:
+    UNIQUE = 'unique({fields})'
+
+    def __init__(self, name, *, fields=[]):
+        self.name = name
+        self.fields = fields
+
+    def as_sql(self, backend):
+        fields = backend.comma_join(self.fields)
+        return self.UNIQUE.format(fields=fields)
 
 
 # class MaxLengthConstraint(CheckConstraint):
@@ -29,7 +38,7 @@ class CheckConstraint:
 #     def as_sql(self, backend):
 #         if not isinstance(backend, SQLiteBackend):
 #             raise ValueError()
-        
+
 #         # params = {'field': field, 'operator': '>', 'value': self.max_length}
 #         # values = [
 #         #     backend.CONDITION.format_map(params)
@@ -39,8 +48,8 @@ class CheckConstraint:
 #         values = []
 #         for field in self.fields:
 #             values.append(backend.CONDITION.format_map({
-#                 'field': field, 
-#                 'operator': '>', 
+#                 'field': field,
+#                 'operator': '>',
 #                 'value': self.max_length
 #             }))
 
@@ -65,10 +74,10 @@ class MaxLengthConstraint(CheckConstraint):
     def as_sql(self, backend):
         if not isinstance(backend, SQLiteBackend):
             raise ValueError()
-        
+
         condition = backend.CONDITION.format_map({
-            'field': self.field.name, 
-            'operator': '>', 
+            'field': self.field.name,
+            'operator': '>',
             'value': self.limit
         })
         check_sql = self.CHECK.format_map({

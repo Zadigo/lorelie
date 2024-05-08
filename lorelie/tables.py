@@ -85,7 +85,7 @@ class Table(AbstractTable):
         self.name = name
         self.verbose_name = name.lower().title()
         self.indexes = index
-        self.constraints = constraints
+        self.table_constraints = constraints
         self.field_constraints = {}
         # The str_field is the name of the
         # field to be used for representing
@@ -93,7 +93,7 @@ class Table(AbstractTable):
         self.str_field = str_field
 
         self.ordering = OrderBy(ordering)
-        
+
         super().__init__()
         self.fields_map = OrderedDict()
 
@@ -152,7 +152,7 @@ class Table(AbstractTable):
 
     def build_field_parameters(self):
         """Returns the paramaters for all
-        the fields present on the table"""
+        the fields present on the current table"""
         return [
             field.field_parameters()
             for field in self.fields_map.values()
@@ -161,19 +161,7 @@ class Table(AbstractTable):
     def prepare(self):
         """Prepares the table and then creates it
         in the database using the parameters of the
-        different present fields"""
-        # FIXME: Do we really need the inline_build again
-        # since we'll be building tables inside the
-        # Database class instead of building tables
-        # individually. This allows us to better track
-        # sets of tables for a given database
-        # if not self.inline_build and self.backend is None:
-        #     message = (
-        #         "Calling the Table class outside of Database "
-        #         "requires that you set 'inline_build' to True"
-        #     )
-        #     raise ImproperlyConfiguredError(self, message)
-
+        different fields and parameters"""
         field_params = self.build_field_parameters()
         field_params = [
             self.backend.simple_join(params)

@@ -1,14 +1,21 @@
 import unittest
 
+from lorelie.backends import SQLiteBackend
 from lorelie.fields import AutoField, BooleanField, Field, IntegerField
-from tests.items import test_table
+from lorelie.tables import Table
+
+table = Table('celebrities', fields=[])
+table.backend = SQLiteBackend()
+table.prepare()
 
 
 class TestField(unittest.TestCase):
     def test_field_params(self):
         field = Field('name')
-        field.prepare(test_table)
+        field.prepare(table)
 
+        # The default composition for the parameters
+        # of a field should be the following:
         result = field.field_parameters()
         self.assertListEqual(result, ['name', 'text', 'not null'])
 
@@ -31,22 +38,30 @@ class TestField(unittest.TestCase):
         result = field.field_parameters()
         self.assertListEqual(
             result,
-            ['name', 'text', 'default', "'Kendall'", 'null', 'unique']
+            ['name', 'varchar(100)', 'default', "'Kendall'", 'null', 'unique']
         )
-
 
     def test_to_database(self):
         field = Field('name')
-        field.prepare(test_table)
+        field.prepare(table)
+
         result = field.to_database('Kendall')
         self.assertEqual(result, 'Kendall')
+
+    def test_desconstruction(self):
+        field = Field('name')
+        name, parameters = field.deconstruct()
+        self.assertIsInstance(name, str)
+        self.assertIsInstance(parameters, list)
+        self.assertEqual(name, 'name')
+        self.assertIn('name', parameters)
 
 
 class TestIntegerField(unittest.TestCase):
     def test_result(self):
         field = IntegerField('age')
-        field.prepare(test_table)
-        
+        field.prepare(table)
+
         params = field.field_parameters()
         self.assertListEqual(
             params,
@@ -62,7 +77,7 @@ class TestIntegerField(unittest.TestCase):
 class TestBooleanField(unittest.TestCase):
     def test_result(self):
         field = BooleanField('completed')
-        field.prepare(test_table)
+        field.prepare(table)
 
         params = field.field_parameters()
         self.assertListEqual(
@@ -83,7 +98,7 @@ class TestBooleanField(unittest.TestCase):
 class TestAutoField(unittest.TestCase):
     def test_result(self):
         field = AutoField()
-        field.prepare(test_table)
+        field.prepare(table)
 
         name, params = field.deconstruct()
         self.assertListEqual(

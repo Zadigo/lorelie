@@ -1,8 +1,9 @@
 import unittest
 
 from lorelie.backends import BaseRow
+from lorelie.database import Database
 from lorelie.fields import CharField, IntegerField
-from lorelie.tables import Database, Table
+from lorelie.tables import Table
 
 
 class TestDatabase(unittest.TestCase):
@@ -12,28 +13,31 @@ class TestDatabase(unittest.TestCase):
             CharField('lastname'),
             IntegerField('followers')
         ])
-        database = Database(table)
-        database.migrate()
-        self.database = database
+        db = Database(table)
+        db.migrate()
+        self.db = db
 
     def test_general_structure(self):
-        table = self.database.get_table('celebrities')
-        self.assertIsInstance(table, Table)
-        self.assertTrue(len(self.database.table_instances) > 0)
+        self.assertTrue(self.db.in_memory)
 
-    def test_table_manipulation(self):
-        self.database.objects.create(
+        table = self.db.get_table('celebrities')
+
+        self.assertIsInstance(table, Table)
+        self.assertTrue(len(self.db.table_instances) > 0)
+
+    def test_connection_manipulation(self):
+        self.db.objects.create(
             'celebrities',
             firstname='Kendall',
             lastname='Jenner',
             followers=10
         )
 
-        celebrity = self.database.objects.get(
+        celebrity = self.db.objects.get(
             'celebrities',
             firstname='Kendall'
         )
-        # celebrity = queryset[0]
+
         self.assertIsInstance(celebrity, BaseRow)
         self.assertIsInstance(celebrity.id, int)
         self.assertTrue(celebrity.firstname == 'Kendall')

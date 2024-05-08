@@ -59,6 +59,7 @@ class UniqueConstraint:
 #         return sql
 
 
+# TODO: Move and rename to MaxLengthValidator
 class MaxLengthConstraint(CheckConstraint):
     CHECK = 'check({condition})'
 

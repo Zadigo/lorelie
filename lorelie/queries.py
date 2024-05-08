@@ -6,6 +6,23 @@ class Query:
     the `result_cache`
     """
 
+    # TODO: Implement this format???
+    # def __init__(self, sql_tokens, backend=None, table=None):
+    #     self._table = table
+    #     self._backend = table.backend if table is not None else backend
+
+    #     from lorelie.backends import connections
+    #     if self._backend is None:
+    #         self._backend = connections.get_last_connection()
+
+    #     from lorelie.backends import SQLiteBackend
+    #     if not isinstance(self._backend, SQLiteBackend):
+    #         raise ValueError('Connection should be an instance SQLiteBackend')
+
+    #     self._sql = None
+    #     self._sql_tokens = sql_tokens
+    #     self.result_cache = []
+
     def __init__(self, backend, sql_tokens, table=None):
         self._table = table
 

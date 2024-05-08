@@ -1,5 +1,6 @@
 import hashlib
 
+
 class Functions:
     custom_sql = None
 
@@ -156,9 +157,106 @@ class Hash(Functions):
             text = str(text).encode('utf-8')
             return hashlib.md5(text).hexdigest()
         return callback
-    
+
     def as_sql(self):
         sql = self.custom_sql.format_map({
             'field': self.field_name
         })
         return sql
+
+
+# Extract,
+# ExtractDay,
+# ExtractHour,
+# ExtractIsoWeekDay,
+# ExtractIsoYear,
+# ExtractMinute,
+# ExtractMonth,
+# ExtractQuarter,
+# ExtractSecond,
+# ExtractWeek,
+# ExtractWeekDay,
+# ExtractYear,
+# Now,
+# Trunc,
+# TruncDate,
+# TruncDay,
+# TruncHour,
+# TruncMinute,
+# TruncMonth,
+# TruncQuarter,
+# TruncSecond,
+# TruncTime,
+# TruncWeek,
+# TruncYear,
+
+# Abs,
+# ACos,
+# ASin,
+# ATan,
+# ATan2,
+# Ceil,
+# Cos,
+# Cot,
+# Degrees,
+# Exp,
+# Floor,
+# Ln,
+# Log,
+# Mod,
+# Pi,
+# Power,
+# Radians,
+# Random,
+# Round,
+# Sign,
+# Sin,
+# Sqrt,
+# Tan
+
+# MD5,
+# SHA1,
+# SHA224,
+# SHA256,
+# SHA384,
+# SHA512,
+# Chr,
+# Concat,
+# ConcatPair,
+# Left,
+# Length,
+# Lower,
+# LPad,
+# LTrim,
+# Ord,
+# Repeat,
+# Replace,
+# Reverse,
+# Right,
+# RPad,
+# RTrim,
+# StrIndex,
+# Substr,
+# Trim,
+# Upper,
+
+
+# CumeDist,
+# DenseRank,
+# FirstValue,
+# Lag,
+# LastValue,
+# Lead,
+# NthValue,
+# Ntile,
+# PercentRank,
+# Rank,
+# RowNumber
+
+# Cast,
+# Coalesce,
+# Collate,
+# Greatest,
+# JSONObject,
+# Least,
+# NullIf

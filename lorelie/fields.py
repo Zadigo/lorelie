@@ -55,6 +55,12 @@ class Field:
         instance.field_parameters()
         return instance
 
+    def run_validators(self, value):
+        for validator in self.base_validators:
+            if not callable(validator):
+                raise ValueError('Validator should be a callable')
+            validator(value)
+
     def to_python(self, data):
         return data
 

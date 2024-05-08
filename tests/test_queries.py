@@ -1,18 +1,23 @@
 import unittest
 
 from lorelie.backends import BaseRow
+from lorelie.database import Database
+from lorelie.fields import CharField
 from lorelie.queries import Query
-from tests.db import create_table
+from lorelie.tables import Table
 
 
 class TestQuery(unittest.TestCase):
     def setUp(self):
-        backend = create_table()
-        select_clause = backend.SELECT.format_map({
-            'fields': backend.comma_join(['rowid', '*']),
-            'table': backend.quote_value('celebrities')
+        table = Table('celebrities', fields=[CharField('name')])
+        db = Database(table)
+        db.migrate()
+
+        select_clause = table.backend.SELECT.format_map({
+            'fields': table.backend.comma_join(['rowid', '*']),
+            'table': table.backend.quote_value('celebrities')
         })
-        self.instance = Query(backend, [select_clause])
+        self.instance = Query(table.backend, [select_clause], table=table)
 
     def test_run(self):
         self.instance.run()

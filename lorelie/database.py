@@ -415,6 +415,12 @@ class Database:
 
     def __hash__(self):
         return hash((self.database_name))
+    
+    @property
+    def in_memory(self):
+        """If the database does not have a
+        concrete name then it is `memory`"""
+        return self.database_name is None
 
     def get_table(self, table_name):
         return self.table_map[table_name]

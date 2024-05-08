@@ -190,3 +190,31 @@ class AutoField(IntegerField):
         self.base_field_parameters.pop('null')
         self.base_field_parameters.pop('not null')
         self.base_field_parameters['autoincrement'] = True
+
+
+class DateField(Field):
+    pass
+
+
+class DateTimeField(Field):
+    pass
+
+
+class TimeField(Field):
+    pass
+
+
+class EmailField(Field):
+    pass
+
+
+class FilePathField(CharField):
+    pass
+
+
+class SlugField(CharField):
+    pass
+
+
+class UUIDField(Field):
+    pass

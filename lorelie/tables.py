@@ -117,6 +117,17 @@ class Table(AbstractTable):
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
 
+    def __getattribute__(self, name):
+        if name == 'backend':
+            backend = self.__dict__['backend']
+            if backend is None:
+                raise ImproperlyConfiguredError(
+                    self,
+                    "You are trying to use a table outside of a Database "
+                    "and therefore calling it without a backend being set"
+                )
+        return super().__getattribute__(name)
+
     def has_field(self, name, raise_exception=False):
         result = name in self.fields_map
         if raise_exception:

@@ -56,7 +56,7 @@ class Field:
         return instance
 
     def to_python(self, data):
-        return self.python_type(data)
+        return data
 
     def to_database(self, data):
         if callable(data):
@@ -129,7 +129,8 @@ class Field:
 
 
 class CharField(Field):
-    pass
+    def to_python(self, data):
+        return self.python_type(data)
 
 
 class IntegerField(Field):

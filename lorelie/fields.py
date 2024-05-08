@@ -6,9 +6,9 @@ from lorelie.constraints import MaxLengthConstraint
 class Field:
     python_type = str
     base_validators = []
-    base_constraints = []
 
     def __init__(self, name, *, max_length=None, null=False, primary_key=False, default=None, unique=False, validators=[]):
+        self.constraints = []
         self.name = name
         self.null = null
         self.primary_key = primary_key
@@ -26,7 +26,7 @@ class Field:
 
         if max_length is not None:
             instance = MaxLengthConstraint(self.max_length, self)
-            self.base_constraints.append(instance)
+            self.constraints.append(instance)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}[{self.name}]>'
@@ -66,7 +66,7 @@ class Field:
 
     def to_database(self, data):
         if callable(data):
-            return self.python_type(str(data()))
+            return self.to_python(str(data()))
 
         if data is None:
             return ''
@@ -76,7 +76,8 @@ class Field:
                 f"{type(data)} should be an instance "
                 f"of {self.python_type}"
             )
-        return self.python_type(data)
+        self.run_validators(data)
+        return self.to_python(data)
 
     def field_parameters(self):
         """Adapt the python function parameters to the
@@ -88,6 +89,8 @@ class Field:
         """
         field_type = None
         if self.max_length is not None:
+            # varchar does not raise constraint. It only
+            # says that the field should be of x length
             field_type = f'varchar({self.max_length})'
 
         initial_parameters = [self.name, field_type or self.field_type]
@@ -108,17 +111,17 @@ class Field:
             initial_parameters.extend(['default', value])
 
         true_parameters = list(filter(
-            lambda x: x[1] is True, 
+            lambda x: x[1] is True,
             self.base_field_parameters.items()
         ))
         additional_parameters = list(map(lambda x: x[0], true_parameters))
         base_field_parameters = initial_parameters + additional_parameters
 
-        for constraint in self.base_constraints:
+        for constraint in self.constraints:
             # FIXME: AutoField needs to be setup with
             # AutoField.table.backend which is None otherwise
             # it raises a NoneType error in this section
-            constraint_sql  = constraint.as_sql(self.table.backend)
+            constraint_sql = constraint.as_sql(self.table.backend)
             base_field_parameters.append(constraint_sql)
 
         return base_field_parameters
@@ -127,8 +130,11 @@ class Field:
         from lorelie.tables import Table
         if not isinstance(table, Table):
             raise ValueError(f"{table} should be an instance of Table")
-        self.table = table
 
+        for instance in self.constraints:
+            table.field_constraints[self.name] = instance
+
+        self.table = table
 
     def deconstruct(self):
         return (self.name, self.field_parameters())

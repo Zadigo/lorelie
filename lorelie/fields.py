@@ -145,6 +145,10 @@ class IntegerField(Field):
         return 'integer'
 
 
+class FloatField(Field):
+    pass
+
+
 class JSONField(Field):
     python_type = dict
 

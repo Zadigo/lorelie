@@ -402,7 +402,7 @@ class Database:
 
     def __init__(self, *tables, name=None):
         self.database_name = name
-        self.migrations = self.migrations_class(database_name=name)
+        self.migrations = self.migrations_class(self)
 
         # Create a connection to populate the
         # connection pool for the rest of the

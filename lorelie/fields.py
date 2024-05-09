@@ -221,7 +221,7 @@ class TimeField(Field):
     pass
 
 
-class EmailField(Field):
+class EmailField(CharField):
     pass
 
 

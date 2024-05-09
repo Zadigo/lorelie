@@ -25,7 +25,7 @@ class Connections:
 
     def __enter__(self, *args, **kwargs):
         return self
-    
+
     def __exit__(self):
         return False
 
@@ -421,7 +421,7 @@ class SQL:
 
     def dict_to_sql(self, data, quote_values=True):
         """Convert values nested into a dictionnary
-        to sql usable type values. The column values
+        to sql usable strings. The column values
         are quoted by default
 
         >>> self.dict_to_sql({'name__eq': 'Kendall'})
@@ -455,7 +455,8 @@ class SQL:
 
         if not identified_operator:
             # Use regex to identify the unique
-            # possible existing pattern
+            # possible existing pattern if the
+            # user does not use a "__" filter
             result = re.match(r'\w+\=', value)
             if not result:
                 raise ValueError('Could not identify the condition')
@@ -490,7 +491,7 @@ class SQL:
 
     def build_filters(self, items, space_characters=True):
         """Tranform a list of decomposed filters to
-        be usable conditions in an sql statement
+        usable string conditions for an sql statement
 
         >>> self.build_filters([('rowid', '=', '1')])
         ... ["rowid = '1'"]
@@ -506,10 +507,20 @@ class SQL:
         for item in items:
             field, operator, value = item
 
+            # TODO: Implement a check tha raises an
+            # error if the operator is not a valid
+            # existing one aka: =,!=, <,>,<=,>=,in,
+            # endswith, startswith, between, isnull, like
+
             if operator == 'in':
+                # TODO: Allow the user to check that a
+                # value would also exist in a queryset or
+                # an iterable in general
                 if not isinstance(value, (tuple, list)):
                     raise ValueError(
-                        'The value when using "in" should be a tuple or a list')
+                        'The value when using "in" '
+                        'should be a tuple or a list'
+                    )
 
                 quoted_list_values = (self.quote_value(item) for item in value)
                 operator_and_value = self.IN.format_map({
@@ -590,50 +601,9 @@ class SQL:
                     function.field_name
                 )
                 annotation_map.sql_statements_dict[alias_name] = function.as_sql(
-                    self.current_table.backend
-                )
+                    self)
 
         return annotation_map
-
-        # sql_functions_dict = {}
-        # for alias_name, function in conditions.items():
-        #     special_function_fields = set()
-
-        #     if isinstance(function, Case):
-        #         # function.alias_name = alias_name
-        #         # annotation_map.special_function_fields.add(function.field_name)
-        #         # case_sql = function.as_sql(self.current_table.backend)
-        #         # annotation_map.sql_statements_dict[alias_name] = case_sql
-
-        #         # TODO: Remove
-        #         special_function_fields.add(function.field_name)
-        #         case_sql = function.as_sql(self.current_table.backend)
-        #         sql_functions_dict[alias_name] = case_sql
-
-        #     if isinstance(function, (Count)):
-        #         # The Count database function is a special
-        #         # function that should regroup the count of
-        #         # each value. So instead of having
-        #         # "a, a, b" -> "a - 3" we'd get "a - 2, b - 1"
-        #         # TODO: Adapt this section to include the Case
-        #         # function when using annotations
-        #         # annotation_map.aggregate_fields.append(alias_name)
-        #         special_function_fields.add(function.field_name)
-
-        #     if isinstance(function, Functions):
-        #         function.backend = self
-        #         # Uses "alias_name" as alias instead of the table column
-        #         # named in "lower(value)" in the returned results
-        #         statements_to_join = [
-        #             function.as_sql(),
-        #             f'as {alias_name}'
-        #         ]
-        #         sql_functions_dict[alias_name] = self.simple_join(
-        #             statements_to_join
-        #         )
-
-        # joined_fields = self.comma_join(sql_functions_dict.values())
-        # return sql_functions_dict, list(special_function_fields), [joined_fields]
 
 
 class SQLiteBackend(SQL):
@@ -731,14 +701,14 @@ class SQLiteBackend(SQL):
                 'value': self.quote_value('index')
             })
         })
-        sql = [select_sql, where_clause]
-        query = Query(self, sql)
+        query = Query(self, [select_sql, where_clause])
         query.run()
         return query.result_cache
 
     def list_table_indexes(self, table):
-        sql = f'PRAGMA index_list({self.quote_value(table.name)})'
-        query = Query(self, sql, table=table)
+        # sql = f'PRAGMA index_list({self.quote_value(table.name)})'
+        sql = f'PRAGMA index_list({table.name})'
+        query = Query(self, [sql], table=table)
         query.run()
         return query.result_cache
 

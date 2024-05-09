@@ -17,12 +17,12 @@ class Migrations:
     CACHE = {}
     backend_class = SQLiteBackend
 
-    def __init__(self, database_name=None):
+    def __init__(self, database):
         self.file = PROJECT_PATH / 'migrations.json'
-        self.database_name = database_name
+        self.database = database
+        self.database_name = database.database_name
         self.CACHE = self.read_content
         self.file_id = self.CACHE['id']
-        self.in_memory = database_name is None
 
         try:
             self.tables = self.CACHE['tables']
@@ -39,6 +39,10 @@ class Migrations:
 
     def __repr__(self):
         return f'<{self.__class__.__name__} {self.file_id}>'
+
+    @property
+    def in_memory(self):
+        return self.database_name is None
 
     @cached_property
     def read_content(self):

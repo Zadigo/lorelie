@@ -63,6 +63,8 @@ class DatabaseManager:
     def before_action(self, table_name):
         table = self.table_map[table_name]
         table.backend.set_current_table(table)
+        table.load_current_connection()
+        return table
 
     def first(self, table):
         """Returns the first row from
@@ -134,7 +136,7 @@ class DatabaseManager:
         query.run(commit=True)
         return self.last(selected_table.name)
 
-    def filter(self, table, **kwargs):
+    def filter(self, table, *args, **kwargs):
         """Filter the data in the database based on
         a set of criteria
 
@@ -143,12 +145,14 @@ class DatabaseManager:
         ... database.objects.filter('celebrities', age__gt=15)
         ... database.objects.filter('celebrities', name__in=['Kendall'])
         """
-        selected_table = self.table_map[table]
-        selected_table.load_current_connection()
-        self.before_action(selected_table)
+        selected_table = self.before_action(table)
 
         tokens = selected_table.backend.decompose_filters(**kwargs)
         filters = selected_table.backend.build_filters(tokens)
+
+        if args:
+            for expression in args:
+                filters.extend(expression.as_sql(selected_table.backend))
 
         if len(filters) > 1:
             filters = [

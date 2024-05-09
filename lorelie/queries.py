@@ -17,7 +17,10 @@ class Query:
 
     #     from lorelie.backends import SQLiteBackend
     #     if not isinstance(self._backend, SQLiteBackend):
-    #         raise ValueError('Connection should be an instance SQLiteBackend')
+    #         raise ValueError(
+    #             "Backend connection should be an "
+    #             "instance SQLiteBackend"
+    #         )
 
     #     self._sql = None
     #     self._sql_tokens = sql_tokens
@@ -32,6 +35,8 @@ class Query:
 
         self._backend = backend
         self._sql = None
+        # TODO: Enforce that sql_tokens can only
+        # accept a list of strings
         self._sql_tokens = sql_tokens
         self.result_cache = []
 

@@ -1,9 +1,3 @@
-# from lorelie.backends import SQLiteBackend
-# from lorelie.backends import SQL
-
-# backend = SQL()
-
-
 class BaseExpression:
     template = None
 
@@ -11,8 +5,12 @@ class BaseExpression:
         self.backend = None
         self.sql_statement = None
 
-    def as_sql(self):
+    def as_sql(self, backend):
         pass
+
+
+class NegatedExpression(BaseExpression):
+    template = 'not {expression}'
 
 
 class When(BaseExpression):
@@ -29,7 +27,7 @@ class When(BaseExpression):
         self.field_name = decomposed_filter[0]
         condition = backend.simple_join(
             backend.build_filters(
-                decomposed_filter, 
+                decomposed_filter,
                 space_characters=False
             )
         )
@@ -79,6 +77,16 @@ class Case(BaseExpression):
         case_else_sql = self.CASE_ELSE.format(
             value=backend.quote_value(self.default)
         )
+
+        if self.alias_name is None:
+            raise ValueError(
+                "Case annotation does not have an "
+                f"alias name. Got: {self.alias_name}"
+            )
+        
+        # TODO: We should check that the alias name does not
+        # conflict with a field in the original table
+
         case_end_sql = self.CASE_END.format(alias=self.alias_name)
         return backend.simple_join([case_sql, case_else_sql, case_end_sql])
 
@@ -128,104 +136,98 @@ class OrderBy(BaseExpression):
         return ordering_sql
 
 
-# instance = OrderBy(['firstname', '-lastname'])
-# print(instance.as_sql(SQLiteBackend()))
+class CombinedExpression:
+    EXPRESSION = '({inner}) {outer}'
+
+    def __init__(self, *funcs):
+        self.others = list(funcs)
+        self.children = []
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__}: {self.children}>'
+
+    def __or__(self, other):
+        self.children.append('or')
+        self.children.append(other)
+        return self
+
+    def __and__(self, other):
+        self.children.append('and')
+        self.children.append(other)
+        return self
+
+    def build_children(self, operator='and'):
+        for other in self.others:
+            self.children.append(other)
+            self.children.append(operator)
+
+        if self.children[-1] == 'and' or self.children[-1] == 'or':
+            self.children[-1] = ''
+
+        self.children = list(filter(lambda x: x != '', self.children))
+
+    def as_sql(self, backend):
+        sql_statement = []
+        for child in self.children:
+            if isinstance(child, str):
+                sql_statement.append(child)
+                continue
+            child_sql = child.as_sql(backend)
+            sql_statement.append(child_sql)
+
+        inner_items = []
+        outer_items = []
+        seen_operator = None
+        is_inner = True
+
+        for item in sql_statement:
+            if item == 'and' or item == 'or':
+                if seen_operator is None:
+                    is_inner = True
+                elif seen_operator != item:
+                    is_inner = False
+                seen_operator = item
+
+            if is_inner:
+                if isinstance(item, str):
+                    item = [item]
+                inner_items.extend(item)
+                continue
+            else:
+                if isinstance(item, str):
+                    item = [item]
+                outer_items.extend(item)
+                continue
+
+        inner = backend.simple_join(inner_items)
+        outer = backend.simple_join(outer_items)
+        sql = self.EXPRESSION.format(inner=inner, outer=outer).strip()
+        # TODO: Ensure that the SQL returned from these types
+        # of expressions all return a list of strings
+        return [sql]
 
 
-# class CombinedExpression(BaseExpression):
-#     def __init__(self, *funcs, operator='and'):
-#         self.selected_operator = operator
-#         self.functions = list(funcs)
+class Q(BaseExpression):
+    def __init__(self, **expressions):
+        self.expressions = expressions
 
-#     def __repr__(self):
-#         expressions = [(repr(func), func.selected_operator) for func in self.functions]
-#         return f'<{self.__class__.__name__}: {expressions}>'
+    def __repr__(self):
+        return f'<{self.__class__.__name__}: {self.expressions}>'
 
-#     def __and__(self, obj):
-#         self.functions.append(obj)
-#         return CombinedExpression(*self.functions)
+    def __and__(self, other):
+        instance = CombinedExpression(self, other)
+        instance.build_children()
+        return instance
 
-#     def __or__(self, obj):
-#         self.functions.append(obj)
-#         return CombinedExpression(*self.functions, operator='or')
+    def __or__(self, other):
+        instance = CombinedExpression(self, other)
+        instance.build_children(operator='or')
+        return instance
 
-#     def build_operator_list(self):
-#         return [(func, func.selected_operator) for func in self.functions]
-
-#     def as_sql(self, backend):
-#         # sql_tokens = [func.as_sql(backend) for func in self.functions]
-#         # return backend.operator_join(sql_tokens)
-#         sql_tokens = []
-#         for func, operator in self.build_operator_list():
-#             sql = func.as_sql(backend)
-#             sql_tokens.append([sql, operator])
-#         sql_tokens[-1][-1] = ''
-#         sql_tokens = itertools.chain(*sql_tokens)
-#         sql = backend.simple_join(sql_tokens)
-#         return sql
-
-
-# class Q(BaseExpression):
-#     def __init__(self, **expression):
-#         self.expression = expression
-#         self.selected_operator = 'and'
-
-#     def __repr__(self):
-#         return f'<{self.__class__.__name__}({self.expression})>'
-
-#     def __and__(self, obj):
-#         if not isinstance(obj, (Q, CombinedExpression)):
-#             raise ValueError('')
-#         return CombinedExpression(self, obj)
-
-#     def __or__(self, obj):
-#         if not isinstance(obj, (Q, CombinedExpression)):
-#             raise ValueError('')
-#         self.selected_operator = 'or'
-#         return CombinedExpression(self, obj, operator='or')
-
-#     def as_sql(self, backend):
-#         from lorelie.backends import SQLiteBackend
-#         if not isinstance(backend, SQLiteBackend):
-#             raise ValueError()
-#         filters = backend.decompose_filters(**self.expression)
-#         filters = backend.build_filters(filters, space_characters=False)
-#         return backend.operator_join(filters)
-
-
-# condition1 = When('name__eq=Kendall', 'Kylie', else_case=None)
-# case = Case(condition1)
-# condition2 = When('name__eq=Kylie', 'Julie', else_case=None)
-# case = Case(condition1, condition2)
-# case.field_name = 'something'
-# case.as_sql()
-# print(case)
-
-# from lorelie.backends import SQLiteBackend
-# backend = SQLiteBackend()
-# a = Q(name='Kendall', height__gte=145)
-# b = Q(age__gte=15)
-# c = Q(height=145)
-# d = a & b | c
-# print(d)
-# print(d.as_sql(backend))
-# from django.db.models import F
-
-
-# class CombinedExpression:
-#     def __init__(self, *funcs, operator=''):
-#         self.funcs = list(funcs)
-#         self.operator = operator
-
-#     def __repr__(self):
-#         expresssions = f' {self.operator} '.join([repr(func) for func in self.funcs])
-#         return f'<{self.__class__.__name__}: {expresssions}>'
-
-#     def as_sql(self):
-#         sql_tokens = []
-#         for func in self.funcs:
-#             sql_tokens.append(func.sql)
-#         return sql_tokens
+    def as_sql(self, backend):
+        filters = backend.decompose_filters(**self.expressions)
+        build_filters = backend.build_filters(filters, space_characters=False)
+        return build_filters
 
 
 # class Value:

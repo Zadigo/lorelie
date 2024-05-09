@@ -51,6 +51,32 @@ def row_factory(
 ) -> Callable[[Cursor, Row], BaseRow]: ...
 
 
+# @dataclasses.dataclass
+# class AnnotationMap:
+#     sql_statements_dict: dict = field(default_factory=dict)
+#     alias_fields: list = field(default_factory=list)
+#     field_names: list = field(default_factory=list)
+#     annotation_type_map: dict = field(default_factory=dict)
+
+#     @property
+#     def joined_final_sql_fields(self):
+#         statements = []
+#         for alias, sql in self.sql_statements_dict.items():
+#             if self.annotation_type_map[alias] == 'Case':
+#                 statements.append(f'{sql}')
+#                 continue
+#             statements.append(f'{sql} as {alias}')
+#         return list(itertools.chain(statements))
+
+#     @property
+#     def requires_grouping(self):
+#         values = list(self.annotation_type_map.values())
+#         return any([
+#             'Count' in values,
+#             'Length' in values
+#         ])
+
+
 class SQL:
     ALTER_TABLE: str = ...
     CREATE_TABLE: str = ...
@@ -138,7 +164,12 @@ class SQL:
     def build_script(self, *sqls) -> str: ...
     def decompose_filters_from_string(self, value: str) -> str: ...
     def decompose_filters(self, **kwargs) -> List[Tuple[str]]: ...
-    def build_filters(self, items: List[Tuple[str]]) -> List[str]: ...
+
+    def build_filters(
+        self,
+        items: List[Tuple[str]],
+        space_characters: bool = ...
+    ) -> List[str]: ...
 
     def build_annotation(
         self,

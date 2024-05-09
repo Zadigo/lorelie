@@ -216,6 +216,18 @@
 # # m.asave()
 
 
-
 # # from django.db.models.functions.comparison import JSONObject
 # # from django.core.validators import MaxLengthValidator
+
+
+from lorelie.expressions import Q
+from lorelie.backends import SQLiteBackend
+
+a = Q(firstname='Kendall')
+b = Q(lastname='Jenner')
+c = Q(age__gt=21)
+# d = a & b
+d = a & b | c
+backend = SQLiteBackend()
+sql = d.as_sql(backend)
+print(sql)

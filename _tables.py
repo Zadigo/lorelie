@@ -1,8 +1,8 @@
 from lorelie.database import Database
+from lorelie.expressions import Case, Q, When
 from lorelie.fields import CharField
 from lorelie.functions import Count, Length, Lower, Upper
 from lorelie.tables import Table
-from lorelie.expressions import Case, When
 
 table = Table(
     'celebrities',
@@ -42,9 +42,9 @@ db.objects.create('celebrities', firstname='Jade')
 # asyncio.run(main())
 
 # db.objects.annotate('celebrities', name_count=Count('firstname'), name_length=Length('firstname'))
-condition = When('firstname__eq=Kendall', 'KendallKendall')
-case = Case(condition)
-db.objects.annotate('celebrities', some_name=case)
+# condition = When('firstname__eq=Kendall', 'KendallKendall')
+# case = Case(condition)
+# db.objects.annotate('celebrities', some_name=case)
 
 
 # celebrity.firstname = 'Julie'
@@ -53,3 +53,13 @@ db.objects.annotate('celebrities', some_name=case)
 # print(updated.id)
 # values = db.objects.as_values('celebrities', 'firstname')
 # print(values)
+
+
+# a = Q(firstname='Kendall')
+# b = Q(firstname='Kylie')
+# c = Q(firstname='Jade')
+# db.objects.filter('celebrities', a | b)
+# db.objects.filter('celebrities', a | b | c)
+# db.objects.filter('celebrities', a | b & c)
+# db.objects.filter('celebrities', a, firstname='Jade')
+# db.objects.filter('celebrities', a | b, firstname='Jade')

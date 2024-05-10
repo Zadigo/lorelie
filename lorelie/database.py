@@ -148,6 +148,14 @@ class DatabaseManager:
         )
         values = selected_table.validate_values(fields, values)
 
+        # TODO: Create functions for datetimes and timezones
+        current_date = datetime.datetime.now(tz=pytz.UTC)
+        if selected_table.auto_add_fields:
+            for field in selected_table.auto_add_fields:
+                fields.append(field)
+                date = selected_table.backend.quote_value(str(current_date))
+                values.append(date)
+
         joined_fields = selected_table.backend.comma_join(fields)
         joined_values = selected_table.backend.comma_join(values)
         sql = selected_table.backend.INSERT.format(

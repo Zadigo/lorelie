@@ -125,6 +125,11 @@ class QuerySet:
         for item in self.result_cache:
             yield item
 
+    @property
+    def dataframe(self):
+        import pandas
+        return pandas.DataFrame(self.values())
+
     def load_cache(self):
         if not self.result_cache:
             # TODO: Run the query only when the

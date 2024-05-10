@@ -103,12 +103,12 @@ class OrderBy(BaseExpression):
         self.ascending = set()
         self.descending = set()
 
-        if not isinstance(fields, list):
+        if not isinstance(fields, (list, tuple)):
             raise ValueError(
-                "Ordering fields should be a list"
+                "Ordering fields should be a list "
                 "of field names on your table"
             )
-        self.fields = fields
+        self.fields = list(fields)
         self.map_fields()
         super().__init__()
 

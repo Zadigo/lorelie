@@ -28,21 +28,6 @@ class Query:
         self.result_cache = []
         self.alias_fields = []
 
-    # def __init__(self, backend, sql_tokens, table=None):
-    #     self._table = table
-
-    #     from lorelie.backends import SQLiteBackend
-    #     if not isinstance(backend, SQLiteBackend):
-    #         raise ValueError('Connection should be an instance SQLiteBackend')
-
-    #     self._backend = backend
-    #     self._sql = None
-    #     # TODO: Enforce that sql_tokens can only
-    #     # accept a list of strings
-    #     self._sql_tokens = sql_tokens
-    #     self.result_cache = []
-    #     self.alias_fields = []
-
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self._sql}]>'
 
@@ -152,6 +137,10 @@ class QuerySet:
     def dataframe(self):
         import pandas
         return pandas.DataFrame(self.values())
+
+    @property
+    def sql_statement(self):
+        return self.query._sql
 
     def load_cache(self):
         if not self.result_cache:

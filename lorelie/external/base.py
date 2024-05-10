@@ -9,7 +9,6 @@ from googleapiclient.errors import HttpError
 
 from lorelie import logger
 from lorelie.conf import settings
-from lorelie import BaseConnection
 from lorelie.external.connections import redis_connection
 from lorelie.file_readers import write_json_document
 
@@ -55,7 +54,8 @@ def notion_backend(sender, **kwargs):
             'Notion-Version': '2022-02-22'
         }
         try:
-            url = f'https://api.notion.com/v1/databases/{config["database_id"]}'
+            url = f'https://api.notion.com/v1/databases/{
+                config["database_id"]}'
             response = requests.post(url, headers=headers)
         except:
             return False
@@ -96,6 +96,14 @@ def redis_backend(sender, **kwargs):
         instance = redis_connection()
         if instance:
             instance.hset('cache', None)
+
+
+class BaseConnection:
+    connection_settings = None
+    configured = False
+
+    def connect(self):
+        pass
 
 
 class GoogleSheets(BaseConnection):

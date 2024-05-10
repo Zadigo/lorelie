@@ -321,7 +321,36 @@ class DatabaseManager:
         import pandas
         return pandas.DataFrame(self.values(table, *args))
 
-    def distinct(self, table, *columns):
+    def aggregate(self, table, *args, **kwargs):
+        selected_table = self.before_action(table)
+
+        functions = list(args)
+
+        # Functions used in args will get an
+        # automatic aggregate name that we
+        # will implement in the kwargs
+        none_aggregate_functions = []
+        for function in functions:
+            if not isinstance(function, (Count, Avg)):
+                none_aggregate_functions.count(function)
+                continue
+            kwargs[function.aggregate_name] = function
+
+        if none_aggregate_functions:
+            raise ValueError("Aggregate requires aggregate functions")
+
+        aggregate_sqls = []
+        annotation_map = selected_table.backend.build_annotation(**kwargs)
+        aggregate_sqls.extend(annotation_map.joined_final_sql_fields)
+
+        select_sql = self._get_select_sql(
+            selected_table,
+            columns=aggregate_sqls
+        )
+
+        query = self.database.query_class(select_sql, table=selected_table)
+        query.run()
+        return getattr(query.result_cache[0], '_cached_data', {})
         selected_table = self.before_action(table)
         select_sql
 

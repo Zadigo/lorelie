@@ -5,7 +5,8 @@ import sqlite3
 from dataclasses import field
 
 from lorelie.expressions import Case
-from lorelie.functions import Count, Length
+from lorelie.aggregation import Count, Avg
+from lorelie.functions import ExtractDay, ExtractMonth, ExtractYear, Length, Lower, Upper
 from lorelie.queries import Query
 
 
@@ -256,7 +257,9 @@ class SQL:
     DELETE = 'delete from {table}'
     INSERT = 'insert into {table} ({fields}) values({values})'
     SELECT = 'select {fields} from {table}'
-    UPDATE = 'update {table} set {params}'
+    UPDATE = 'update {table}'
+    UPDATE_SET = 'set {params}'
+    REPLACE = 'replace into {table} ({fields}) values({values})'
 
     AND = 'and {rhv}'
     OR = 'or {rhv}'
@@ -285,6 +288,7 @@ class SQL:
     LENGTH = 'length({field})'
     MAX = 'max({field})'
     MIN = 'min({field})'
+    AVERAGE = 'avg({field})'
     COUNT = 'count({field})'
 
     STRFTIME = 'strftime({format}, {value})'
@@ -420,11 +424,12 @@ class SQL:
         return self.quote_value(value)
 
     def dict_to_sql(self, data, quote_values=True):
-        """Convert values nested into a dictionnary
-        to sql usable strings. The column values
-        are quoted by default
+        """Convert a dictionnary containing a key
+        pair of columns and values into a tuple
+        of columns and value list. The values from
+        the dictionnary are quoted by default
 
-        >>> self.dict_to_sql({'name__eq': 'Kendall'})
+        >>> self.dict_to_sql({'name': 'Kendall'})
         ... (['name'], ["'Kendall'"])
         """
         fields = list(data.keys())
@@ -608,13 +613,14 @@ class SQL:
                 function.alias_name = alias_name
                 case_sql = function.as_sql(self.current_table.backend)
                 annotation_map.sql_statements_dict[alias_name] = case_sql
-
-            if isinstance(function, (Count, Length)):
+            
+            if isinstance(function, (Count, Avg, Length, Lower, Upper, ExtractYear, ExtractDay, ExtractMonth)):
                 annotation_map.field_names.append(
                     function.field_name
                 )
                 annotation_map.sql_statements_dict[alias_name] = function.as_sql(
-                    self)
+                    self
+                )
 
         return annotation_map
 

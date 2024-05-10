@@ -134,8 +134,6 @@ class DatabaseManager:
 
         query = self.database.query_class(select_sql, table=selected_table)
         return QuerySet(query)
-        # query.run()
-        # return query.result_cache
 
     def create(self, table, **kwargs):
         """Creates a new row in the table of 

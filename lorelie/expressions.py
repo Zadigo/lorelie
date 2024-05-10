@@ -83,7 +83,7 @@ class Case(BaseExpression):
                 "Case annotation does not have an "
                 f"alias name. Got: {self.alias_name}"
             )
-        
+
         # TODO: We should check that the alias name does not
         # conflict with a field in the original table
 
@@ -229,20 +229,6 @@ class Q(BaseExpression):
         build_filters = backend.build_filters(filters, space_characters=False)
         return build_filters
 
-
-# class Value:
-#     def __init__(self, value):
-#         self.value = value
-#         self.sql = None
-
-#     def __repr__(self):
-#         return f'{self.__class__.__name__}({self.value})'
-
-#     def to_python(self):
-#         return str(self.value)
-
-#     def as_sql(self):
-#         self.sql = backend.quote_value(self.value)
 
 # class F:
 #     ADD = '+'

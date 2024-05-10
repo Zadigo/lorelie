@@ -106,6 +106,7 @@ class Migrations:
             self.migration_table_map = list(table_instances.keys())
 
         backend = connections.get_last_connection()
+        backend.linked_to_table = 'sqlite'
         database_tables = backend.list_tables_sql()
         # When the table is in the migration file
         # and not in the database tables that we

@@ -20,3 +20,8 @@ class FieldExistsError(Exception):
             f'does not exist on the table: {available_fields}'
         )
         super().__init__(message)
+
+
+class ValidationError(Exception):
+    def __init__(self, message, **kwargs):
+        super().__init__(message.format(**kwargs))

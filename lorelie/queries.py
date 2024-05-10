@@ -82,14 +82,19 @@ class Query:
                 self._backend.connection.commit()
             self.result_cache = list(result)
 
-    @classmethod
-    def run_script(cls, backend, sql_tokens):
-        instance = cls(backend, sql_tokens)
-        if sql_tokens:
-            result = instance._backend.connection.executescript(sql_tokens[0])
-            instance._backend.connection.commit()
-            instance.result_cache = list(result)
-        return instance
+    def transform_to_python(self):
+        """Transforms the values returned by the
+        database into Python objects"""
+        from lorelie.fields import AliasField
+        for row in self.result_cache:
+            for name in row._fields:
+                value = row[name]
+                if name in self.alias_fields:
+                    instance = AliasField(name)
+                    field = instance.get_data_field(value)
+                else:
+                    field = self._table.get_field(name)
+                setattr(row, name, field.to_python(value))
 
 
 class QuerySet:

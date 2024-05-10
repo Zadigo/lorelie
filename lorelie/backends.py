@@ -159,33 +159,12 @@ class BaseRow:
         by calling `save_row_object`
 
         >>> row = database.objects.last('my_table')
-        ... row.name = 'some name'
-        ... row['name'] = 'some other name'
+        ... row.name = 'Kendall'
+        ... row.save()
+        ... row['name'] = 'Kylie'
         ... row.save()
         """
-        fields_to_set = []
-
-        for _, values in self.updated_fields.items():
-            lhv, rhv = values
-            fields_to_set.append(
-                self._backend.EQUALITY.format_map({
-                    'field': lhv,
-                    'value': self._backend.quote_value(rhv)
-                })
-            )
-
-        fields_to_set = self._backend.comma_join(fields_to_set)
-        update_sql = self._backend.UPDATE.format_map({
-            'table': self._backend.current_table.name,
-            'params': fields_to_set
-        })
-        where_sql = self._backend.WHERE_CLAUSE.format_map({
-            'params': self._backend.EQUALITY.format_map({
-                'field': 'id',
-                'value': self.id
-            })
-        })
-        self._backend.save_row_object(self, [update_sql, where_sql])
+        self._backend.save_row_object(self)
         self.updated_fields.clear()
         return self
 
@@ -731,15 +710,59 @@ class SQLiteBackend(SQL):
         query.run()
         return query.result_cache
 
-    def save_row_object(self, row, sql_tokens):
+    def save_row_object(self, row):
         """Creates the SQL statement required for
-        saving a row in the database. For example in:
+        saving a row in the database
         """
-        query = Query(self, sql_tokens)
+        if self.current_table.auto_update_fields:
+            value = str(datetime.datetime.now(tz=pytz.UTC))
+            for field in self._backend.current_table.auto_update_fields:
+                row[field] = value
+
+        fields_to_set = []
+        for _, values in row.updated_fields.items():
+            lhv, rhv = values
+            equality_statement = self.EQUALITY.format_map({
+                'field': lhv,
+                'value': self.quote_value(rhv)
+            })
+            fields_to_set.append(equality_statement)
+
+        conditions = self.comma_join(fields_to_set)
+        update_set = self.UPDATE_SET.format_map({
+            'params': conditions
+        })
+
+        fields_to_set = self.comma_join(fields_to_set)
+        update_sql = self.UPDATE.format_map({
+            'table': self.current_table.name,
+            'params': fields_to_set
+        })
+        where_sql = self.WHERE_CLAUSE.format_map({
+            'params': self.EQUALITY.format_map({
+                'field': 'id',
+                'value': row.id
+            })
+        })
+
+        query = Query([update_sql, update_set, where_sql], backend=self)
         query.run(commit=True)
         return query
 
-    def delete_row_object(self, row, sql_tokens):
-        query = Query(self, sql_tokens)
+    def delete_row_object(self, row):
+        """Creates the SQL statement required for
+        deleting a row in the database
+        """
+        delete_sql = self.DELETE.format_map({
+            'table': self.current_table.name
+        })
+        where_sql = self._backend.WHERE_CLAUSE.format_map({
+            'params': self.EQUALITY.format_map({
+                'field': 'id',
+                'value': row.id
+            })
+        })
+
+        query = Query([delete_sql, where_sql], backend=self)
         query.run(commit=True)
         return query

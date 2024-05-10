@@ -122,11 +122,9 @@ class DatabaseManager:
         """Creates a new row in the table of 
         the current database
 
-        >>> database.objects.create('celebrities', name='Kendall')
+        >>> db.objects.create('celebrities', firstname='Kendall')
         """
-        selected_table = self.table_map[table]
-        selected_table.load_current_connection()
-        self.before_action(selected_table)
+        selected_table = self.before_action(table)
 
         fields, values = selected_table.backend.dict_to_sql(
             kwargs,
@@ -141,7 +139,8 @@ class DatabaseManager:
             fields=joined_fields,
             values=joined_values
         )
-        query = selected_table.query_class(
+
+        query = self.database.query_class(
             selected_table.backend,
             [sql],
             table=selected_table
@@ -423,6 +422,7 @@ class Database:
     """
 
     migrations = None
+    query_class = Query
     migrations_class = Migrations
     backend_class = SQLiteBackend
     objects = DatabaseManager()

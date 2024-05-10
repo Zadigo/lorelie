@@ -133,8 +133,9 @@ class DatabaseManager:
             select_sql.extend(ordering_sql)
 
         query = self.database.query_class(select_sql, table=selected_table)
-        query.run()
-        return query.result_cache
+        return QuerySet(query)
+        # query.run()
+        # return query.result_cache
 
     def create(self, table, **kwargs):
         """Creates a new row in the table of 

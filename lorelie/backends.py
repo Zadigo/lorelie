@@ -5,7 +5,7 @@ import sqlite3
 from dataclasses import field
 
 from lorelie.expressions import Case
-from lorelie.functions import Count, Functions, Length
+from lorelie.functions import Count, Length
 from lorelie.queries import Query
 
 
@@ -74,7 +74,7 @@ class BaseRow:
         self._cursor = cursor
         self._fields = fields
         self._cached_data = data
-        self._backend = None
+        self._backend = connections.get_last_connection()
         self.updated_fields = {}
 
         for key, value in self._cached_data.items():
@@ -86,7 +86,7 @@ class BaseRow:
         # be changed for example to <id: Kendall Jenner> if the
         # user chooses to use that column to represent the column
         str_field = self._backend.current_table.str_field or 'id'
-        # The rowid is not necessary implemented by default in the
+        # The rowid is not necessarily implemented by default in the
         # sqlite database. Hence why we test for the id field
         name_to_show = getattr(self, 'rowid', getattr(self, str_field, None))
         return f'<{self._backend.current_table.verbose_name}: {name_to_show}>'

@@ -39,6 +39,7 @@ class Query:
         # accept a list of strings
         self._sql_tokens = sql_tokens
         self.result_cache = []
+        self.alias_fields = []
 
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self._sql}]>'

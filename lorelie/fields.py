@@ -189,7 +189,16 @@ class JSONField(Field):
     python_type = dict
 
     def to_python(self, data):
-        return json.loads(data)
+        if data is None:
+            return data
+
+        try:
+            return json.loads(data)
+        except json.JSONDecodeError:
+            raise ValidationError(
+                "The value for {name} is not valid",
+                name=self.name
+            )
 
     def to_database(self, data):
         return json.dumps(data, ensure_ascii=False, sort_keys=True)

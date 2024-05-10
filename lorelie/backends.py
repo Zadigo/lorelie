@@ -626,7 +626,7 @@ class SQLiteBackend(SQL):
 
     def list_table_columns_sql(self, table):
         sql = f'pragma table_info({table.name})'
-        query = Query(self, [sql], table=table)
+        query = Query([sql], table=table)
         query.run()
         return query.result_cache
 
@@ -654,7 +654,7 @@ class SQLiteBackend(SQL):
                 'table': table.name,
                 'params': self.simple_join(statements)
             })
-            query = Query(self, [alter_sql], table=table)
+            query = Query([alter_sql], table=table)
             query.run(commit=True)
 
     def list_tables_sql(self):
@@ -698,7 +698,7 @@ class SQLiteBackend(SQL):
     def list_table_indexes(self, table):
         # sql = f'PRAGMA index_list({self.quote_value(table.name)})'
         sql = f'PRAGMA index_list({table.name})'
-        query = Query(self, [sql], table=table)
+        query = Query([sql], table=table)
         query.run()
         return query.result_cache
 

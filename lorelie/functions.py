@@ -26,8 +26,8 @@ class Lower(Functions):
     >>> database.objects.annotate('celebrities', lowered_name=Lower('name'))
     """
 
-    def as_sql(self):
-        sql = self.backend.LOWER.format_map({
+    def as_sql(self, backend):
+        sql = backend.LOWER.format_map({
             'field': self.field_name
         })
         return sql
@@ -40,8 +40,8 @@ class Upper(Lower):
     >>> database.objects.annotate('celebrities', uppered_name=Upper('name'))
     """
 
-    def as_sql(self):
-        sql = self.backend.UPPER.format_map({
+    def as_sql(self, backend):
+        sql = backend.UPPER.format_map({
             'field': self.field_name
         })
         return sql
@@ -66,11 +66,6 @@ class Max(Functions):
     """Returns the max value of a given column"""
 
     def as_sql(self):
-        # sql = self.backend.MAX.format_map({
-        #     'field': self.field_name
-        # })
-        # return sql
-
         # SELECT rowid, * FROM seen_urls WHERE rowid = (SELECT max(rowid) FROM seen_urls)
         select_clause = self.backend.SELECT.format_map({
             'fields': self.backend.comma_join(['rowid', '*']),
@@ -112,40 +107,53 @@ class Min(Functions):
         return self.backend.simple_join([select_clause, where_clause])
 
 
-class ExtractYear(Functions):
-    """Extracts the year section of each
-    iterated value
+class ExtractDatePartsMixin(Functions):
+    date_part = '%Y'
 
-    We can annotate a row  with a value
-
-    >>> database.objects.annotate('celebrities', year=ExtractYear('created_on'))
-
-    Or filter data based on the return value of the function
-
-    >>> database.objects.filter('celebrities', year__gte=ExtractYear('created_on'))
-    """
-
-    def as_sql(self):
-        sql = self.backend.STRFTIME.format_map({
-            'format': self.backend.quote_value('%Y'),
+    def as_sql(self, backend):
+        sql = backend.STRFTIME.format_map({
+            'format': backend.quote_value(self.date_part),
             'value': self.field_name
         })
         return sql
 
 
-class Count(Functions):
-    """Function used to count the number of rows 
-    that match a specified condition or all rows in 
-    a table if no condition is specified
+class ExtractYear(ExtractDatePartsMixin):
+    """Extracts the year section of each
+    iterated value:
 
-    >>> database.objects.annotate('celebrities', count_of_names=Count('name'))
+    >>> db.objects.annotate('celebrities', year=ExtractYear('date_of_birth'))
+
+    Or filter data based on the return value of the function
+
+    >>> db.objects.filter('celebrities', year__gte=ExtractYear('date_of_birth'))
     """
 
-    def as_sql(self, backend):
-        sql = backend.COUNT.format_map({
-            'field': self.field_name
-        })
-        return sql
+
+class ExtractMonth(ExtractDatePartsMixin):
+    """Extracts the month section of each
+    iterated value:
+
+    >>> db.objects.annotate('celebrities', month=ExtractMonth('date_of_birth'))
+
+    Or filter data based on the return value of the function
+
+    >>> db.objects.filter('celebrities', month__gte=ExtractMonth('date_of_birth'))
+    """
+    date_part = '%m'
+
+
+class ExtractDay(ExtractDatePartsMixin):
+    """Extracts the day section of each
+    iterated value:
+
+    >>> db.objects.annotate('celebrities', day=ExtractMonth('date_of_birth'))
+
+    Or filter data based on the return value of the function
+
+    >>> db.objects.filter('celebrities', day__gte=ExtractMonth('date_of_birth'))
+    """
+    date_part = '%d'
 
 
 class Hash(Functions):

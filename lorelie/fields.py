@@ -1,6 +1,9 @@
 import json
-
+import datetime
+import ast
 from lorelie.constraints import MaxLengthConstraint
+from lorelie.exceptions import ValidationError
+from lorelie.validators import MaxValueValidator, MinValueValidator
 
 
 class Field:
@@ -77,6 +80,8 @@ class Field:
                 f"of {self.python_type}"
             )
         self.run_validators(data)
+        # TODO: Why convert this to python
+        # value for the database?
         return self.to_python(data)
 
     def field_parameters(self):
@@ -142,6 +147,8 @@ class Field:
 
 class CharField(Field):
     def to_python(self, data):
+        if data is None:
+            return data
         return self.python_type(data)
 
 
@@ -233,7 +240,12 @@ class BooleanField(Field):
 
             if data in self.false_types:
                 return 0
-        return data
+
+        raise ValidationError(
+            "The value for {name} should be either one of"
+            "True, False, 0, 1, '0', '1', 't' or 'f'",
+            name=self.name
+        )
 
 
 class AutoField(IntegerField):
@@ -295,7 +307,7 @@ class UUIDField(Field):
 class Value:
     def __init__(self, value, output_field=None):
         self.value = value
-        
+
         if output_field is None:
             output_field = CharField('value_field')
         self.output_field = output_field

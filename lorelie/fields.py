@@ -266,6 +266,10 @@ class DateFieldMixin:
     def __init__(self, name, *, auto_update=False, auto_add=False, **kwargs):
         self.auto_update = auto_update
         self.auto_add = auto_add
+
+        if self.auto_update or self.auto_add:
+            kwargs['null'] = True
+
         super().__init__(name, **kwargs)
 
     def parse_date(self, d):

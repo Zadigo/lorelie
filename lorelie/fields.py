@@ -324,7 +324,15 @@ class AliasField(Field):
         # Infer the data type and return
         # the correct database field
         if isinstance(data, str):
+            if data.isdigit() or data.isnumeric():
+                return IntegerField(self.name)
             return CharField(self.name)
         elif isinstance(data, int):
             return IntegerField(self.name)
+        elif isinstance(data, datetime.date):
+            return DateField(self.name)
+        elif isinstance(data, datetime.datetime):
+            return DateTimeField(self.name)
+        elif isinstance(data, (list, dict)):
+            return JSONField(self.name)
         return CharField(self.name)

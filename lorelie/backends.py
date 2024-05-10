@@ -174,16 +174,7 @@ class BaseRow:
         >>> row = database.objects.last('my_table')
         ... row.delete()
         """
-        delete_sql = self._backend.DELETE.format_map({
-            'table': self._backend.current_table.name
-        })
-        where_sql = self._backend.WHERE_CLAUSE.format_map({
-            'params': self._backend.EQUALITY.format_map({
-                'field': 'id',
-                'value': self.id
-            })
-        })
-        self._backend.delete_row_object(self, [delete_sql, where_sql])
+        self._backend.delete_row_object(self)
         return self
 
 

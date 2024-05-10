@@ -1,8 +1,11 @@
-from typing import (Any, Callable, Tuple, Type, TypedDict, Union, Unpack,
+from typing import (Any, Callable, Literal, Tuple, Type, TypedDict, Union, Unpack,
                     override)
 
+from lorelie.backends import SQLiteBackend
 from lorelie.constraints import MaxLengthConstraint
 from lorelie.tables import Table
+import datetime
+
 
 class FieldOptions(TypedDict):
     null: bool
@@ -107,8 +110,28 @@ class AutoField(Field):
     python_type: Type[int] = ...
 
 
-class DateField(Field):
-    pass
+class DateFieldMixin:
+    date_format: str = ...
+    python_type: Type[str] = ...
+
+    @override
+    def __init__(
+        self,
+        name: str,
+        *,
+        auto_update: bool = Literal[False],
+        auto_add: bool = Literal[False],
+        **kwargs
+    ) -> None: ...
+
+    def parse_date(self, d: str) -> datetime.datetime: ...
+
+
+class DateField(DateFieldMixin, Field):
+    @override
+    def to_python(self, data: str) -> datetime.date: ...
+    @override
+    def to_database(self, data: str) -> datetime.date: ...
 
 
 class DateTimeField(Field):
@@ -133,3 +156,32 @@ class SlugField(CharField):
 
 class UUIDField(Field):
     pass
+
+
+class Value:
+    output_field: Union[CharField, IntegerField,
+                        DateTimeField, DateField, JSONField]
+    value: Any = ...
+
+    def __init__(
+        self,
+        value: Any,
+        output_field: Union[CharField, IntegerField,
+                            DateTimeField, DateField, JSONField] = ...
+    ) -> None: ...
+
+    def __repr__(self) -> str: ...
+
+    def to_database(self) -> Union[str, list, dict, int, float]: ...
+    def as_sql(self, backend: SQLiteBackend) -> list[str]: ...
+
+
+class AliasField(Field):
+    name: str = ...
+
+    def __init__(self, name: str) -> None: ...
+
+    def get_data_field(
+        self,
+        data: Any
+    ) -> Union[CharField, IntegerField, DateTimeField, DateField, JSONField]: ...

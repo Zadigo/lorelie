@@ -263,6 +263,11 @@ class DateFieldMixin:
     date_format = '%Y-%m-%d'
     python_type = str
 
+    def __init__(self, name, *, auto_update=False, auto_add=False, **kwargs):
+        self.auto_update = auto_update
+        self.auto_add = auto_add
+        super().__init__(name, **kwargs)
+
     def parse_date(self, d):
         return datetime.datetime.strptime(d, self.date_format)
 

@@ -43,3 +43,8 @@ INSERT INTO business (name, customers)
 VALUES(8, "Google", 34000)
 ON CONFLICT(name)
 DO UPDATE SET customers=34000
+
+
+UPDATE business
+SET created_on=datetime('now'), modified_on=datetime('now')
+WHERE id=1

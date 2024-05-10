@@ -247,12 +247,29 @@ class AutoField(IntegerField):
         self.base_field_parameters['autoincrement'] = True
 
 
-class DateField(Field):
-    pass
+class DateFieldMixin:
+    date_format = '%Y-%m-%d'
+    python_type = str
+
+    def parse_date(self, d):
+        return datetime.datetime.strptime(d, self.date_format)
 
 
-class DateTimeField(Field):
-    pass
+class DateField(DateFieldMixin, Field):
+    def to_python(self, data):
+        if data is None or data == '':
+            return data
+
+        d = self.parse_date(data)
+        return d.date()
+
+    def to_database(self, data):
+        d = self.parse_date(data)
+        return self.python_type(d.date())
+
+
+class DateTimeField(DateFieldMixin, Field):
+    date_format = '%Y-%m-%d %H:%M:%S.%f'
 
 
 class TimeField(Field):

@@ -7,10 +7,11 @@ from lorelie.fields import Field
 from lorelie.indexes import Index
 from lorelie.queries import Query
 
+
 class BaseTable(type):
     def __new__(
-        cls, name: str, 
-        bases: tuple, 
+        cls, name: str,
+        bases: tuple,
         attrs: dict
     ) -> type: ...
     @classmethod
@@ -41,6 +42,8 @@ class Table(AbstractTable):
     query: Query = ...
     indexes: list[str] = ...
     field_names: list[str] = ...
+    auto_add_fields: set = ...
+    auto_update_fields: set = ...
 
     def __init__(
         self,
@@ -55,7 +58,7 @@ class Table(AbstractTable):
     def __repr__(self) -> str: ...
 
     def has_field(
-        self, 
+        self,
         name: str,
         raise_exception: bool = Literal[False]
     ) -> bool: ...

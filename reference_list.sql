@@ -1,9 +1,12 @@
-CREATE TABLE "business" (
-	"id" INTEGER NOT NULL UNIQUE,
+CREATE TABLE IF NOT EXISTS business (
+	"id" INTEGER NOT NULL UNIQUE PRIMARY KEY AUTOINCREMENT,
 	"name" varchar(100) UNIQUE check(length(name) < 100),
-	"customers" INTEGER,
-	PRIMARY KEY("id" AUTOINCREMENT)
-);
+	"customers" INTEGER DEFAULT 0 check(customers>=0),
+	"modified_on" TEXT NULL,
+	"created_on" TEXT NULL
+)
+
+DROP TABLE IF EXISTS business
 
 INSERT INTO business (name, customers)
 VALUES ("Google", 15000);
@@ -15,10 +18,11 @@ VALUES
 	("Instagram", 1345),
 	("Pinterest", 12045),
 	("TikTok", 56790),
-	("Facebook", 3456);
-
-INSERT INTO business (name, customers)
-VALUES ("is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum", 45);
+	("Facebook", 3456),
+	("Youtube", 223243),
+	("Douyin", 2323),
+	("Snapchat", 23235),
+	("Threads", 45232)
 
 
 SELECT *, CASE name WHEN "Facebook" THEN "Face"  ELSE "Tok" END othername
@@ -33,3 +37,9 @@ ORDER BY name ASC
 
 SELECT DISTINCT name
 FROM business
+
+
+INSERT INTO business (name, customers)
+VALUES(8, "Google", 34000)
+ON CONFLICT(name)
+DO UPDATE SET customers=34000

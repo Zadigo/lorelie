@@ -1,31 +1,38 @@
+from lorelie.aggregation import Avg, Count
 from lorelie.database import Database
 from lorelie.expressions import Case, Q, When
-from lorelie.fields import CharField, IntegerField, JSONField, Value
-from lorelie.functions import Count, Length, Lower, Upper
+from lorelie.fields import CharField, DateField, IntegerField, JSONField, Value
+from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear, Length,
+                               Lower, Upper)
 from lorelie.tables import Table
+
+
+def example_validator(value):
+    pass
+
 
 table = Table(
     'celebrities',
     ordering=['firstname'],
     fields=[
-        CharField('firstname'),
-        CharField('lastname'),
-        IntegerField('age', null=True),
+        CharField('firstname', max_length=200),
+        CharField('lastname', validators=[example_validator]),
+        IntegerField('age', null=True, min_value=18, max_value=99),
         IntegerField('followers', default=0),
-        JSONField('goals', null=True)
+        JSONField('goals', null=True),
+        DateField('date_of_birth', null=True)
     ],
     str_field='firstname'
 )
-db = Database(table)
-# db.many_to_many(table, table, related_name='my_name')
-db.migrate()
 
+db = Database(table)
+db.migrate()
 
 celebrities = [
     {
         'firstname': 'Kendall',
         'lastname': 'Jenner',
-        'age': None,
+        'age': 19,
         'followers': 1000
     },
     {
@@ -61,7 +68,9 @@ celebrities = [
     {
         'firstname': 'Aya',
         'lastname': 'Nakamura',
+        'date_of_birth': '1992-1-1',
         'age': None,
+        'goals': {'do_as_show': True},
         'followers': 334345
     }
 ]
@@ -78,14 +87,10 @@ for celebrity in celebrities:
 # celebrity = db.objects.last('celebrities')
 # print(celebrity)
 
-
-# db.objects.create('celebrities', firstname='Kendall', lastname='Jenner', age=20)
-# db.objects.create('celebrities', firstname='Aurélie', lastname='Konaté')
-# db.objects.create('celebrities', firstname='Kylie', lastname='Jenner')
-# db.objects.create('celebrities', firstname='Jade', lastname='Parka')
-# db.objects.create('celebrities', firstname='Aya', lastname='Nakamura', goals={'age': 26})
-
 # queryset = db.objects.all('celebrities')
+
+# queryset = db.objects.order_by('celebrities', 'firstname', '-lastname')
+# print(queryset)
 
 # values = db.objects.values('celebrities', 'firstname')
 # print(values)
@@ -93,7 +98,7 @@ for celebrity in celebrities:
 # df = db.objects.dataframe('celebrities')
 # print(df)
 
-# queryset = db.objects.filter('celebrities', firstname='Kendall', lastname='Jenner')
+# queryset = db.objects.filter('celebrities', firstname='Aya', lastname='Nakamura')
 # queryset = db.objects.filter('celebrities', lastname__contains='Jenner')
 # queryset = db.objects.filter('celebrities', age__eq=20)
 # queryset = db.objects.filter('celebrities', age__gte=20)
@@ -119,20 +124,18 @@ for celebrity in celebrities:
 
 
 # queryset = db.objects.values('celebrities', 'goals')
+# queryset = db.objects.annotate('celebrities', lowered=Lower('firstname'))
+# queryset = db.objects.annotate('celebrities', upped=Upper('firstname'))
+# queryset = db.objects.annotate('celebrities', count=Count('firstname'))
 # queryset = db.objects.annotate(
 #     'celebrities',
-#     lowered_firstname=Lower('firstname')
+#     year=ExtractYear('date_of_birth'),
+#     month=ExtractMonth('date_of_birth'),
+#     day=ExtractDay('date_of_birth')
 # )
-# queryset = db.objects.annotate(
-#     'celebrities',
-#     uppered_firstname=Upper('firstname')
-# )
-# queryset = db.objects.annotate(
-#     'celebrities',
-#     count_firstname=Count('firstname')
-# )
+# queryset.values('id')
+# print(queryset.sql_statement)
 
-# print(queryset)
 
 # async def main():
 #     queryset = await db.objects.async_all('celebrities')
@@ -163,3 +166,13 @@ for celebrity in celebrities:
 # db.objects.filter('celebrities', firstname=Value('Kendall'))
 
 # print(db.celebrities_tbl.objects.all('celebrities'))
+
+# print(queryset.values('year', 'month', 'day'))
+
+# result = db.objects.aggregate('celebrities', Count('age'), Avg('age'))
+# result = db.objects.aggregate('celebrities', avg_age=Avg('age'))
+# print(result)
+
+
+count = db.objects.count('celebrities')
+print(count)

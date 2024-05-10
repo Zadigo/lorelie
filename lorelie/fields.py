@@ -165,6 +165,21 @@ class IntegerField(Field):
     def field_type(self):
         return 'integer'
 
+    def to_python(self, data):
+        if data is None or data == '':
+            return data
+
+        if isinstance(data, int):
+            return data
+
+        try:
+            return self.python_type(data)
+        except (TypeError, ValueError):
+            raise ValidationError(
+                "The value for {name} is not valid",
+                name=self.name
+            )
+
 
 class FloatField(Field):
     pass

@@ -141,7 +141,7 @@ class OrderBy(BaseExpression):
 
         fields = backend.comma_join(conditions)
         ordering_sql = backend.ORDER_BY.format_map({'conditions': fields})
-        return ordering_sql
+        return [ordering_sql]
 
 
 class CombinedExpression:

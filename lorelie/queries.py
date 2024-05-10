@@ -8,40 +8,40 @@ class Query:
     the `result_cache`
     """
 
-    # TODO: Implement this format???
-    # def __init__(self, sql_tokens, backend=None, table=None):
-    #     self._table = table
-    #     self._backend = table.backend if table is not None else backend
-
-    #     from lorelie.backends import connections
-    #     if self._backend is None:
-    #         self._backend = connections.get_last_connection()
-
-    #     from lorelie.backends import SQLiteBackend
-    #     if not isinstance(self._backend, SQLiteBackend):
-    #         raise ValueError(
-    #             "Backend connection should be an "
-    #             "instance SQLiteBackend"
-    #         )
-
-    #     self._sql = None
-    #     self._sql_tokens = sql_tokens
-    #     self.result_cache = []
-
-    def __init__(self, backend, sql_tokens, table=None):
+    def __init__(self, sql_tokens, backend=None, table=None):
         self._table = table
+        self._backend = table.backend if table is not None else backend
+
+        from lorelie.backends import connections
+        if self._backend is None:
+            self._backend = connections.get_last_connection()
 
         from lorelie.backends import SQLiteBackend
-        if not isinstance(backend, SQLiteBackend):
-            raise ValueError('Connection should be an instance SQLiteBackend')
+        if not isinstance(self._backend, SQLiteBackend):
+            raise ValueError(
+                "Backend connection should be an "
+                "instance SQLiteBackend"
+            )
 
-        self._backend = backend
         self._sql = None
-        # TODO: Enforce that sql_tokens can only
-        # accept a list of strings
         self._sql_tokens = sql_tokens
         self.result_cache = []
         self.alias_fields = []
+
+    # def __init__(self, backend, sql_tokens, table=None):
+    #     self._table = table
+
+    #     from lorelie.backends import SQLiteBackend
+    #     if not isinstance(backend, SQLiteBackend):
+    #         raise ValueError('Connection should be an instance SQLiteBackend')
+
+    #     self._backend = backend
+    #     self._sql = None
+    #     # TODO: Enforce that sql_tokens can only
+    #     # accept a list of strings
+    #     self._sql_tokens = sql_tokens
+    #     self.result_cache = []
+    #     self.alias_fields = []
 
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self._sql}]>'
@@ -63,8 +63,8 @@ class Query:
         return cls(backend, sql_tokens, table=table)
 
     @classmethod
-    def run_script(cls, backend, sql_tokens):
-        instance = cls(backend, sql_tokens)
+    def run_script(cls, sql_tokens, backend=None, table=None):
+        instance = cls(sql_tokens, backend=backend, table=table)
         if sql_tokens:
             result = instance._backend.connection.executescript(sql_tokens[0])
             instance._backend.connection.commit()

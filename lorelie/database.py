@@ -1,6 +1,9 @@
+from functools import partial
+
 from asgiref.sync import sync_to_async
 
 from lorelie.backends import SQLiteBackend
+from lorelie.exceptions import TableExistsError
 from lorelie.migrations import Migrations
 from lorelie.queries import Query, QuerySet
 from lorelie.tables import Table
@@ -73,10 +76,14 @@ class DatabaseManager:
         return [select_sql]
 
     def before_action(self, table_name):
-        table = self.table_map[table_name]
-        table.backend.set_current_table(table)
-        table.load_current_connection()
-        return table
+        try:
+            table = self.table_map[table_name]
+        except KeyError:
+            raise TableExistsError(table_name)
+        else:
+            table.backend.set_current_table(table)
+            table.load_current_connection()
+            return table
 
     def first(self, table):
         """Returns the first row from
@@ -91,30 +98,16 @@ class DatabaseManager:
         return result[-1]
 
     def all(self, table):
-        selected_table = self.table_map[table]
-        selected_table.load_current_connection()
-        self.before_action(selected_table)
-
-        # all_sql = selected_table.backend.SELECT.format_map({
-        #     'fields': selected_table.backend.comma_join(['rowid', '*']),
-        #     'table': selected_table.name
-        # })
-        # sql = [all_sql]
-
-        sql = self._get_select_sql(selected_table)
+        selected_table = self.before_action(table)
+        select_sql = self._get_select_sql(selected_table)
 
         if bool(selected_table.ordering):
             ordering_sql = selected_table.ordering.as_sql(
                 selected_table.backend
             )
-            sql.append(ordering_sql)
+            select_sql.extend(ordering_sql)
 
-        # query = selected_table.query_class(
-        query = Query(
-            selected_table.backend,
-            sql,
-            table=selected_table
-        )
+        query = self.database.query_class(select_sql, table=selected_table)
         query.run()
         return query.result_cache
 
@@ -140,11 +133,7 @@ class DatabaseManager:
             values=joined_values
         )
 
-        query = self.database.query_class(
-            selected_table.backend,
-            [sql],
-            table=selected_table
-        )
+        query = self.database.query_class([sql], table=selected_table)
         query.run(commit=True)
         return self.last(selected_table.name)
 
@@ -178,21 +167,13 @@ class DatabaseManager:
                 )
             ]
 
-        # select_sql = selected_table.backend.SELECT.format_map({
-        #     'fields': selected_table.backend.comma_join(['rowid', '*']),
-        #     'table': selected_table.name,
-        # })
         select_sql = self._get_select_sql(selected_table)
         where_clause = selected_table.backend.WHERE_CLAUSE.format_map({
             'params': selected_table.backend.comma_join(filters)
         })
         select_sql.append(where_clause)
 
-        # TODO: Use the Query class on the table
-        # or whether to import and call it directly ?
-        # query = selected_table.query_class(
-        query = Query(
-            selected_table.backend,
+        query = self.database.query_class(
             select_sql,
             table=selected_table
         )
@@ -209,35 +190,20 @@ class DatabaseManager:
         >>> instance.objects.get('celebrities', id__eq=1)
         ... instance.objects.get('celebrities', id=1)
         """
-        selected_table = self.table_map[table]
-        selected_table.load_current_connection()
-        self.before_action(selected_table)
+        selected_table = self.before_action(table)
 
-        # base_return_fields = ['rowid', '*']
         filters = selected_table.backend.build_filters(
             selected_table.backend.decompose_filters(**kwargs)
         )
 
-        # Functions SQL: select rowid, *, lower(url) from table
-        # select_sql = selected_table.backend.SELECT.format_map({
-        #     'fields': selected_table.backend.comma_join(base_return_fields),
-        #     'table': selected_table.name
-        # })
-        # sql = [select_sql]
         select_sql = self._get_select_sql(selected_table)
-
-        # FIXME: Use operator_join
-        # Filters SQL: select rowid, * from table where url='http://'
-        # joined_statements = ' and '.join(filters)
         joined_statements = selected_table.backend.operator_join(filters)
         where_clause = selected_table.backend.WHERE_CLAUSE.format_map({
             'params': joined_statements
         })
         select_sql.extend([where_clause])
 
-        # query = selected_table.query_class(
-        query = Query(
-            selected_table.backend,
+        query = self.database.query_class(
             select_sql,
             table=selected_table
         )
@@ -247,8 +213,7 @@ class DatabaseManager:
             return None
 
         if len(query.result_cache) > 1:
-            raise ValueError('Returned more than 1 value')
-
+            raise ValueError("Get returnd more than one value")
         return query.result_cache[0]
 
     def annotate(self, table, **kwargs):
@@ -272,55 +237,31 @@ class DatabaseManager:
         ... case = Case(condition, default='Custom name', output_field=CharField())
         ... instance.objects.annotate('celebrities', alt_name=case)
         """
-        selected_table = self.table_map[table]
-        selected_table.load_current_connection()
-        self.before_action(selected_table)
+        selected_table = self.before_action(table)
 
         alias_fields = list(kwargs.keys())
         base_return_fields = ['rowid', '*']
-        # sql_functions_dict, special_function_fields, fields = selected_table.backend.build_annotation(
-        #     **kwargs
-        # )
-        # base_return_fields.extend(fields)
-
         annotation_map = selected_table.backend.build_annotation(**kwargs)
         annotation_sql = selected_table.backend.comma_join(
             annotation_map.joined_final_sql_fields
         )
         base_return_fields.append(annotation_sql)
 
-        # base_return_fields.extend(annotation_map.joined_final_sql_fields)
-
-        selected_table.field_names = selected_table.field_names + alias_fields
-        # sql = selected_table.backend.SELECT.format_map({
-        #     'fields': selected_table.backend.comma_join(base_return_fields),
-        #     'table': selected_table.name
-        # })
-        select_sql_tokens = self._get_select_sql(
+        select_sql = self._get_select_sql(
             selected_table,
             columns=base_return_fields
         )
 
-        # TODO: Adapt this section so that the Case function
-        # can be parsed and created
         if annotation_map.requires_grouping:
             grouping_fields = set(annotation_map.field_names)
             groupby_sql = selected_table.backend.GROUP_BY.format_map({
                 'conditions': selected_table.backend.comma_join(grouping_fields)
             })
-            select_sql_tokens.append(groupby_sql)
-
-        # select_sql_tokens = [
-        #     selected_table.backend.simple_join(select_sql_tokens)
-        # ]
+            select_sql.append(groupby_sql)
 
         # TODO: Create a query and only run it when
         # we need with QuerySet for the other functions
-        query = Query(
-            selected_table.backend,
-            select_sql_tokens,
-            table=selected_table
-        )
+        query = self.database.query_class(select_sql, table=selected_table)
         query.alias_fields = list(alias_fields)
         return QuerySet(query)
 
@@ -331,20 +272,17 @@ class DatabaseManager:
         >>> instance.objects.as_values('celebrities', 'id')
         ... [{'id': 1}]
         """
-        selected_table = self.table_map[table]
-        selected_table.load_current_connection()
-        self.before_action(selected_table)
+        selected_table = self.before_action(table)
 
-        sql = selected_table.backend.SELECT.format_map({
-            'fields': selected_table.backend.comma_join(list(args)),
-            'table': selected_table.name
-        })
+        columns = list(args) or ['rowid', '*']
+        select_sql = self._get_select_sql(selected_table, columns=columns)
+        query = self.database.query_class(select_sql, table=selected_table)
+
         # TODO: Improve this section
-        query = Query(selected_table.backend, [sql], table=selected_table)
-
         def dict_iterator(values):
             for row in values:
                 yield row._cached_data
+
         query.run()
         return list(dict_iterator(query.result_cache))
 
@@ -356,7 +294,7 @@ class DatabaseManager:
         ... pandas.DataFrame
         """
         import pandas
-        return pandas.DataFrame(self.as_values(table, *args))
+        return pandas.DataFrame(self.values(table, *args))
 
     # def bulk_create(self, *objs):
     # def order_by(self, *fields):

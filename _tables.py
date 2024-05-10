@@ -69,6 +69,13 @@ celebrities = [
 for celebrity in celebrities:
     db.objects.create('celebrities', **celebrity)
 
+# celebrity = db.objects.get(
+#     'celebrities',
+#     firstname='Kendall',
+#     lastname='Jenner'
+# )
+# print(celebrity)
+
 # db.objects.create('celebrities', firstname='Kendall', lastname='Jenner', age=20)
 # db.objects.create('celebrities', firstname='Aurélie', lastname='Konaté')
 # db.objects.create('celebrities', firstname='Kylie', lastname='Jenner')
@@ -76,6 +83,12 @@ for celebrity in celebrities:
 # db.objects.create('celebrities', firstname='Aya', lastname='Nakamura', goals={'age': 26})
 
 # queryset = db.objects.all('celebrities')
+
+# values = db.objects.values('celebrities', 'firstname')
+# print(values)
+
+# df = db.objects.dataframe('celebrities')
+# print(df)
 
 # queryset = db.objects.filter('celebrities', firstname='Kendall', lastname='Jenner')
 # queryset = db.objects.filter('celebrities', lastname__contains='Jenner')
@@ -116,7 +129,7 @@ for celebrity in celebrities:
 #     count_firstname=Count('firstname')
 # )
 
-print(queryset)
+# print(queryset)
 
 # async def main():
 #     queryset = await db.objects.async_all('celebrities')

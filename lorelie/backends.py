@@ -696,7 +696,7 @@ class SQLiteBackend(SQL):
                 self.AND.format(rhv=not_like_clause)
             ])
         )
-        query = Query(self, [sql, where_clause])
+        query = Query([sql, where_clause], backend=self)
         query.run()
         return query.result_cache
 
@@ -712,7 +712,7 @@ class SQLiteBackend(SQL):
                 'value': self.quote_value('index')
             })
         })
-        query = Query(self, [select_sql, where_clause])
+        query = Query([select_sql, where_clause], backend=self)
         query.run()
         return query.result_cache
 

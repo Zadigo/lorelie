@@ -163,7 +163,7 @@ class Migrations:
 
         # The database might require another set of
         # parameters (ex. indexes) that we run here
-        Query.run_script(backend, other_sqls_to_run)
+        Query.run_script(other_sqls_to_run, backend=backend)
 
         # Create indexes for each table
         database_indexes = backend.list_database_indexes()

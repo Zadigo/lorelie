@@ -22,6 +22,7 @@ class BaseTable(type):
 
 
 class AbstractTable(metaclass=BaseTable):
+    # TODO: Remove
     query_class = Query
     backend_class = SQLiteBackend
 
@@ -40,22 +41,22 @@ class AbstractTable(metaclass=BaseTable):
         to the related field the user is trying
         to set on the column. The returned values
         are quoted by default"""
-        validates_values = []
+        validated_values = []
         for i, field in enumerate(fields):
             # TODO: Allow creation with id field
             if field == 'rowid' or field == 'id':
                 continue
-            
+
             try:
                 field = self.fields_map[field]
             except KeyError:
                 raise FieldExistsError(field, self)
-            
+
             validated_value = self.backend.quote_value(
                 field.to_database(list(values)[i])
             )
-            validates_values.append(validated_value)
-        return validates_values
+            validated_values.append(validated_value)
+        return validated_values
 
     def load_current_connection(self):
         from lorelie.backends import connections
@@ -171,6 +172,6 @@ class Table(AbstractTable):
             for params in field_params
         ]
         sql = self.create_table_sql(self.backend.comma_join(field_params))
-        query = self.query_class(self.backend, sql, table=self)
+        query = self.query_class(sql, table=self)
         query.run(commit=True)
         self.is_prepared = True

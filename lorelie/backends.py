@@ -66,12 +66,11 @@ class BaseRow:
     ... row.save()
     """
 
-    # Indicate that this specific row
-    # values have been changed and could
-    # eligible for saving
-    mark_for_update = False
-
     def __init__(self, cursor, fields, data):
+        # Indicate that this specific row
+        # values have been changed and could
+        # eligible for saving
+        self.mark_for_update = False
         self._cursor = cursor
         self._fields = fields
         self._cached_data = data

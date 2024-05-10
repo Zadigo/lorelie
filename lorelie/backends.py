@@ -76,6 +76,7 @@ class BaseRow:
         self._fields = fields
         self._cached_data = data
         self._backend = connections.get_last_connection()
+        self.linked_to_table = self._backend.current_table.name
         self.updated_fields = {}
 
         for key, value in self._cached_data.items():

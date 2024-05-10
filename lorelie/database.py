@@ -321,6 +321,28 @@ class DatabaseManager:
         import pandas
         return pandas.DataFrame(self.values(table, *args))
 
+    def order_by(self, table, *fields):
+        """Returns data ordered by the fields specified
+        by the user. It can be sorted in ascending order:
+
+        >>> instance.objects.order_by('celebrities', 'firstname')
+
+        Or, descending order:
+
+        >>> instance.objects.order_by('celebrities', '-firstname')
+        """
+        selected_table = self.before_action(table)
+
+        ordering = OrderBy(fields)
+        ordering_sql = ordering.as_sql(selected_table.backend)
+
+        select_sql = self._get_select_sql(selected_table)
+        select_sql.extend(ordering_sql)
+
+        query = selected_table.query_class(select_sql, table=selected_table)
+        query.run()
+        return QuerySet(query)
+
     def aggregate(self, table, *args, **kwargs):
         selected_table = self.before_action(table)
 

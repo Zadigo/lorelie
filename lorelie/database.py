@@ -373,8 +373,14 @@ class DatabaseManager:
         query = self.database.query_class(select_sql, table=selected_table)
         query.run()
         return getattr(query.result_cache[0], '_cached_data', {})
-        selected_table = self.before_action(table)
-        select_sql
+    def count(self, table):
+        """Returns the number of items present
+        in the database
+
+        >>> db.objects.count('celebrities')
+        """
+        result = self.aggregate(table, Count('id'))
+        return result.get('id__count')
 
     # def bulk_create(self, *objs):
     # def order_by(self, *fields):

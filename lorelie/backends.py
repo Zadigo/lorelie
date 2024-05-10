@@ -443,6 +443,19 @@ class SQL:
     def build_script(self, *sqls):
         return '\n'.join(map(lambda x: self.finalize_sql(x), sqls))
 
+    def decompose_filters_columns(self, value):
+        """Return only the column parts of the filters
+        that were passed
+
+        >>> self.decompose_filters_from_string('rowid__eq')
+        ... ['rowid']
+        """
+        if isinstance(value, str):
+            result = self.decompose_filters_from_string(value)
+        elif isinstance(value, dict):
+            result = self.decompose_filters(**value)
+        return list(map(lambda x: x[0], result))
+
     def decompose_filters_from_string(self, value):
         """Decompose a set of filters to a list of
         key, operator and value list from a string

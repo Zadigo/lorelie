@@ -277,6 +277,14 @@ class DateFieldMixin:
 
 
 class DateField(DateFieldMixin, Field):
+    """
+    `auto_add` will update the field with the
+    current date every time a value is created
+
+    `auto_update` will update the field with the
+    current date every time a value is updated
+    """
+
     def to_python(self, data):
         if data is None or data == '':
             return data
@@ -290,6 +298,13 @@ class DateField(DateFieldMixin, Field):
 
 
 class DateTimeField(DateFieldMixin, Field):
+    """
+    `auto_add` will update the field with the
+    current date every time a value is created
+
+    `auto_update` will update the field with the
+    current date every time a value is updated
+    """
     date_format = '%Y-%m-%d %H:%M:%S.%f'
 
 

@@ -1,7 +1,7 @@
 from lorelie.aggregation import Avg, Count
 from lorelie.database import Database
 from lorelie.expressions import Case, Q, When
-from lorelie.fields import CharField, DateField, IntegerField, JSONField, Value
+from lorelie.fields import CharField, DateField, DateTimeField, IntegerField, JSONField, Value
 from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear, Length,
                                Lower, Upper)
 from lorelie.tables import Table
@@ -20,7 +20,8 @@ table = Table(
         IntegerField('age', null=True, min_value=18, max_value=99),
         IntegerField('followers', default=0),
         JSONField('goals', null=True),
-        DateField('date_of_birth', null=True)
+        DateField('date_of_birth', null=True),
+        DateTimeField('created_on', auto_add=True)
     ],
     str_field='firstname'
 )
@@ -83,9 +84,11 @@ for celebrity in celebrities:
 #     firstname='Kendall',
 #     lastname='Jenner'
 # )
-# celebrity = db.objects.first('celebrities')
+celebrity = db.objects.first('celebrities')
 # celebrity = db.objects.last('celebrities')
-# print(celebrity)
+# celebrity['firstname'] = 'Vlada'
+# celebrity.save()
+# print(celebrity.firstname)
 
 # queryset = db.objects.all('celebrities')
 
@@ -174,5 +177,5 @@ for celebrity in celebrities:
 # print(result)
 
 
-count = db.objects.count('celebrities')
-print(count)
+# count = db.objects.count('celebrities')
+# print(count)

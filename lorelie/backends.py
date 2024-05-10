@@ -215,14 +215,7 @@ def row_factory(backend):
     def inner_factory(cursor, row):
         fields = [column[0] for column in cursor.description]
         data = {key: value for key, value in zip(fields, row)}
-        # FIXME: We need to find a way to pass the
-        # table to the row so that we can use the
-        # table instances and backend at the row level
-        # FIXME: Instead of passing the backend, pass
-        # the table which contains the backend itself
-        instance = BaseRow(cursor, fields, data)
-        instance._backend = backend
-        return instance
+        return BaseRow(cursor, fields, data)
     return inner_factory
 
 

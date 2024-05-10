@@ -108,6 +108,13 @@ class BaseRow:
         self.__dict__[name] = value
 
     def __getitem__(self, name):
+        # It seems like when an ID field
+        # is specified as primary key, the
+        # RowOD
+        if name == 'rowid':
+            if 'rowid' not in self._cached_data:
+                return None
+
         value = getattr(self, name)
         # Before returning the value,
         # get the field responsible for

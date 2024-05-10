@@ -1,7 +1,9 @@
+import pathlib
 from functools import partial
 
 from asgiref.sync import sync_to_async
 
+from lorelie.aggregation import Avg, Count
 from lorelie.backends import SQLiteBackend
 from lorelie.exceptions import TableExistsError
 from lorelie.expressions import OrderBy
@@ -62,10 +64,6 @@ class DatabaseManager:
         instance.database = database
         instance.auto_created = False
         return instance
-
-    def _check_field_exists(self, selected_table, *field_names):
-        for name in field_names:
-            selected_table.has_field(name, raise_exception=True)
 
     def _get_select_sql(self, selected_table, columns=['rowid', '*']):
         # This function creates and returns the base SQL line for
@@ -203,7 +201,8 @@ class DatabaseManager:
             table=selected_table
         )
         query.run()
-        return query.result_cache
+        # return query.result_cache
+        return QuerySet(query)
 
     # async def aget(self, table, **kwargs):
     #     return await sync_to_async(self.get)(table, **kwargs)
@@ -344,6 +343,15 @@ class DatabaseManager:
         return QuerySet(query)
 
     def aggregate(self, table, *args, **kwargs):
+        """Returns a dictionnary of aggregate values
+        calculated from the database
+
+        >>> db.objects.aggregate('celebrities', Count('id'))
+        ... {'age__count': 1}
+
+        >>> db.objects.aggregate('celebrities', count_age=Count('id'))
+        ... {'count_age': 1}
+        """
         selected_table = self.before_action(table)
 
         functions = list(args)
@@ -373,6 +381,7 @@ class DatabaseManager:
         query = self.database.query_class(select_sql, table=selected_table)
         query.run()
         return getattr(query.result_cache[0], '_cached_data', {})
+
     def count(self, table):
         """Returns the number of items present
         in the database
@@ -382,9 +391,10 @@ class DatabaseManager:
         result = self.aggregate(table, Count('id'))
         return result.get('id__count')
 
+    # def distinct(self, table, *columns):
+    #     selected_table = self.before_action(table)
+    #     select_sql
     # def bulk_create(self, *objs):
-    # def order_by(self, *fields):
-    # def count()
     # def dates()
     # def datetimes
     # def difference()
@@ -392,12 +402,36 @@ class DatabaseManager:
     # def latest()
     # def exclude()
     # def extra()
-    # def get_or_create()
     # def only()
+    # def get_or_create(self, table, defaults={}, **kwargs):
+    #     selected_table = self.before_action(table)
+
+    #     columns, values = selected_table.backend.dict_to_sql(defaults)
+    #     joined_columns = selected_table.backend.comma_join(columns)
+    #     joined_values = selected_table.backend.comma_join(values)
+
+    #     replace_sql = selected_table.backend.REPLACE.format_map({
+    #         'table': selected_table.name,
+    #         'fields': joined_columns,
+    #         'values': joined_values
+    #     })
+    #     print(replace_sql)
     # def select_for_update()
     # def select_related()
     # def fetch_related()
-    # def update()
+    # def update(self, table, **kwargs):
+    #     """Updates multiples rows in the database at once
+
+    #     >>> db.objects.update('celebrities', firstname='Kendall')
+    #     """
+    #     selected_table = self.before_action(table)
+
+    #     update_sql = selected_table.backend.UPDTATE.format_map({
+    #         table: selected_table.name
+    #     })
+
+    #     columns_to_set = []
+    #     columns, values = selected_table.backend.dict_to_sql(kwargs)
     # def update_or_create()
     # def resolve_expression()
 
@@ -412,8 +446,8 @@ class Database:
 
     Creating a new database can be done by doing the following steps:
 
-    >>> table = Table('my_table', fields=[Field('url')])
-    ... database = Database(table, name='my_database')
+    >>> table = Table('my_table', fields=[CharField('firstname')])
+    ... db = Database(table, name='my_database')
 
     Providing a name is optional. If present, an sqlite dabase is created
     in the local project's path otherwise it is created in memory and
@@ -423,16 +457,8 @@ class Database:
     the tables and in the fields that were created in a `migrations.json`
     local file:
 
-    >>> database.make_migrations()
-    ... database.migrate()
-
-    Once the database is created, we can then run various operations
-    on the tables that it contains:
-
-    >>> database.objects.create('my_table', url='http://example.com')
-
-    Connections to the database can either be opened at the table level
-    or at the database level ???
+    >>> db.make_migrations()
+    ... db.migrate()
 
     `make_migrations` writes the physical changes to the
     local tables into the `migrations.json` file
@@ -441,6 +467,12 @@ class Database:
     file into the SQLite database. It syncs the changes from
     the file into the database such as deleting or updating
     existing tables
+
+    Once the database is created, we can then run various operations
+    on the tables within it:
+
+    >>> db.objects.create('my_table', url='http://example.com')
+    ... db.objects.all()
     """
 
     migrations = None
@@ -449,7 +481,7 @@ class Database:
     backend_class = SQLiteBackend
     objects = DatabaseManager()
 
-    def __init__(self, *tables, name=None):
+    def __init__(self, *tables, name=None, path=None):
         self.database_name = name
         self.migrations = self.migrations_class(self)
 
@@ -467,6 +499,11 @@ class Database:
             self.table_map[table.name] = table
 
         self.table_instances = list(tables)
+
+        if path is None:
+            # Use the immediate parent path if not
+            # path is provided by the user
+            self.path = pathlib.Path(__file__).parent.absolute()
         databases.register(self)
 
     def __repr__(self):
@@ -475,6 +512,9 @@ class Database:
 
     def __getitem__(self, table_name):
         return self.table_map[table_name]
+
+    def __contains__(self, value):
+        return value in self.table_names
 
     # TODO: Implement this functionnality
     # def __getattribute__(self, name):

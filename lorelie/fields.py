@@ -235,3 +235,41 @@ class SlugField(CharField):
 
 class UUIDField(Field):
     pass
+
+
+class Value:
+    def __init__(self, value, output_field=None):
+        self.value = value
+        
+        if output_field is None:
+            output_field = CharField('value_field')
+        self.output_field = output_field
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.to_database()})'
+
+    def to_database(self):
+        return self.output_field.to_database(self.value)
+
+    def as_sql(self, backend):
+        return [backend.quote_value(self.to_database())]
+
+
+class AliasField(Field):
+    """A special field that guesses the type
+    of the data and returns the correct database
+    field. This class is determined for fields in
+    the queryset that uses an alias"""
+
+    def __init__(self, name):
+        self.name = name
+        super().__init__(name)
+
+    def get_data_field(self, data):
+        # Infer the data type and return
+        # the correct database field
+        if isinstance(data, str):
+            return CharField(self.name)
+        elif isinstance(data, int):
+            return IntegerField(self.name)
+        return CharField(self.name)

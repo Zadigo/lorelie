@@ -1,5 +1,9 @@
+from lorelie.exceptions import ValidationError
+
+
 class BaseValidator:
-    pass
+    def __call__(self, value):
+        return value
 
 
 class RegexValidator:
@@ -18,12 +22,31 @@ class EmailValidator:
 email_validator = EmailValidator()
 
 
-class MaxValueValidator:
-    pass
+class MinValueValidator(BaseValidator):
+    def __init__(self, limit):
+        self.limit = limit
+
+    def __call__(self, value):
+        if value < self.limit:
+            raise ValidationError(
+                "Value '{value}' is over the limit of '{limit}'"
+                "required by the {class_name}",
+                value=value,
+                limit=self.limit,
+                class_name=self.__class__.__name__
+            )
 
 
-class MinValueValidator:
-    pass
+class MaxValueValidator(MinValueValidator):
+    def __call__(self, value):
+        if value > self.limit:
+            raise ValidationError(
+                "Value '{value}' is under the limit of '{limit}'"
+                "required by the {class_name}",
+                value=value,
+                limit=self.limit,
+                class_name=self.__class__.__name__
+            )
 
 
 class FileExtensionValidator:

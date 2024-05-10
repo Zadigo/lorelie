@@ -3,7 +3,7 @@ from collections import OrderedDict
 from lorelie.backends import SQLiteBackend
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
 from lorelie.expressions import OrderBy
-from lorelie.fields import AutoField, Field
+from lorelie.fields import AutoField, DateField, DateTimeField, Field
 from lorelie.queries import Query
 
 
@@ -100,10 +100,23 @@ class Table(AbstractTable):
 
         super().__init__()
         self.fields_map = OrderedDict()
+        self.auto_add_fields = set()
+        self.auto_update_fields = set()
 
         for field in fields:
             if not isinstance(field, Field):
                 raise ValueError(f'{field} should be an instance of Field')
+            
+            # Identify the date fields that require either
+            # an auto_update or auto_add. Which means that
+            # we will need to implement the current date/time
+            # when creating or updating said fields
+            if isinstance(field, (DateField, DateTimeField)):
+                if field.auto_add:
+                    self.auto_add_fields.add(field.name)
+                
+                if field.auto_update:
+                    self.auto_update_fields.add(field.name)
 
             field.prepare(self)
             self.fields_map[field.name] = field

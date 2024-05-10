@@ -1,12 +1,16 @@
 import dataclasses
+import datetime
 import itertools
 import re
 import sqlite3
 from dataclasses import field
 
+import pytz
+
+from lorelie.aggregation import Avg, Count
 from lorelie.expressions import Case
-from lorelie.aggregation import Count, Avg
-from lorelie.functions import ExtractDay, ExtractMonth, ExtractYear, Length, Lower, Upper
+from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear, Length,
+                               Lower, Upper)
 from lorelie.queries import Query
 
 
@@ -94,18 +98,11 @@ class BaseRow:
         return f'<{self._backend.current_table.verbose_name}: {name_to_show}>'
 
     def __setitem__(self, name, value):
-        # Before saving the item to the database,
-        # call the field responsible for setting
-        # the value to a database usable object
-        # table_field = self._backend.current_table.get_field(name)
-        # value = table_field.to_database(value)
-
         self.mark_for_update = True
         # We don't really care if the user
         # sets a field that does not actually
         # exist on the database. We'll simply
         # invalidate the field in the final SQL
-        # setattr(self, name, value)
         self.updated_fields[name] = [name, value]
         self.__dict__[name] = value
 
@@ -128,9 +125,10 @@ class BaseRow:
     # we get a recursion error for
     # whatever reasons
     def __setattr__(self, name, value):
-        # if name in self._fields:
-        #     self.mark_for_update = True
-        #     self.updated_fields[name] = [name, value]
+        # fields = self.__dict__['_fields']
+        # if name in fields:
+        #     self.__dict__['mark_for_update'] = True
+        #     self.__dict__['updated_fields'][name] = [name, value]
         #     self.__dict__[name] = value
         super().__setattr__(name, value)
 
@@ -584,7 +582,7 @@ class SQL:
                 function.alias_name = alias_name
                 case_sql = function.as_sql(self.current_table.backend)
                 annotation_map.sql_statements_dict[alias_name] = case_sql
-            
+
             if isinstance(function, (Count, Avg, Length, Lower, Upper, ExtractYear, ExtractDay, ExtractMonth)):
                 annotation_map.field_names.append(
                     function.field_name

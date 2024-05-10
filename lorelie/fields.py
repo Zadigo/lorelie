@@ -153,6 +153,14 @@ class IntegerField(Field):
         self.max_value = max_value
         super().__init__(name, **kwargs)
 
+        if min_value is not None:
+            instance = MinValueValidator(min_value)
+            self.base_validators.append(instance)
+
+        if max_value is not None:
+            instance = MaxValueValidator(max_value)
+            self.base_validators.append(instance)
+
     @property
     def field_type(self):
         return 'integer'

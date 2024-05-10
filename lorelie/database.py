@@ -109,7 +109,8 @@ class DatabaseManager:
             )
             sql.append(ordering_sql)
 
-        query = selected_table.query_class(
+        # query = selected_table.query_class(
+        query = Query(
             selected_table.backend,
             sql,
             table=selected_table
@@ -150,12 +151,17 @@ class DatabaseManager:
 
     def filter(self, table, *args, **kwargs):
         """Filter the data in the database based on
-        a set of criteria
+        a set of criteria using filter keyword arguments
 
-        >>> database.objects.filter('celebrities', name='Kendall')
-        ... database.objects.filter('celebrities', name__eq='Kendall')
-        ... database.objects.filter('celebrities', age__gt=15)
-        ... database.objects.filter('celebrities', name__in=['Kendall'])
+        >>> db.objects.filter('celebrities', firstname='Kendall')
+        ... db.objects.filter('celebrities', age__gt=20)
+        ... db.objects.filter('celebrities', firstname__in=['Kendall'])
+
+        Filtering can also be done using more complexe logic via database
+        functions such as the `Q` function:
+
+        >>> db.objects.filter('celebrities', Q(firstname='Kendall') | Q(firstname='Kylie'))
+        ... db.objects.filter('celebrities', Q(firstname='Margot') | Q(firstname='Kendall') & Q(followers__gte=1000))
         """
         selected_table = self.before_action(table)
 
@@ -185,7 +191,8 @@ class DatabaseManager:
 
         # TODO: Use the Query class on the table
         # or whether to import and call it directly ?
-        query = selected_table.query_class(
+        # query = selected_table.query_class(
+        query = Query(
             selected_table.backend,
             select_sql,
             table=selected_table
@@ -229,7 +236,8 @@ class DatabaseManager:
         })
         select_sql.extend([where_clause])
 
-        query = selected_table.query_class(
+        # query = selected_table.query_class(
+        query = Query(
             selected_table.backend,
             select_sql,
             table=selected_table

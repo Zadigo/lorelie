@@ -1,3 +1,5 @@
+
+
 class BaseExpression:
     template = None
 
@@ -100,6 +102,12 @@ class OrderBy(BaseExpression):
     def __init__(self, fields):
         self.ascending = set()
         self.descending = set()
+
+        if not isinstance(fields, list):
+            raise ValueError(
+                "Ordering fields should be a list"
+                "of field names on your table"
+            )
 
         for field in fields:
             if field.startswith('-'):

@@ -141,6 +141,13 @@ class QuerySet:
         for item in self.result_cache:
             yield item
 
+    def __contains__(self, value):
+        return value in self.result_cache
+
+    def __len__(self):
+        self.load_cache()
+        return len(self.result_cache)
+
     @property
     def dataframe(self):
         import pandas

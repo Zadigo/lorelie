@@ -74,7 +74,10 @@ for celebrity in celebrities:
 #     firstname='Kendall',
 #     lastname='Jenner'
 # )
+# celebrity = db.objects.first('celebrities')
+# celebrity = db.objects.last('celebrities')
 # print(celebrity)
+
 
 # db.objects.create('celebrities', firstname='Kendall', lastname='Jenner', age=20)
 # db.objects.create('celebrities', firstname='Aurélie', lastname='Konaté')

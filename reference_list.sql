@@ -29,3 +29,7 @@ SELECT *, count(name) as name_count, length(name) as name_length
 FROM business
 GROUP BY name
 ORDER BY name ASC
+
+
+SELECT DISTINCT name
+FROM business

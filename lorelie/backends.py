@@ -294,6 +294,8 @@ class SQL:
     CASE = 'case {field} {conditions} end {alias}'
     WHEN = 'when {condition} then {value}'
 
+    LIMIT = 'limit {value}'
+
     SQL_REGEXES = [
         re.compile(r'^select\s(.*)\sfrom\s(.*)\s(where)?\s(.*);?$')
     ]

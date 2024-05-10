@@ -4,6 +4,7 @@ from asgiref.sync import sync_to_async
 
 from lorelie.backends import SQLiteBackend
 from lorelie.exceptions import TableExistsError
+from lorelie.expressions import OrderBy
 from lorelie.migrations import Migrations
 from lorelie.queries import Query, QuerySet
 from lorelie.tables import Table
@@ -75,6 +76,24 @@ class DatabaseManager:
         })
         return [select_sql]
 
+    def _get_first_or_last_sql(self, selected_table, first=True):
+        """Returns the general SQL that returns the first
+        or last value from the database"""
+        select_sql = self._get_select_sql(selected_table)
+
+        if first:
+            ordering_column = ['id']
+        else:
+            ordering_column = ['-id']
+
+        ordering = OrderBy(ordering_column)
+        order_by_sql = ordering.as_sql(selected_table.backend)
+        select_sql.extend(order_by_sql)
+
+        limit_sql = selected_table.backend.LIMIT.format(value=1)
+        select_sql.extend([limit_sql])
+        return select_sql
+
     def before_action(self, table_name):
         try:
             table = self.table_map[table_name]
@@ -88,14 +107,20 @@ class DatabaseManager:
     def first(self, table):
         """Returns the first row from
         a database table"""
-        result = self.all(table)
-        return result[0]
+        selected_table = self.before_action(table)
+        select_sql = self._get_first_or_last_sql(selected_table)
+        query = self.database.query_class(select_sql, table=selected_table)
+        query.run()
+        return query.result_cache[0]
 
     def last(self, table):
         """Returns the last row from
         a database table"""
-        result = self.all(table)
-        return result[-1]
+        selected_table = self.before_action(table)
+        select_sql = self._get_first_or_last_sql(selected_table, first=False)
+        query = self.database.query_class(select_sql, table=selected_table)
+        query.run()
+        return query.result_cache[0]
 
     def all(self, table):
         selected_table = self.before_action(table)
@@ -296,17 +321,19 @@ class DatabaseManager:
         import pandas
         return pandas.DataFrame(self.values(table, *args))
 
+    def distinct(self, table, *columns):
+        selected_table = self.before_action(table)
+        select_sql
+
     # def bulk_create(self, *objs):
     # def order_by(self, *fields):
     # def count()
     # def dates()
     # def datetimes
     # def difference()
-    # def distinct()
     # def earliest()
     # def latest()
     # def exclude()
-    # def first()
     # def extra()
     # def get_or_create()
     # def only()

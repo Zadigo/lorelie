@@ -108,23 +108,24 @@ class OrderBy(BaseExpression):
                 "Ordering fields should be a list"
                 "of field names on your table"
             )
-
-        for field in fields:
-            if field.startswith('-'):
-                field = field.removeprefix('-')
-                self.descending.add(field)
-            else:
-                self.ascending.add(field)
-
         self.fields = fields
+        self.map_fields()
         super().__init__()
 
     def __bool__(self):
         return len(self.fields) > 0
 
-    def __call__(self, fields):
-        self.fields = fields
-        return self
+    @classmethod
+    def new(cls, fields):
+        return cls(fields)
+
+    def map_fields(self):
+        for field in self.fields:
+            if field.startswith('-'):
+                field = field.removeprefix('-')
+                self.descending.add(field)
+            else:
+                self.ascending.add(field)
 
     def as_sql(self, backend):
         conditions = []

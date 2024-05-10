@@ -300,6 +300,7 @@ class DatabaseManager:
             select_sql_tokens,
             table=selected_table
         )
+        query.alias_fields = list(alias_fields)
         return QuerySet(query)
 
     def values(self, table, *args):

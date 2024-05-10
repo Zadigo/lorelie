@@ -120,8 +120,7 @@ class BaseRow:
         # get the field responsible for
         # converting said value to a Python
         # usable object
-        table_field = self._backend.current_table.get_field(name)
-        return table_field.to_python(value)
+        return value
 
     # FIXME: When trying to set this up
     # we get a recursion error for

@@ -38,6 +38,9 @@ class DatabaseManager:
     def __init__(self):
         self.table_map = {}
         self.database = None
+        # Tells if the manager was
+        # created via as_manager
+        self.auto_created = True
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.database}>'
@@ -47,9 +50,18 @@ class DatabaseManager:
             self.table_map = instance.table_map
             self.database = instance
         return self
-    
-    def __bool__(self):
-        pass
+
+    @classmethod
+    def as_manager(cls, table_map={}, database=None):
+        instance = cls()
+        instance.table_map = table_map
+        instance.database = database
+        instance.auto_created = False
+        return instance
+
+    def _check_field_exists(self, selected_table, *field_names):
+        for name in field_names:
+            selected_table.has_field(name, raise_exception=True)
 
     def _get_select_sql(self, selected_table, columns=['rowid', '*']):
         # This function creates and returns the base SQL line for
@@ -265,7 +277,9 @@ class DatabaseManager:
         # base_return_fields.extend(fields)
 
         annotation_map = selected_table.backend.build_annotation(**kwargs)
-        annotation_sql = selected_table.backend.comma_join(annotation_map.joined_final_sql_fields)
+        annotation_sql = selected_table.backend.comma_join(
+            annotation_map.joined_final_sql_fields
+        )
         base_return_fields.append(annotation_sql)
 
         # base_return_fields.extend(annotation_map.joined_final_sql_fields)
@@ -318,6 +332,7 @@ class DatabaseManager:
             'fields': selected_table.backend.comma_join(list(args)),
             'table': selected_table.name
         })
+        # TODO: Improve this section
         query = Query(selected_table.backend, [sql], table=selected_table)
 
         def dict_iterator(values):
@@ -356,7 +371,6 @@ class DatabaseManager:
     # def update()
     # def update_or_create()
     # def resolve_expression()
-
 
     # async def async_all(self, table):
     #     return await sync_to_async(self.all)(table)
@@ -432,22 +446,58 @@ class Database:
     def __getitem__(self, table_name):
         return self.table_map[table_name]
 
-    # TODO: This allows us to use for ex database.celebrities_table
-    # directly on the Database instance
+    # TODO: Implement this functionnality
     # def __getattribute__(self, name):
-    #     if name.endswith('_table'):
-    #         lhv, _ = name.split('_table')
-    #         return self.table_map[lhv]
+    #     if name.endswith('_tbl'):
+    #         # When the user calls db.celebrities_tbl
+    #         # for example, we have to reimplement the objects
+    #         # manager on the table so that we can get
+    #         # db.celebrities_tbl.objects which returns
+    #         # DatabaseManager
+    #         lhv, _ = name.split('_tbl')
+
+    #         try:
+    #             table = self.table_map[lhv]
+    #         except KeyError as e:
+    #             raise ExceptionGroup(
+    #                 "Missing table",
+    #                 [
+    #                     KeyError(e.args),
+    #                     TableExistsError(lhv)
+    #                 ]
+    #             )
+
+    #         manager = DatabaseManager.as_manager()
+    #         manager.database = self
+    #         manager.table_map = self.table_map
+
+    #         setattr(table, 'objects', manager)
+
+    #         # The tricky part is on all the manager
+    #         # database functions e.g. all, filter
+    #         # we have to normally pass the table's
+    #         # name. However, since we already know
+    #         # the table that is being called, we
+    #         # to alias these functions aka
+    #         # all() -> all('celebrities') which
+    #         # gives db.celebrities_tbl.objects.all()
+    #         # instead of
+    #         # db.celebrities_tbl.objects.all('celebrities')
+    #         return table
     #     return super().__getattribute__(name)
 
     def __hash__(self):
-        return hash((self.database_name))
-    
+        return hash((self.database_name, *self.table_names))
+
     @property
     def in_memory(self):
         """If the database does not have a
         concrete name then it is `memory`"""
         return self.database_name is None
+
+    @property
+    def table_names(self):
+        return list(self.table_map.keys())
 
     def get_table(self, table_name):
         return self.table_map[table_name]

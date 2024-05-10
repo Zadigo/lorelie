@@ -201,6 +201,12 @@ class JSONField(Field):
             )
 
     def to_database(self, data):
+        if not isinstance(data, (list, dict, str)):
+            raise ValidationError(
+                "The value passed to {name} should be a "
+                "list, dict or a string",
+                name=self.name
+            )
         return json.dumps(data, ensure_ascii=False, sort_keys=True)
 
 

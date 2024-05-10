@@ -1,3 +1,5 @@
+from sqlite3 import OperationalError
+
 
 class Query:
     """This class represents an sql statement query
@@ -44,6 +46,9 @@ class Query:
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self._sql}]>'
 
+    # def __hash__(self):
+    #     return hash((self._sql, self._table))
+
     @classmethod
     def run_multiple(cls, backend, *sqls, **kwargs):
         """Runs multiple queries against the database"""
@@ -56,6 +61,15 @@ class Query:
     def create(cls, backend, sql_tokens, table=None):
         """Creates a new `Query` class to be executed"""
         return cls(backend, sql_tokens, table=table)
+
+    @classmethod
+    def run_script(cls, backend, sql_tokens):
+        instance = cls(backend, sql_tokens)
+        if sql_tokens:
+            result = instance._backend.connection.executescript(sql_tokens[0])
+            instance._backend.connection.commit()
+            instance.result_cache = list(result)
+        return instance
 
     def prepare_sql(self):
         """Prepares a statement before it is sent
@@ -75,6 +89,8 @@ class Query:
 
         try:
             result = self._backend.connection.execute(self._sql)
+        except OperationalError as e:
+            print('OperationalError', e)
         except Exception as e:
             print(e)
         else:
@@ -117,7 +133,7 @@ class QuerySet:
         self.load_cache()
         try:
             return self.result_cache[index]
-        except:
+        except KeyError:
             return None
 
     def __iter__(self):
@@ -136,7 +152,16 @@ class QuerySet:
             # queryset is evaluated as oppposed
             # to running it in the methods: filters etc.
             self.query.run()
+            self.query.transform_to_python()
             self.result_cache = self.query.result_cache
+
+    def first(self):
+        self.load_cache()
+        return self.result_cache[0]
+
+    def last(self):
+        self.load_cache()
+        return self.result_cache[-1]
 
     def exclude(self, **kwargs):
         pass

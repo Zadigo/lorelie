@@ -1,13 +1,13 @@
 from lorelie.database import Database
 from lorelie.expressions import Case, Q, When
-from lorelie.fields import CharField
+from lorelie.fields import CharField, JSONField, Value
 from lorelie.functions import Count, Length, Lower, Upper
 from lorelie.tables import Table
 
 table = Table(
     'celebrities',
     ordering=['firstname'],
-    fields=[CharField('firstname')],
+    fields=[CharField('firstname'), JSONField('goals', null=True)],
     str_field='firstname'
 )
 db = Database(table)
@@ -18,10 +18,14 @@ db.objects.create('celebrities', firstname='Kendall')
 db.objects.create('celebrities', firstname='Aurélie')
 db.objects.create('celebrities', firstname='Kylie')
 db.objects.create('celebrities', firstname='Jade')
+db.objects.create('celebrities', firstname='Lucie', goals={'age': 26})
 
-# queryset = db.objects.all('celebrities')
+queryset = db.objects.all('celebrities')
 # queryset = db.objects.filter('celebrities', firstname__contains='K')
 # celebrity = db.objects.get('celebrities', firstname='Kendall')
+# queryset = db.objects.filter('celebrities', name__contains='K')
+queryset = db.objects.values('celebrities', 'goals')
+print(queryset)
 
 # queryset = db.objects.annotate(
 #     'celebrities',
@@ -41,11 +45,13 @@ db.objects.create('celebrities', firstname='Jade')
 
 # asyncio.run(main())
 
-# db.objects.annotate('celebrities', name_count=Count('firstname'), name_length=Length('firstname'))
+# queryset = db.objects.annotate('celebrities', name_count=Count(
+#     'firstname'), name_length=Length('firstname'))
+# print(queryset.last().goals)
 # condition = When('firstname__eq=Kendall', 'KendallKendall')
 # case = Case(condition)
 # db.objects.annotate('celebrities', some_name=case)
-
+# print(queryset.values())
 
 # celebrity.firstname = 'Julie'
 # celebrity['firstname'] = 'Julie'
@@ -63,3 +69,11 @@ db.objects.create('celebrities', firstname='Jade')
 # db.objects.filter('celebrities', a | b & c)
 # db.objects.filter('celebrities', a, firstname='Jade')
 # db.objects.filter('celebrities', a | b, firstname='Jade')
+
+# db.objects.create(
+#     'celebrities',
+#     firstname=Value('google', output_field=CharField)
+# )
+# db.objects.filter('celebrities', firstname=Value('Kendall'))
+
+# print(db.celebrities_tbl.objects.all('celebrities'))

@@ -1,9 +1,7 @@
-from collections import OrderedDict, namedtuple
-
-from asgiref.sync import sync_to_async
+from collections import OrderedDict
 
 from lorelie.backends import SQLiteBackend
-from lorelie.exceptions import ImproperlyConfiguredError
+from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
 from lorelie.expressions import OrderBy
 from lorelie.fields import AutoField, Field
 from lorelie.queries import Query
@@ -44,10 +42,15 @@ class AbstractTable(metaclass=BaseTable):
         are quoted by default"""
         validates_values = []
         for i, field in enumerate(fields):
+            # TODO: Allow creation with id field
             if field == 'rowid' or field == 'id':
                 continue
-
-            field = self.fields_map[field]
+            
+            try:
+                field = self.fields_map[field]
+            except KeyError:
+                raise FieldExistsError(field, self)
+            
             validated_value = self.backend.quote_value(
                 field.to_database(list(values)[i])
             )
@@ -130,8 +133,8 @@ class Table(AbstractTable):
 
     def has_field(self, name, raise_exception=False):
         result = name in self.fields_map
-        if raise_exception:
-            pass
+        if not result and raise_exception:
+            raise FieldExistsError(name, self)
         return result
 
     def get_field(self, name):

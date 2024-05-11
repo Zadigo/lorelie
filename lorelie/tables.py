@@ -186,7 +186,7 @@ class Table(AbstractTable):
         })
         return [sql]
 
-    def drop_table_sql(self, name):
+    def drop_table_sql(self):
         sql = self.backend.DROP_TABLE.format_map({
             'table': self.name
         })

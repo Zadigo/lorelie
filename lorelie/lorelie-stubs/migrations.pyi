@@ -4,7 +4,7 @@ from typing import DefaultDict, List, Type
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database import Database
-from lorelie.fields import Field
+from lorelie.fields.base import Field
 from lorelie.tables import Table
 
 

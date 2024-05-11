@@ -3,7 +3,7 @@ from typing import Any, Literal, OrderedDict, Type
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint
-from lorelie.fields import Field
+from lorelie.fields.base import Field
 from lorelie.indexes import Index
 from lorelie.queries import Query
 

@@ -98,6 +98,27 @@ class Query:
                 setattr(row, name, field.to_python(value))
 
 
+class ValuesIterable:
+    """An iterator that generates a dictionnary
+    key value pair from queryset"""
+
+    def __init__(self, queryset, fields=[]):
+        self.queryset = queryset
+        self.fields = fields
+
+    def __iter__(self):
+        self.queryset.load_cache()
+
+        if not self.fields:
+            self.fields = self.queryset.query._table.field_names
+
+        for row in self.queryset.result_cache:
+            result = {}
+            for field in self.fields:
+                result[field] = row[field]
+            yield result
+
+
 class QuerySet:
     def __init__(self, query):
         if not isinstance(query, Query):

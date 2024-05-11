@@ -8,6 +8,7 @@ from dataclasses import field
 import pytz
 
 from lorelie.aggregation import Avg, Count
+from lorelie.exceptions import ConnectionExistsError
 from lorelie.expressions import Case
 from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear, Length,
                                Lower, Upper)
@@ -37,7 +38,10 @@ class Connections:
     def get_last_connection(self):
         """Return the last connection from the
         connection map"""
-        return list(self.created_connections)[-1]
+        try:
+            return list(self.created_connections)[-1]
+        except IndexError:
+            raise ConnectionExistsError()
 
     def register(self, connection, name=None):
         if name is None:

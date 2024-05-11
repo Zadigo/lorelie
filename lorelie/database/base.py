@@ -240,6 +240,10 @@ class Database:
     def has_relationships(self):
         return len(self.relationships) > 0
 
+    def _add_table(self, table):
+        table.load_current_connection()
+        self.table_map[table.name] = table
+
     def get_table(self, table_name):
         return self.table_map[table_name]
 

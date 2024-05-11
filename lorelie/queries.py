@@ -85,7 +85,7 @@ class Query:
     def transform_to_python(self):
         """Transforms the values returned by the
         database into Python objects"""
-        from lorelie.fields import AliasField
+        from lorelie.fields.base import AliasField
         for row in self.result_cache:
             for name in row._fields:
                 value = row[name]

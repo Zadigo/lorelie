@@ -6,7 +6,7 @@ from functools import cached_property
 
 from lorelie import PROJECT_PATH
 from lorelie.backends import SQLiteBackend, connections
-from lorelie.fields import Field
+from lorelie.fields.base import Field
 from lorelie.queries import Query
 
 
@@ -122,6 +122,7 @@ class Migrations:
             if database_row['name'] not in self.migration_table_map:
                 self.tables_for_deletion.add(database_row)
 
+        # Eventually create the tables
         if self.tables_for_creation:
             for table_name in self.tables_for_creation:
                 table = table_instances.get(table_name, None)
@@ -130,8 +131,8 @@ class Migrations:
 
                 # This is the specific section
                 # that actually creates the table
-                # in the datbase
-                table.prepare()
+                # in the database
+                table.prepare(self.database)
             self.has_migrations = True
 
         other_sqls_to_run = []

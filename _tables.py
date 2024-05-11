@@ -84,7 +84,7 @@ for celebrity in celebrities:
 #     firstname='Kendall',
 #     lastname='Jenner'
 # )
-celebrity = db.objects.first('celebrities')
+# celebrity = db.objects.first('celebrities')
 # celebrity = db.objects.last('celebrities')
 # celebrity['firstname'] = 'Vlada'
 # celebrity.save()
@@ -179,3 +179,16 @@ celebrity = db.objects.first('celebrities')
 
 # count = db.objects.count('celebrities')
 # print(count)
+
+
+qs = db.objects.filter('celebrities', lastname='Jenner')
+# print(qs.all())
+# print(qs.first())
+# print(qs.last())
+# print(qs.count())
+# print(qs.values('id'))
+
+# qs.update(age=26)
+# db.objects.values('celebrities', 'firstname', 'age')
+
+print(qs.aggregate(Count('age')))

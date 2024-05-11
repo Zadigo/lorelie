@@ -39,3 +39,12 @@ class MigrationsExistsError(Exception):
             "db.migrate() before using any query functions"
         )
         super().__init__(message)
+
+
+class ConnectionExistsError(Exception):
+    def __init__(self):
+        message = (
+            "No existing connections were found "
+            "in the connections pool"
+        )
+        super().__init__(message)

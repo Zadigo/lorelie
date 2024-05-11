@@ -1,11 +1,12 @@
 import pathlib
 import unittest
 
-from lorelie.backends import Migrations
 from lorelie import PROJECT_PATH
-from lorelie.backends import Table
-from lorelie.backends import Field
-
+from lorelie.database.base import Database
+from lorelie.database.migrations import Migrations
+from lorelie.fields import Field
+from lorelie.fields.base import CharField
+from lorelie.tables import Table
 
 TEST_MIGRATION = {
     "id": "fe81zef5",
@@ -51,36 +52,46 @@ TEST_MIGRATION = {
 # table = Table('movies', 'celebrities', )
 
 class TestMigrations(unittest.TestCase):
-    def setUp(self) -> None:
-        self.instance = Migrations()
+    def setUp(self):
+        db = Database()
+        self.instance = Migrations(db)
 
-    def test_table_map(self):
-        self.assertListEqual(self.instance.table_map, ['urls_seen'])
-        self.assertIn('urls_seen', self.instance.table_map)
+    def test_migrated(self):
+        self.assertFalse(self.instance.migrated)
 
-    def test_field_construction(self):
-        result = self.instance.construct_fields('urls_seen')
-        self.assertIsInstance(result, list)
-        self.assertListEqual(result[1], ['url', None, ['text', 'null']])
-        self.assertTrue(result[1][0], 'url')
+    @unittest.expectedFailure
+    def test_structure(self):
+        self.assertFalse(self.instance.file.exists())
 
-    def test_get_table_fields(self):
-        result = self.instance.get_table_fields('urls_seen')
-        self.assertIsInstance(result[0], dict)
-        self.assertIn('name', result[0])
+    def test_check_without_tables(self):
+        db = Database()
+        db.migrations.check({})
+        self.assertFalse(db.migrations.migrated)
 
-    def test_fields_reconstruction(self):
-        result = self.instance.reconstruct_table_fields(table_name='urls_seen')
-        field_id = result[0]
-        field_url = result[1]
-        self.assertIsInstance(field_url, Field)
-        self.assertTrue(field_url.name == 'url')
-        # self.assertListEqual(
-        #     self.instance.get_table_fields('urls_seen')[1]['params'],
-        #     field_url.base_field_parameters
-        # )
-        self.assertTrue(field_id.primary_key)
-        print(vars(field_id))
+    @unittest.expectedFailure
+    def test_no_migrations_exists(self):
+        # Trying to call a query function on
+        # a none existing migration should
+        # raise MigrationsExistsError
+        table = Table('test_lorelie', fields=[
+            CharField('name', null=True)
+        ])
+        db = Database(table)
+        db.objects.all('celebrities')
+
+    def test_check_with_tables(self):
+        table = Table('celebrities', fields=[
+            CharField('name', null=True)
+        ])
+
+        db = Database(table)
+        db.migrate()
+
+        self.assertTrue(db.migrations.migrated)
+        db.objects.all('celebrities')
+
+        self.assertEqual(db.migrations.database_name, 'memory')
+        db.objects.all('lorelie_migrations')
 
 
 if __name__ == '__main__':

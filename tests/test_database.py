@@ -3,7 +3,7 @@ import unittest
 from lorelie.backends import BaseRow
 from lorelie.database import Database
 from lorelie.expressions import Q
-from lorelie.fields import CharField, IntegerField, JSONField
+from lorelie.fields.base import CharField, IntegerField, JSONField
 from lorelie.tables import Table
 
 celebrities = [

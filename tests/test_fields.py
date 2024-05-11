@@ -1,7 +1,7 @@
 import unittest
 
 from lorelie.backends import SQLiteBackend
-from lorelie.fields import AutoField, BooleanField, Field, IntegerField
+from lorelie.fields.base import AutoField, BooleanField, Field, IntegerField
 from lorelie.tables import Table
 
 table = Table('celebrities', fields=[])

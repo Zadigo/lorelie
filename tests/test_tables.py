@@ -1,8 +1,8 @@
 import unittest
 
-from lorelie import fields
+from lorelie.fields import base
 from lorelie.backends import BaseRow, SQLiteBackend
-from lorelie.fields import CharField, Field, IntegerField
+from lorelie.fields.base import CharField, Field, IntegerField
 from lorelie.tables import Table
 
 

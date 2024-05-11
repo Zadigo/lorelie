@@ -2,7 +2,7 @@ import unittest
 
 from lorelie.backends import BaseRow
 from lorelie.database import Database
-from lorelie.fields import CharField
+from lorelie.fields.base import CharField
 from lorelie.tables import Table
 
 

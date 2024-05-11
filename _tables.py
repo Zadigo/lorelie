@@ -1,3 +1,4 @@
+import time
 from lorelie.aggregation import Avg, Count
 from lorelie.database import Database
 from lorelie.expressions import Case, Q, When
@@ -97,6 +98,8 @@ celebrities = [
 
 for celebrity in celebrities:
     db.objects.create('celebrities', **celebrity)
+
+# print(db.objects.all('lorelie_migrations'))
 
 # celebrity = db.objects.get(
 #     'celebrities',

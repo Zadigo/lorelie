@@ -152,7 +152,7 @@ class ExtractDay(ExtractDatePartsMixin):
     date_part = '%d'
 
 
-class Hash(Functions):
+class MD5Hash(Functions):
     custom_sql = 'Hash({field})'
 
     @staticmethod

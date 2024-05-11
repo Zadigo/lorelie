@@ -190,5 +190,3 @@ qs = db.objects.filter('celebrities', lastname='Jenner')
 
 # qs.update(age=26)
 # db.objects.values('celebrities', 'firstname', 'age')
-
-print(qs.aggregate(Count('age')))

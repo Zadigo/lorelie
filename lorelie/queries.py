@@ -74,7 +74,7 @@ class Query:
         try:
             result = self._backend.connection.execute(self._sql)
         except OperationalError as e:
-            print('OperationalError', e)
+            raise
         except Exception as e:
             print(e)
         else:

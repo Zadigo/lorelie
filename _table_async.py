@@ -1,6 +1,6 @@
 import asyncio
 
-from lorelie import fields
+from lorelie.fields import base
 from lorelie.database import Database
 from lorelie.tables import Table
 
@@ -22,9 +22,9 @@ async def get_data(db):
 
 async def main():
     table = Table('artists', fields=[
-        fields.CharField('firstname', null=True),
-        fields.CharField('lastname', null=True),
-        fields.DateTimeField('created_on', auto_add=True)
+        base.CharField('firstname', null=True),
+        base.CharField('lastname', null=True),
+        base.DateTimeField('created_on', auto_add=True)
     ])
     db = Database(table, name='artists')
     db.migrate()

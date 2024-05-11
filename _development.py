@@ -610,7 +610,6 @@ class SQLiteBackend(SQL):
 #     #     backend = self.initialize_backend
 #     #     return backend.save_row(self, [key, value])
 
-
     @property
     def initialize_backend(self):
         return self.backend_class(database=DATABASE)
@@ -1415,11 +1414,11 @@ class Table(AbstractTable):
         return name in self.fields_map
 
     def create_table_sql(self, fields):
-        sql = self.backend.CREATE_TABLE.format_map({
+        create_sql = self.backend.CREATE_TABLE.format_map({
             'table': self.name,
             'fields': fields
         })
-        return [sql]
+        return [create_sql]
 
     def drop_table_sql(self, name):
         sql = self.backend.DROP_TABLE.format_map({
@@ -1434,15 +1433,18 @@ class Table(AbstractTable):
         ]
 
     def prepare(self):
-        """Prepares and creates a table for
-        the database"""
+        """Prepare the table with other parameters
+        and then creates the SQL for creating it in
+        the database. It also recognizes the implementation
+        for relationships between tables"""
         field_params = self.build_field_parameters()
         field_params = [
             self.backend.simple_join(params)
             for params in field_params
         ]
-        sql = self.create_table_sql(self.backend.comma_join(field_params))
-        query = self.query_class(self.backend, sql, table=self)
+        create_sql = self.create_table_sql(
+            self.backend.comma_join(field_params))
+        query = self.query_class([create_sql], table=self)
         query.run(commit=True)
 
 

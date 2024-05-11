@@ -52,3 +52,45 @@ WHERE id=1
 
 CREATE INDEX idx_name 
 ON business (name)
+
+PRAGMA foreign_key_list(polls_answer)
+
+
+CREATE TABLE celebrities(
+	id integer NOT NULL PRIMARY KEY AUTOINCREMENT, 
+	firstname varchar(200) NULL,
+	lastname varchar(200) NULL,
+	created_on date NULL
+)
+
+CREATE TABLE socials(
+	id integer NOT NULL PRIMARY KEY AUTOINCREMENT, 
+	name varchar(500) NULL,
+	followers INTEGER NULL DEFAULT 0 check(followers>0),
+	celebrity_id NOT NULL,
+	FOREIGN KEY (celebrity_id) REFERENCES athlete(id) DEFERRABLE INITIALLY DEFERRED
+)
+
+
+
+CREATE TABLE "accounts_myuser" (
+	"id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, 
+	"password" varchar(128) NOT NULL, 
+	"last_login" datetime NULL, 
+	"is_superuser" bool NOT NULL, 
+	"username" varchar(150) NOT NULL UNIQUE, 
+	"first_name" varchar(150) NOT NULL, 
+	"last_name" varchar(150) NOT NULL, 
+	"email" varchar(254) NOT NULL, 
+	"is_staff" bool NOT NULL, 
+	"is_active" bool NOT NULL, 
+	"date_joined" datetime NOT NULL, 
+	"is_moderator" bool NOT NULL
+)
+
+CREATE TABLE "accounts_myuser_groups" (
+	"id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, 
+	"myuser_id" bigint NOT NULL REFERENCES 
+	"accounts_myuser" ("id") DEFERRABLE INITIALLY DEFERRED, 
+	"group_id" integer NOT NULL REFERENCES "auth_group" ("id") DEFERRABLE INITIALLY DEFERRED
+)

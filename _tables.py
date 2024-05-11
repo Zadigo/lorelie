@@ -1,7 +1,7 @@
 from lorelie.aggregation import Avg, Count
 from lorelie.database import Database
 from lorelie.expressions import Case, Q, When
-from lorelie.fields import CharField, DateField, DateTimeField, IntegerField, JSONField, Value
+from lorelie.fields.base import CharField, DateField, DateTimeField, IntegerField, JSONField, Value
 from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear, Length,
                                Lower, Upper)
 from lorelie.tables import Table
@@ -11,7 +11,7 @@ def example_validator(value):
     pass
 
 
-table = Table(
+celebrities = Table(
     'celebrities',
     ordering=['firstname'],
     fields=[
@@ -26,7 +26,24 @@ table = Table(
     str_field='firstname'
 )
 
-db = Database(table)
+social_media = Table(
+    'socialmedia',
+    fields=[
+        CharField('name', unique=True),
+        DateTimeField('created_on', auto_add=True)
+    ]
+)
+
+# TODO: Raise en error when trying to create
+# a foreign key with a table that does not
+# exist in the table map
+db = Database(celebrities, social_media)
+db.foreign_key(
+    celebrities,
+    social_media,
+    on_delete=None,
+    related_name='f_my_table'
+)
 db.migrate()
 
 celebrities = [
@@ -190,3 +207,5 @@ qs = db.objects.filter('celebrities', lastname='Jenner')
 
 # qs.update(age=26)
 # db.objects.values('celebrities', 'firstname', 'age')
+
+# from django.db.models import ForeignKey

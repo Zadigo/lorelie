@@ -601,7 +601,7 @@ class SQLiteBackend(SQL):
     new connection to the database"""
 
     def __init__(self, database_name=None):
-        from lorelie.functions import Hash
+        from lorelie.functions import MD5Hash
 
         if database_name is None:
             database_name = ':memory:'
@@ -610,7 +610,7 @@ class SQLiteBackend(SQL):
         self.database_name = database_name
 
         connection = sqlite3.connect(database_name)
-        connection.create_function('hash', 1, Hash.create_function())
+        connection.create_function('hash', 1, MD5Hash.create_function())
         connection.row_factory = row_factory(self)
 
         self.connection = connection

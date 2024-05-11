@@ -1,5 +1,7 @@
 from sqlite3 import OperationalError
 
+from lorelie.aggregation import Count
+
 
 class Query:
     """This class represents an sql statement query
@@ -30,9 +32,6 @@ class Query:
 
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self._sql}]>'
-
-    # def __hash__(self):
-    #     return hash((self._sql, self._table))
 
     @classmethod
     def run_multiple(cls, backend, *sqls, **kwargs):
@@ -98,6 +97,27 @@ class Query:
                 setattr(row, name, field.to_python(value))
 
 
+class ValuesIterable:
+    """An iterator that generates a dictionnary
+    key value pair from queryset"""
+
+    def __init__(self, queryset, fields=[]):
+        self.queryset = queryset
+        self.fields = fields
+
+    def __iter__(self):
+        self.queryset.load_cache()
+
+        if not self.fields:
+            self.fields = self.queryset.query._table.field_names
+
+        for row in self.queryset.result_cache:
+            result = {}
+            for field in self.fields:
+                result[field] = row[field]
+            yield result
+
+
 class QuerySet:
     def __init__(self, query):
         if not isinstance(query, Query):
@@ -105,6 +125,7 @@ class QuerySet:
 
         self.query = query
         self.result_cache = []
+        self.values_iterable_class = ValuesIterable
 
     def __repr__(self):
         self.load_cache()
@@ -152,73 +173,188 @@ class QuerySet:
             self.result_cache = self.query.result_cache
 
     def first(self):
-        self.load_cache()
-        return self.result_cache[0]
+        return self.all()[-0]
 
     def last(self):
-        self.load_cache()
-        return self.result_cache[-1]
+        return self.all()[-1]
+
+    def all(self):
+        return self
+
+    def filter(self, *args, **kwargs):
+        backend = self.query._backend
+        filters = backend.decompose_filters(**kwargs)
+
+        items = self.all()
+        for item in items:
+            for column, operator, value in filters:
+                if operator == '=':
+                    if item[column] == value:
+                        continue
+
+                if operator == '>':
+                    if item[column] > value:
+                        continue
+
+                if operator == '<':
+                    if item[column] < value:
+                        continue
+
+                if operator == '>=':
+                    if item[column] >= value:
+                        continue
+
+                if operator == '<=':
+                    if item[column] <= value:
+                        continue
+
+                if operator == '!=':
+                    if item[column] != value:
+                        continue
+
+                if operator == 'contains':
+                    if item[column] in value:
+                        continue
+
+                if operator == 'startswith':
+                    if item[column].startswith(value):
+                        continue
+
+                if operator == 'endswith':
+                    if item[column].endswith(value):
+                        continue
+
+                if operator == 'between':
+                    continue
+
+                if operator == 'endswith':
+                    if item[column] is None:
+                        continue
+
+    def get(self, **kwargs):
+        pass
+
+    def annotate(self, **kwargs):
+        pass
+
+    def values(self, *fields):
+        return list(self.values_iterable_class(self, fields=fields))
+
+    def dataframe(self, *fields):
+        import pandas
+        return pandas.DataFrame(self.values(*fields))
+
+    # def order_by(self, *fields):
+    #     ascending_fields = set()
+    #     descending_fields = set()
+
+    #     for field in fields:
+    #         if field.startswith('-'):
+    #             field = field.removeprefix('-')
+    #             descending_fields.add(field)
+    #         else:
+    #             ascending_fields.add(field)
+
+    #     # There might a case where the result_cache
+    #     # is not yet loaded especially using
+    #     # chained statements
+    #     # e.g. table.annotate().order_by()
+    #     # In that specific case, the QuerySet
+    #     # of annotate would have cache
+    #     # Solution 2: Delegate the execution
+    #     # of the final query from annotate
+    #     # to the query of order_by in that
+    #     # sense we would not execute two
+    #     # different queries but just one
+    #     # single one modified
+    #     self.load_cache()
+
+    #     previous_sql = self.query._backend.de_sqlize_statement(self.query._sql)
+    #     ascending_statements = [
+    #         self.query._backend.ASCENDING.format_map({'field': field})
+    #         for field in ascending_fields
+    #     ]
+    #     descending_statements = [
+    #         self.query._backend.DESCENDNIG.format_map({'field': field})
+    #         for field in descending_fields
+    #     ]
+    #     final_statement = ascending_statements + descending_statements
+    #     order_by_clause = self.query._backend.ORDER_BY.format_map({
+    #         'conditions': self.query._backend.comma_join(final_statement)
+    #     })
+    #     sql = [previous_sql, order_by_clause]
+    #     new_query = self.query.create(
+    #         self.query._backend,
+    #         sql,
+    #         table=self.query._table
+    #     )
+    #     # new_query.run()
+    #     # return QuerySet(new_query)
+    #     # return new_query.result_cache
+    #     return QuerySet(new_query)
+
+    def aggregate(self, *args, **kwargs):
+        for func in args:
+            if not isinstance(func, (Count)):
+                continue
+            kwargs.update({func.aggregate_name: func})
+
+        result_set = {}
+        for alias_key, func in kwargs.items():
+            result_set[alias_key] = func.use_queryset(alias_key, self)
+        return result_set
+
+    def count(self):
+        return self.__len__()
 
     def exclude(self, **kwargs):
         pass
 
-    def order_by(self, *fields):
-        ascending_fields = set()
-        descending_fields = set()
-        for field in fields:
-            if field.startswith('-'):
-                field = field.removeprefix('-')
-                descending_fields.add(field)
-            else:
-                ascending_fields.add(field)
+    def update(self, **kwargs):
+        """Update a set a columns from the queryset
 
-        # There might a case where the result_cache
-        # is not yet loaded especially using
-        # chained statements
-        # e.g. table.annotate().order_by()
-        # In that specific case, the QuerySet
-        # of annotate would have cache
-        # Solution 2: Delegate the execution
-        # of the final query from annotate
-        # to the query of order_by in that
-        # sense we would not execute two
-        # different queries but just one
-        # single one modified
-        self.load_cache()
+        >>> queryset = db.objects.filter(firstname='Kendall')
+        ... queryset.update(age=26)
+        ... 1
+        """
+        backend = self.query._backend
+        columns, values = backend.dict_to_sql(kwargs)
 
-        previous_sql = self.query._backend.de_sqlize_statement(self.query._sql)
-        ascending_statements = [
-            self.query._backend.ASCENDING.format_map({'field': field})
-            for field in ascending_fields
-        ]
-        descending_statements = [
-            self.query._backend.DESCENDNIG.format_map({'field': field})
-            for field in descending_fields
-        ]
-        final_statement = ascending_statements + descending_statements
-        order_by_clause = self.query._backend.ORDER_BY.format_map({
-            'conditions': self.query._backend.comma_join(final_statement)
+        conditions = []
+        for i, column in enumerate(columns):
+            conditions.append(backend.EQUALITY.format_map({
+                'field': column,
+                'value': values[i]
+            }))
+
+        joined_conditions = backend.comma_join(conditions)
+
+        update_sql = backend.UPDATE.format_map({
+            'table': self.query._table.name
         })
-        sql = [previous_sql, order_by_clause]
-        new_query = self.query.create(
-            self.query._backend,
-            sql,
+
+        update_set_clause = backend.UPDATE_SET.format(params=joined_conditions)
+
+        resultset = self.all()
+        where_clause_sql = []
+        for item in resultset:
+            where_clause_sql.append(backend.EQUALITY.format_map({
+                'field': 'id',
+                'value': item['id']
+            }))
+
+        where_clause = backend.WHERE_CLAUSE.format_map({
+            'params': backend.operator_join(where_clause_sql, operator='or')
+        })
+
+        update_sql_tokens = [
+            update_sql,
+            update_set_clause,
+            where_clause
+        ]
+        query = backend.current_table.query_class(
+            update_sql_tokens,
             table=self.query._table
         )
-        # new_query.run()
-        # return QuerySet(new_query)
-        # return new_query.result_cache
-        return QuerySet(new_query)
-
-    def values(self, *fields):
-        self.load_cache()
-        return_values = []
-        if not fields:
-            fields = self.query._table.field_names
-
-        for row in self.result_cache:
-            result = {}
-            for field in fields:
-                result[field] = row[field]
-            return_values.append(result)
-        return return_values
+        query.run(commit=True)
+        return query.result_cache

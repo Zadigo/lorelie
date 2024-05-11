@@ -27,10 +27,9 @@ class Lower(Functions):
     """
 
     def as_sql(self, backend):
-        sql = backend.LOWER.format_map({
+        return backend.LOWER.format_map({
             'field': self.field_name
         })
-        return sql
 
 
 class Upper(Lower):
@@ -41,10 +40,9 @@ class Upper(Lower):
     """
 
     def as_sql(self, backend):
-        sql = backend.UPPER.format_map({
+        return backend.UPPER.format_map({
             'field': self.field_name
         })
-        return sql
 
 
 class Length(Functions):
@@ -56,10 +54,9 @@ class Length(Functions):
     """
 
     def as_sql(self, backend):
-        sql = backend.LENGTH.format_map({
+        return backend.LENGTH.format_map({
             'field': self.field_name
         })
-        return sql
 
 
 class Max(Functions):
@@ -111,11 +108,10 @@ class ExtractDatePartsMixin(Functions):
     date_part = '%Y'
 
     def as_sql(self, backend):
-        sql = backend.STRFTIME.format_map({
+        return backend.STRFTIME.format_map({
             'format': backend.quote_value(self.date_part),
             'value': self.field_name
         })
-        return sql
 
 
 class ExtractYear(ExtractDatePartsMixin):
@@ -156,7 +152,7 @@ class ExtractDay(ExtractDatePartsMixin):
     date_part = '%d'
 
 
-class Hash(Functions):
+class MD5Hash(Functions):
     custom_sql = 'Hash({field})'
 
     @staticmethod
@@ -167,10 +163,9 @@ class Hash(Functions):
         return callback
 
     def as_sql(self):
-        sql = self.custom_sql.format_map({
+        return self.custom_sql.format_map({
             'field': self.field_name
         })
-        return sql
 
 
 # Extract,

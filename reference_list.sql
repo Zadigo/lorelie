@@ -48,3 +48,7 @@ DO UPDATE SET customers=34000
 UPDATE business
 SET created_on=datetime('now'), modified_on=datetime('now')
 WHERE id=1
+
+
+CREATE INDEX idx_name 
+ON business (name)

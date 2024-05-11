@@ -1,5 +1,5 @@
 from lorelie.backends import SQLiteBackend
-from lorelie.fields import CharField, IntegerField
+from lorelie.fields.base import CharField, IntegerField
 from lorelie.tables import Table
 
 

@@ -3,7 +3,8 @@ from collections import OrderedDict
 from lorelie.backends import SQLiteBackend
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
 from lorelie.expressions import OrderBy
-from lorelie.fields import AutoField, DateField, DateTimeField, Field
+from lorelie.fields.base import (AutoField, DateField, DateTimeField, Field,
+                                 IntegerField)
 from lorelie.queries import Query
 
 
@@ -31,11 +32,15 @@ class AbstractTable(metaclass=BaseTable):
         self.is_prepared = False
 
     def __hash__(self):
-        return hash((self.name))
+        return hash((self.name, self.verbose_name, *self.field_names))
 
     def __eq__(self, value):
         return self.name == value
 
+    def __bool__(self):
+        return self.is_prepared
+
+    # TODO: Rename this to validate_new_values
     def validate_values(self, fields, values):
         """Validate an incoming value in regards
         to the related field the user is trying
@@ -106,7 +111,7 @@ class Table(AbstractTable):
         for field in fields:
             if not isinstance(field, Field):
                 raise ValueError(f'{field} should be an instance of Field')
-            
+
             # Identify the date fields that require either
             # an auto_update or auto_add. Which means that
             # we will need to implement the current date/time
@@ -114,7 +119,7 @@ class Table(AbstractTable):
             if isinstance(field, (DateField, DateTimeField)):
                 if field.auto_add:
                     self.auto_add_fields.add(field.name)
-                
+
                 if field.auto_update:
                     self.auto_update_fields.add(field.name)
 
@@ -145,6 +150,25 @@ class Table(AbstractTable):
                 )
         return super().__getattribute__(name)
 
+    def _add_field(self, field_name, field):
+        """Internala function to add a field on the
+        database. Returns the newly constructued
+        field paramters"""
+        if not isinstance(field, Field):
+            raise ValueError(f"{field} should be be an instance of Field")
+
+        if field_name in self.fields_map:
+            raise ValueError("Field is already present on the database")
+
+        self.fields_map[field_name] = field
+        field_params = self.build_field_parameters()
+        field_params = [
+            self.backend.simple_join(params)
+            for params in field_params
+        ]
+        return field_params
+
+    # TODO: Rename to check_field
     def has_field(self, name, raise_exception=False):
         result = name in self.fields_map
         if not result and raise_exception:
@@ -169,22 +193,51 @@ class Table(AbstractTable):
 
     def build_field_parameters(self):
         """Returns the paramaters for all
-        the fields present on the current table"""
+        the fields present on the current
+        table. The parameters are the SQL
+        parameters e.g. null, autoincrement
+        used to define the field in 
+        the database"""
         return [
             field.field_parameters()
             for field in self.fields_map.values()
         ]
 
-    def prepare(self):
-        """Prepares the table and then creates it
-        in the database using the parameters of the
-        different fields and parameters"""
+    def prepare(self, database):
+        """Prepares the table with other parameters, 
+        creates the create SQL and then creates the
+        different tables in the database using the 
+        parameters of the different fields"""
         field_params = self.build_field_parameters()
         field_params = [
             self.backend.simple_join(params)
             for params in field_params
         ]
-        sql = self.create_table_sql(self.backend.comma_join(field_params))
-        query = self.query_class(sql, table=self)
+
+        if database.has_relationships:
+            for _, relationship_map in database.relationships.items():
+                if not relationship_map.can_be_validated:
+                    raise ValueError(relationship_map.error_message)
+
+                if relationship_map.creates_relationship(self):
+                    # We have to create the field automatically
+                    # in the fields map of the table
+                    field_name = relationship_map.backward_related_field
+                    field_params = self._add_field(
+                        field_name,
+                        IntegerField(field_name, null=False)
+                    )
+
+                    relationship_sql = relationship_map.field.as_sql(
+                        self.backend
+                    )
+                    field_params.extend([
+                        self.backend.simple_join(relationship_sql)
+                    ])
+
+        create_sql = self.create_table_sql(
+            self.backend.comma_join(field_params)
+        )
+        query = self.query_class(create_sql, table=self)
         query.run(commit=True)
         self.is_prepared = True

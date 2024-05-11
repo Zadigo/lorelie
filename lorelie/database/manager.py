@@ -3,7 +3,7 @@ import datetime
 import pytz
 
 from lorelie.aggregation import Avg, Count
-from lorelie.exceptions import TableExistsError
+from lorelie.exceptions import MigrationsExistsError, TableExistsError
 from lorelie.expressions import OrderBy
 from lorelie.queries import QuerySet
 
@@ -68,6 +68,8 @@ class DatabaseManager:
         try:
             table = self.table_map[table_name]
         except KeyError:
+            if not self.database.migrations.migrated:
+                raise MigrationsExistsError()
             raise TableExistsError(table_name)
         else:
             table.backend.set_current_table(table)

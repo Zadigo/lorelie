@@ -1,6 +1,6 @@
 import time
 from lorelie.aggregation import Avg, Count
-from lorelie.database import Database
+from lorelie.database.base import Database
 from lorelie.expressions import Case, Q, When
 from lorelie.fields.base import (CharField, DateField, DateTimeField,
                                  IntegerField, JSONField, Value)
@@ -47,7 +47,6 @@ db.foreign_key(
     related_name='f_my_table'
 )
 db.migrate()
-
 
 celebrities = [
     {
@@ -204,6 +203,7 @@ print(queryset)
 
 
 qs = db.objects.filter('celebrities', lastname='Jenner')
+
 # print(qs.all())
 # print(qs.first())
 # print(qs.last())

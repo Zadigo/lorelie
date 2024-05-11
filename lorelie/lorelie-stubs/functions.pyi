@@ -1,4 +1,6 @@
 from collections.abc import Callable
+from typing import Any
+
 from lorelie.backends import SQLiteBackend
 
 
@@ -11,7 +13,7 @@ class Functions:
     def __str__(self) -> str: ...
 
     @staticmethod
-    def create_function() -> Callable: ...
+    def create_function() -> Callable[[int, float, str], Any]: ...
 
     def as_sql(self, backend: SQLiteBackend) -> list[str]: ...
 
@@ -37,10 +39,6 @@ class Min(Functions):
 
 
 class ExtractYear(Functions):
-    ...
-
-
-class Count(Functions):
     ...
 
 

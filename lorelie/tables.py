@@ -3,7 +3,8 @@ from collections import OrderedDict
 from lorelie.backends import SQLiteBackend
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
 from lorelie.expressions import OrderBy
-from lorelie.fields.base import AutoField, DateField, DateTimeField, Field, IntegerField
+from lorelie.fields.base import (AutoField, DateField, DateTimeField, Field,
+                                 IntegerField)
 from lorelie.queries import Query
 
 
@@ -36,6 +37,10 @@ class AbstractTable(metaclass=BaseTable):
     def __eq__(self, value):
         return self.name == value
 
+    def __bool__(self):
+        return self.is_prepared
+
+    # TODO: Rename this to validate_new_values
     def validate_values(self, fields, values):
         """Validate an incoming value in regards
         to the related field the user is trying
@@ -145,6 +150,25 @@ class Table(AbstractTable):
                 )
         return super().__getattribute__(name)
 
+    def _add_field(self, field_name, field):
+        """Internala function to add a field on the
+        database. Returns the newly constructued
+        field paramters"""
+        if not isinstance(field, Field):
+            raise ValueError(f"{field} should be be an instance of Field")
+
+        if field_name in self.fields_map:
+            raise ValueError("Field is already present on the database")
+
+        self.fields_map[field_name] = field
+        field_params = self.build_field_parameters()
+        field_params = [
+            self.backend.simple_join(params)
+            for params in field_params
+        ]
+        return field_params
+
+    # TODO: Rename to check_field
     def has_field(self, name, raise_exception=False):
         result = name in self.fields_map
         if not result and raise_exception:
@@ -169,7 +193,11 @@ class Table(AbstractTable):
 
     def build_field_parameters(self):
         """Returns the paramaters for all
-        the fields present on the current table"""
+        the fields present on the current
+        table. The parameters are the SQL
+        parameters e.g. null, autoincrement
+        used to define the field in 
+        the database"""
         return [
             field.field_parameters()
             for field in self.fields_map.values()
@@ -195,16 +223,14 @@ class Table(AbstractTable):
                     # We have to create the field automatically
                     # in the fields map of the table
                     field_name = relationship_map.backward_related_field
-                    self.fields_map[field_name] = IntegerField(field_name, null=False)
-                    # Rebuild the field parameters since we have
-                    # a new relationship field to process
-                    field_params = self.build_field_parameters()
-                    field_params = [
-                        self.backend.simple_join(params)
-                        for params in field_params
-                    ]
+                    field_params = self._add_field(
+                        field_name,
+                        IntegerField(field_name, null=False)
+                    )
 
-                    relationship_sql = relationship_map.field.as_sql(self.backend)
+                    relationship_sql = relationship_map.field.as_sql(
+                        self.backend
+                    )
                     field_params.extend([
                         self.backend.simple_join(relationship_sql)
                     ])

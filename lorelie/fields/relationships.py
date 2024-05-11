@@ -13,7 +13,7 @@ class BaseRelationshipField(Field):
         # self.base_field_parameters['deferrable'] = True
         # self.base_field_parameters['initially deferred'] = True
 
-    # def __getattr__(self):
+    # def __getattr__(self, name):
     #     pass
 
     def prepare(self, database):

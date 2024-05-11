@@ -18,7 +18,7 @@ class BaseTable(type):
         return super_new(cls, name, bases, attrs)
 
     @classmethod
-    def prepare(cls, table):
+    def prepare(cls, database):
         pass
 
 
@@ -129,6 +129,7 @@ class Table(AbstractTable):
         # Automatically create an ID field and set
         # it up with the table and backend
         id_field = AutoField()
+        # TODO: Call load_current_connection
         id_field.prepare(self)
         self.fields_map['id'] = id_field
 

@@ -1,7 +1,7 @@
 import unittest
 
 from lorelie.backends import BaseRow
-from lorelie.database import Database
+from lorelie.database.base import Database
 from lorelie.fields.base import CharField
 from lorelie.queries import Query
 from lorelie.tables import Table

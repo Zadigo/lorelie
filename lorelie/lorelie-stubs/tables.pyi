@@ -2,9 +2,9 @@ from typing import Any, Literal, OrderedDict, Type
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint
-from lorelie.database import Database
+from lorelie.database.base import Database
 from lorelie.fields.base import Field
-from lorelie.indexes import Index
+from lorelie.database.indexes import Index
 from lorelie.queries import Query
 
 

@@ -3,7 +3,7 @@ from functools import cached_property
 from typing import DefaultDict, List, Type
 
 from lorelie.backends import SQLiteBackend
-from lorelie.database import Database
+from lorelie.database.base import Database
 from lorelie.fields.base import Field
 from lorelie.tables import Table
 

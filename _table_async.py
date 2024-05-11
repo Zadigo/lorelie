@@ -1,7 +1,7 @@
 import asyncio
 
 from lorelie.fields import base
-from lorelie.database import Database
+from lorelie.database.base import Database
 from lorelie.tables import Table
 
 

@@ -1,7 +1,7 @@
 from typing import Any, Callable, TypedDict, Unpack, override
 
 from lorelie.backends import SQLiteBackend
-from lorelie.database import Database, RelationshipMap
+from lorelie.database.base import Database, RelationshipMap
 from lorelie.fields.base import Field
 
 

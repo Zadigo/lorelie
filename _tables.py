@@ -1,7 +1,8 @@
 from lorelie.aggregation import Avg, Count
 from lorelie.database import Database
 from lorelie.expressions import Case, Q, When
-from lorelie.fields.base import CharField, DateField, DateTimeField, IntegerField, JSONField, Value
+from lorelie.fields.base import (CharField, DateField, DateTimeField,
+                                 IntegerField, JSONField, Value)
 from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear, Length,
                                Lower, Upper)
 from lorelie.tables import Table
@@ -45,6 +46,7 @@ db.foreign_key(
     related_name='f_my_table'
 )
 db.migrate()
+
 
 celebrities = [
     {
@@ -107,10 +109,10 @@ for celebrity in celebrities:
 # celebrity.save()
 # print(celebrity.firstname)
 
-# queryset = db.objects.all('celebrities')
+queryset = db.objects.all('celebrities')
 
 # queryset = db.objects.order_by('celebrities', 'firstname', '-lastname')
-# print(queryset)
+print(queryset)
 
 # values = db.objects.values('celebrities', 'firstname')
 # print(values)

@@ -6,13 +6,20 @@ from functools import cached_property
 
 from lorelie import PROJECT_PATH
 from lorelie.backends import SQLiteBackend, connections
-from lorelie.fields.base import Field
+from lorelie.fields.base import CharField, DateTimeField, Field, JSONField
 from lorelie.queries import Query
 
 
+def migration_validator(value):
+    pass
+
+
 class Migrations:
-    """Main class to manage the 
-    `migrations.json` file"""
+    """This class manages the different
+    states of a given database. It references
+    existing tables, dropped tables and their
+    fields and runs the different methods required
+    to create or delete them eventually"""
 
     CACHE = {}
     backend_class = SQLiteBackend
@@ -20,7 +27,7 @@ class Migrations:
     def __init__(self, database):
         self.file = PROJECT_PATH / 'migrations.json'
         self.database = database
-        self.database_name = database.database_name
+        self.database_name = database.database_name or 'memory'
         self.CACHE = self.read_content
         self.file_id = self.CACHE['id']
 
@@ -36,6 +43,11 @@ class Migrations:
         self.tables_for_deletion = set()
         self.existing_tables = set()
         self.has_migrations = False
+        # Indicates that check function was
+        # called at least once and that the
+        # the underlying database can be
+        # fully functionnal
+        self.migrated = False
 
     def __repr__(self):
         return f'<{self.__class__.__name__} {self.file_id}>'
@@ -70,16 +82,31 @@ class Migrations:
         return indexes
 
     def create_migration_table(self):
+        """Creates a migrations table in the database
+        which stores the different configuration for
+        the current database"""
         from lorelie.tables import Table
         table_fields = [
-            Field('name'),
-            Field('applied')
+            CharField('name'),
+            CharField('table_name', null=False),
+            JSONField(
+                'migration',
+                null=False,
+                validators=[migration_validator]
+            ),
+            DateTimeField('applied', auto_add=True)
         ]
-        table = Table('migrations', '', fields=table_fields)
-        table.prepare()
+        table = Table('lorelie_migrations', fields=table_fields)
+        self.database._add_table(table)
 
     def check(self, table_instances):
         from lorelie.tables import Table
+
+        # Safeguard that avoids calling
+        # this function in a loop over and
+        # over which can reduce performance
+        if self.migrated:
+            return True
 
         errors = []
         for name, table_instance in table_instances.items():
@@ -121,6 +148,11 @@ class Migrations:
         for database_row in database_tables:
             if database_row['name'] not in self.migration_table_map:
                 self.tables_for_deletion.add(database_row)
+
+        if ('lorelie_migrations' not in database_tables or
+             'lorelie_migrations' not in self.migration_table_map):
+            self.create_migration_table()
+            self.tables_for_creation.add('lorelie_migrations')
 
         # Eventually create the tables
         if self.tables_for_creation:
@@ -197,6 +229,7 @@ class Migrations:
 
         self.tables_for_creation.clear()
         self.tables_for_deletion.clear()
+        self.migrated = True
 
     def check_fields(self, table, backend):
         """Checks the migration file for fields
@@ -253,7 +286,7 @@ class Migrations:
                 json.dump(cache_copy, f, indent=4, ensure_ascii=False)
 
     def get_table_fields(self, name):
-        table_index = self.table_map.index(name)
+        table_index = self.database.table_map.index(name)
         return self.tables[table_index]['fields']
 
     def reconstruct_table_fields(self, table):

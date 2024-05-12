@@ -220,5 +220,8 @@ for celebrity in celebrities:
 # qs.update(age=26)
 # db.objects.values('celebrities', 'firstname', 'age')
 
-f = db.objects.foreign_table('celebrities__socialmedia')
-print(vars(f))
+# f = db.objects.foreign_table('celebrities__socialmedia')
+# print(vars(f))
+
+qs = db.objects.distinct('celebrities', 'lastname')
+print(qs)

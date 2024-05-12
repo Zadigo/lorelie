@@ -235,8 +235,8 @@ class Q(BaseExpression):
 
     def as_sql(self, backend):
         filters = backend.decompose_filters(**self.expressions)
-        build_filters = backend.build_filters(filters, space_characters=False)
-        return build_filters
+        built_filters = backend.build_filters(filters, space_characters=False)
+        return [backend.operator_join(built_filters)]
 
 
 # class F:

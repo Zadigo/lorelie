@@ -139,7 +139,7 @@ class BaseRow:
         super().__setattr__(name, value)
 
     def __hash__(self):
-        return hash((self.rowid))
+        return hash((self.id))
 
     def __contains__(self, value):
         # Check that a value exists in
@@ -157,7 +157,7 @@ class BaseRow:
         return any(truth_array)
 
     def __eq__(self, value):
-        return any((self[key] == value for key in self._fields))
+        return any((self[field] == value for field in self._fields))
 
     def save(self):
         """Changes the data on the actual row
@@ -256,16 +256,14 @@ class SQL:
 
     ORDER_BY = 'order by {conditions}'
     GROUP_BY = 'group by {conditions}'
-    # UNIQUE_INDEX = 'create unique index {name} ON {table}({fields})'
 
-    LOWER = 'lower({field})'
-    UPPER = 'upper({field})'
-    LENGTH = 'length({field})'
-    MAX = 'max({field})'
-    MIN = 'min({field})'
+    # LOWER = 'lower({field})'
+    # UPPER = 'upper({field})'
+    # LENGTH = 'length({field})'
+    # MAX = 'max({field})'
+    # MIN = 'min({field})'
     AVERAGE = 'avg({field})'
     COUNT = 'count({field})'
-
     STRFTIME = 'strftime({format}, {value})'
 
     CHECK_CONSTRAINT = 'check ({conditions})'
@@ -700,12 +698,12 @@ class SQLiteBackend(SQL):
         query = Query([select_sql, where_clause], backend=self)
         return QuerySet(query, skip_transform=True)
 
-    # def list_table_indexes(self, table):
-    #     # sql = f'PRAGMA index_list({self.quote_value(table.name)})'
-    #     sql = f'PRAGMA index_list({table.name})'
-    #     query = Query([sql], table=table)
-    #     query.run()
-    #     return query.result_cache
+    def list_table_indexes(self, table):
+        # sql = f'PRAGMA index_list({self.quote_value(table.name)})'
+        sql = f'PRAGMA index_list({table.name})'
+        query = Query([sql], table=table)
+        query.run()
+        return QuerySet(query, skip_transform=True)
 
     def save_row_object(self, row):
         """Creates the SQL statement required for

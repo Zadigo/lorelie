@@ -1,11 +1,4 @@
-# "Aggregate",
-#     "Avg",
-#     "Count",
-#     "Max",
-#     "Min",
-#     "StdDev",
-#     "Sum",
-#     "Variance"
+import math
 from lorelie.functions import Functions
 
 
@@ -43,10 +36,9 @@ class Count(MathMixin, Functions):
         return len(values)
 
     def as_sql(self, backend):
-        sql = backend.COUNT.format_map({
+        return backend.COUNT.format_map({
             'field': self.field_name
         })
-        return sql
 
 
 class Avg(MathMixin, Functions):
@@ -66,3 +58,51 @@ class Avg(MathMixin, Functions):
             'field': self.field_name
         })
         return sql
+
+
+class Variance(MathMixin, Functions):
+    def python_aggregation(self, values):
+        average_instance = Avg(self.field_name)
+        count_instance = Count(self.field_name)
+
+        average_total = average_instance.python_aggregation(values)
+        count_total = count_instance.python_aggregation(values)
+
+        variance = list(map(lambda x: (x - average_total)**2, values))
+        return sum(variance) / count_total
+
+
+class StDev(MathMixin, Functions):
+    @staticmethod
+    def create_function():
+        return
+
+    def python_aggregation(self, values):
+        variance_instance = Variance(self.field_name)
+        return math.sqrt(variance_instance.python_aggregation(values))
+
+
+class Sum(MathMixin, Functions):
+    def python_aggregation(self, values):
+        return sum(values)
+
+
+class MeanAbsoluteDifference(MathMixin, Functions):
+    def python_aggregation(self, values):
+        average_instance = Avg(self.field_name)
+        count_instance = Count(self.field_name)
+
+        average = average_instance.python_aggregation(values)
+        differences = list(map(lambda x: abs(x - average), values))
+        count_total = count_instance.python_aggregation(differences)
+        return count_total
+
+
+class CoefficientOfVariation(MathMixin, Functions):
+    def python_aggregation(self, values):
+        stdev_instance = StDev(self.field_name)
+        average_instance = Avg(self.field_name)
+        return (
+            stdev_instance.python_aggregation(values) /
+            average_instance.python_aggregation(values)
+        )

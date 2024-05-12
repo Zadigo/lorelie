@@ -2,7 +2,8 @@ import hashlib
 
 
 class Functions:
-    custom_sql = None
+    template_sql = None
+    allow_aggregration = False
 
     def __init__(self, field_name):
         self.field_name = field_name
@@ -15,7 +16,7 @@ class Functions:
     def create_function():
         pass
 
-    def as_sql(self):
+    def as_sql(self, backend):
         pass
 
 
@@ -23,11 +24,13 @@ class Lower(Functions):
     """Returns each values of the given
     column in lowercase
 
-    >>> database.objects.annotate('celebrities', lowered_name=Lower('name'))
+    >>> db.objects.annotate('celebrities', lowered_name=Lower('name'))
     """
 
+    template_sql = 'lower({field})'
+
     def as_sql(self, backend):
-        return backend.LOWER.format_map({
+        return self.template_sql.format_map({
             'field': self.field_name
         })
 
@@ -36,11 +39,13 @@ class Upper(Lower):
     """Returns each values of the given
     column in uppercase
 
-    >>> database.objects.annotate('celebrities', uppered_name=Upper('name'))
+    >>> db.objects.annotate('celebrities', uppered_name=Upper('name'))
     """
 
+    template_sql = 'upper({field})'
+
     def as_sql(self, backend):
-        return backend.UPPER.format_map({
+        return self.template_sql.format_map({
             'field': self.field_name
         })
 
@@ -50,58 +55,70 @@ class Length(Functions):
     of a string expression in the selected 
     database items
 
-    >>> database.objects.annotate('celebrities', name_length=Length('url'))
+    >>> db.objects.annotate('celebrities', name_length=Length('url'))
     """
 
+    template_sql = 'length({field})'
+
     def as_sql(self, backend):
-        return backend.LENGTH.format_map({
+        return self.template_sql.format_map({
             'field': self.field_name
         })
 
 
 class Max(Functions):
-    """Returns the max value of a given column"""
+    """Returns the max value of a given column
 
-    def as_sql(self):
+    >>> db.objects.annotate('celebrities',  max_id=Max('id'))
+    """
+
+    template_sql = 'max({field})'
+
+    def as_sql(self, backend):
         # SELECT rowid, * FROM seen_urls WHERE rowid = (SELECT max(rowid) FROM seen_urls)
-        select_clause = self.backend.SELECT.format_map({
-            'fields': self.backend.comma_join(['rowid', '*']),
-            'table': self.backend.table.name
+        select_clause = backend.SELECT.format_map({
+            'fields': backend.comma_join(['rowid', '*']),
+            'table': backend.table.name
         })
-        subquery_clause = self.backend.SELECT.format_map({
-            'fields': self.backend.MAX.format_map({'field': self.field_name}),
-            'table': self.backend.table.name
+        subquery_clause = backend.SELECT.format_map({
+            'fields': backend.MAX.format_map({'field': self.field_name}),
+            'table': backend.table.name
         })
-        where_condition = self.backend.EQUALITY.format_map({
+        where_condition = backend.EQUALITY.format_map({
             'field': self.field_name,
-            'value': self.backend.wrap_parenthentis(subquery_clause)
+            'value': backend.wrap_parenthentis(subquery_clause)
         })
-        where_clause = self.backend.WHERE_CLAUSE.format_map({
+        where_clause = backend.WHERE_CLAUSE.format_map({
             'params': where_condition
         })
-        return self.backend.simple_join([select_clause, where_clause])
+        return backend.simple_join([select_clause, where_clause])
 
 
 class Min(Functions):
-    """Returns the min value of a given column"""
+    """Returns the min value of a given column
+    
+    >>> db.objects.annotate('celebrities',  min_id=Min('id'))
+    """
 
-    def as_sql(self):
-        select_clause = self.backend.SELECT.format_map({
-            'fields': self.backend.comma_join(['rowid', '*']),
-            'table': self.backend.table.name
+    template_sql = 'min({field})'
+
+    def as_sql(self, backend):
+        select_clause = backend.SELECT.format_map({
+            'fields': backend.comma_join(['rowid', '*']),
+            'table': backend.table.name
         })
-        subquery_clause = self.backend.SELECT.format_map({
-            'fields': self.backend.MIN.format_map({'field': self.field_name}),
-            'table': self.backend.table.name
+        subquery_clause = backend.SELECT.format_map({
+            'fields': backend.MIN.format_map({'field': self.field_name}),
+            'table': backend.table.name
         })
-        where_condition = self.backend.EQUALITY.format_map({
+        where_condition = backend.EQUALITY.format_map({
             'field': self.field_name,
-            'value': self.backend.wrap_parenthentis(subquery_clause)
+            'value': backend.wrap_parenthentis(subquery_clause)
         })
-        where_clause = self.backend.WHERE_CLAUSE.format_map({
+        where_clause = backend.WHERE_CLAUSE.format_map({
             'params': where_condition
         })
-        return self.backend.simple_join([select_clause, where_clause])
+        return backend.simple_join([select_clause, where_clause])
 
 
 class ExtractDatePartsMixin(Functions):
@@ -153,7 +170,7 @@ class ExtractDay(ExtractDatePartsMixin):
 
 
 class MD5Hash(Functions):
-    custom_sql = 'Hash({field})'
+    template_sql = 'Hash({field})'
 
     @staticmethod
     def create_function():
@@ -163,7 +180,7 @@ class MD5Hash(Functions):
         return callback
 
     def as_sql(self):
-        return self.custom_sql.format_map({
+        return self.template_sql.format_map({
             'field': self.field_name
         })
 

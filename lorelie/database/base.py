@@ -25,7 +25,7 @@ class Databases:
 
     def __contains__(self, value):
         return value in self.created_databases
-    
+
     @property
     def created_databases(self):
         return list(self.database_map.values())

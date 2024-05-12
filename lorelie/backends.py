@@ -12,7 +12,7 @@ from lorelie.exceptions import ConnectionExistsError
 from lorelie.expressions import Case
 from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear, Length,
                                Lower, Upper)
-from lorelie.queries import Query
+from lorelie.queries import Query, QuerySet
 
 
 class Connections:
@@ -613,6 +613,9 @@ class SQLiteBackend(SQL):
             database_name = f'{database_name}.sqlite'
         self.database_name = database_name
 
+        # sqlite3.register_converter()
+        # sqlite3.register_adapter()
+
         connection = sqlite3.connect(database_name)
         connection.create_function('hash', 1, MD5Hash.create_function())
         connection.row_factory = row_factory(self)
@@ -635,10 +638,9 @@ class SQLiteBackend(SQL):
         return query.result_cache
 
     def drop_indexes_sql(self, row):
-        sql = self.DROP_INDEX.format_map({
+        return self.DROP_INDEX.format_map({
             'value': row['name']
         })
-        return sql
 
     def create_table_fields(self, table, columns_to_create):
         field_params = []
@@ -696,15 +698,14 @@ class SQLiteBackend(SQL):
             })
         })
         query = Query([select_sql, where_clause], backend=self)
-        query.run()
-        return query.result_cache
+        return QuerySet(query, skip_transform=True)
 
-    def list_table_indexes(self, table):
-        # sql = f'PRAGMA index_list({self.quote_value(table.name)})'
-        sql = f'PRAGMA index_list({table.name})'
-        query = Query([sql], table=table)
-        query.run()
-        return query.result_cache
+    # def list_table_indexes(self, table):
+    #     # sql = f'PRAGMA index_list({self.quote_value(table.name)})'
+    #     sql = f'PRAGMA index_list({table.name})'
+    #     query = Query([sql], table=table)
+    #     query.run()
+    #     return query.result_cache
 
     def save_row_object(self, row):
         """Creates the SQL statement required for

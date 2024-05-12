@@ -203,16 +203,17 @@ class Migrations:
         database_indexes = backend.list_database_indexes()
         index_sqls = []
         for name, table in table_instances.items():
-            # if name in database_indexes:
-            #     raise ValueError('Index already exists on databas')
-
             for index in table.indexes:
-                index._backend = backend
-                index_sqls.append(index.as_sql())
+                index_sqls.append(index.as_sql(table))
 
         # Remove obsolete indexes
         for database_index in database_indexes:
             if database_index not in table.indexes:
+                # We cannot and should not drop autoindexes
+                # which are created by sqlite. Anyways, it
+                # raises an error
+                if 'sqlite_autoindex' in database_index.name:
+                    continue
                 index_sqls.append(backend.drop_indexes_sql(database_index))
 
         # Create table constraints
@@ -225,7 +226,8 @@ class Migrations:
         #         })
         #         table_constraints.append(sql_clause)
 
-        # Query.run_multiple(backend, index_sqls)
+        # Query.run_multiple(self.database.backend, *index_sqls)
+        Query.run_script(index_sqls)
 
         self.tables_for_creation.clear()
         self.tables_for_deletion.clear()

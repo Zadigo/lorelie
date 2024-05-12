@@ -64,7 +64,13 @@ class Query:
         ... "select url from seen_urls where url='http://';"
         """
         sql = self._backend.simple_join(self._sql_tokens)
-        self._sql = self._backend.finalize_sql(sql)
+        finalized_sql = self._backend.finalize_sql(sql)
+        
+        is_valid = sqlite3.complete_statement(finalized_sql)
+        if not is_valid:
+            pass
+        
+        self._sql = finalized_sql
 
     def run(self, commit=False):
         """Runs an sql statement and stores the

@@ -175,7 +175,8 @@ class QuerySet:
             # queryset is evaluated as oppposed
             # to running it in the methods: filters etc.
             self.query.run()
-            self.query.transform_to_python()
+            if not self.skip_transform:
+                self.query.transform_to_python()
             self.result_cache = self.query.result_cache
 
     def first(self):

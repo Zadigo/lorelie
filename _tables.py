@@ -7,7 +7,10 @@ from lorelie.fields.base import (CharField, DateField, DateTimeField,
 from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear, Length,
                                Lower, Upper)
 from lorelie.tables import Table
+from lorelie.database.indexes import Index
 
+# from django.db.models import Index
+from django.db.models import Aggregate
 
 def example_validator(value):
     pass
@@ -24,6 +27,9 @@ celebrities = Table(
         JSONField('goals', null=True),
         DateField('date_of_birth', null=True),
         DateTimeField('created_on', auto_add=True)
+    ],
+    index=[
+        Index('firstname_index', 'firstname')
     ],
     str_field='firstname'
 )

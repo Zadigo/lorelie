@@ -1,4 +1,5 @@
 from sqlite3 import OperationalError
+import sqlite3
 
 from lorelie.aggregation import Count
 
@@ -48,12 +49,22 @@ class Query:
 
     @classmethod
     def run_script(cls, sql_tokens, backend=None, table=None):
-        instance = cls(sql_tokens, backend=backend, table=table)
         if sql_tokens:
-            result = instance._backend.connection.executescript(sql_tokens[0])
+            instance = cls(sql_tokens, backend=backend, table=table)
+
+            template = 'begin; {statements} commit;'
+            statements = []
+            for statement in sql_tokens:
+                statements.append(instance._backend.finalize_sql(statement))
+
+            joined_statements = instance._backend.simple_join(statements)
+            script = template.format(statements=joined_statements)
+
+            result = instance._backend.connection.executescript(script)
             instance._backend.connection.commit()
             instance.result_cache = list(result)
-        return instance
+            return instance
+        return False
 
     def prepare_sql(self):
         """Prepares a statement before it is sent
@@ -177,9 +188,6 @@ class QuerySet:
 
     def load_cache(self):
         if not self.result_cache:
-            # TODO: Run the query only when the
-            # queryset is evaluated as oppposed
-            # to running it in the methods: filters etc.
             self.query.run()
             if not self.skip_transform:
                 self.query.transform_to_python()

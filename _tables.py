@@ -223,5 +223,5 @@ for celebrity in celebrities:
 # f = db.objects.foreign_table('celebrities__socialmedia')
 # print(vars(f))
 
-# qs = db.objects.distinct('celebrities', 'lastname')
-# print(qs)
+qs = db.objects.distinct('celebrities', 'lastname')
+print(qs)

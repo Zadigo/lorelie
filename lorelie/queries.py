@@ -119,13 +119,19 @@ class ValuesIterable:
 
 
 class QuerySet:
-    def __init__(self, query):
+    def __init__(self, query, skip_transform=False):
         if not isinstance(query, Query):
             raise ValueError(f"{query} should be an instance of Query")
 
         self.query = query
         self.result_cache = []
         self.values_iterable_class = ValuesIterable
+        # There are certain cases where we want
+        # to use QuerySet but it's not affialiated
+        # to any table ex. returning a QuerySet of
+        # table indexes. This allows to skip the
+        # python transform of the data
+        self.skip_transform = skip_transform
 
     def __repr__(self):
         self.load_cache()

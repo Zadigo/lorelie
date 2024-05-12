@@ -1,16 +1,15 @@
 import time
+
 from lorelie.aggregation import Avg, Count
 from lorelie.database.base import Database
+from lorelie.database.indexes import Index
 from lorelie.expressions import Case, Q, When
 from lorelie.fields.base import (CharField, DateField, DateTimeField,
                                  IntegerField, JSONField, Value)
 from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear, Length,
                                Lower, Upper)
 from lorelie.tables import Table
-from lorelie.database.indexes import Index
 
-# from django.db.models import Index
-from django.db.models import Aggregate
 
 def example_validator(value):
     pass
@@ -104,6 +103,7 @@ celebrities = [
 for celebrity in celebrities:
     db.objects.create('celebrities', **celebrity)
 
+
 # print(db.objects.all('lorelie_migrations'))
 
 # celebrity = db.objects.get(
@@ -117,10 +117,10 @@ for celebrity in celebrities:
 # celebrity.save()
 # print(celebrity.firstname)
 
-queryset = db.objects.all('celebrities')
+# queryset = db.objects.all('celebrities')
 
 # queryset = db.objects.order_by('celebrities', 'firstname', '-lastname')
-print(queryset)
+# print(queryset)
 
 # values = db.objects.values('celebrities', 'firstname')
 # print(values)
@@ -208,7 +208,8 @@ print(queryset)
 # print(count)
 
 
-qs = db.objects.filter('celebrities', lastname='Jenner')
+# qs = db.objects.filter('celebrities', firstname='Margot')
+
 
 # print(qs.all())
 # print(qs.first())
@@ -219,4 +220,5 @@ qs = db.objects.filter('celebrities', lastname='Jenner')
 # qs.update(age=26)
 # db.objects.values('celebrities', 'firstname', 'age')
 
-# from django.db.models import ForeignKey
+f = db.objects.foreign_table('celebrities__socialmedia')
+print(vars(f))

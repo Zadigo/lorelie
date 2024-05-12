@@ -84,7 +84,7 @@ class BaseRow:
         self._fields = fields
         self._cached_data = data
         self._backend = connections.get_last_connection()
-        
+
         table = getattr(self._backend, 'current_table', None)
         self.linked_to_table = getattr(table, 'name', None)
         self.updated_fields = {}
@@ -101,6 +101,13 @@ class BaseRow:
         # The rowid is not necessarily implemented by default in the
         # sqlite database. Hence why we test for the id field
         name_to_show = getattr(self, 'rowid', getattr(self, str_field, None))
+        if name_to_show is None:
+            # There might be situations where the user
+            # restricts the amount of fields to return
+            # from the database which will return None
+            # when trying to get str_field. So get the
+            # first field from the list of fields
+            name_to_show = getattr(self, self._fields[-0])
         return f'<{self._backend.current_table.verbose_name}: {name_to_show}>'
 
     def __setitem__(self, name, value):

@@ -4,9 +4,12 @@ from lorelie.backends import SQLiteBackend
 
 
 class CheckConstraint:
-    def __init__(self, name, *, fields=[]):
+    template_sql = 'check({condition})'
+
+    def __init__(self, name, *, fields=[], expressions={}):
         self.name = name
         self.fields = fields
+        self.expressions= expressions
 
 
 class UniqueConstraint:

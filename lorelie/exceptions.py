@@ -25,3 +25,26 @@ class FieldExistsError(Exception):
 class ValidationError(Exception):
     def __init__(self, message, **kwargs):
         super().__init__(message.format(**kwargs))
+
+
+class MigrationsExistsError(Exception):
+    """Error used in the absence of any
+    migration files on the database"""
+
+    def __init__(self):
+        message = (
+            "You are trying to call a function on the "
+            "the database while there was no existing "
+            "migrations for the database tables. Call "
+            "db.migrate() before using any query functions"
+        )
+        super().__init__(message)
+
+
+class ConnectionExistsError(Exception):
+    def __init__(self):
+        message = (
+            "No existing connections were found "
+            "in the connections pool"
+        )
+        super().__init__(message)

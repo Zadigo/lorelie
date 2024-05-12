@@ -67,30 +67,18 @@ CREATE TABLE socials(
 	id integer NOT NULL PRIMARY KEY AUTOINCREMENT, 
 	name varchar(500) NULL,
 	followers INTEGER NULL DEFAULT 0 check(followers>0),
-	celebrity_id NOT NULL,
-	FOREIGN KEY (celebrity_id) REFERENCES athlete(id) DEFERRABLE INITIALLY DEFERRED
+	celebrity_id INTEGER NOT NULL,
+	CONSTRAINT socials_celebrities FOREIGN KEY (celebrity_id) REFERENCES celebrities (id) DEFERRABLE INITIALLY DEFERRED
+	ON DELETE CASCADE ON UPDATE CASCADE
 )
 
+INSERT INTO celebrities (firstname, lastname)
+VALUES ("Kendall", "Jenner"), ("Margot", "Robbie"), ("Jennifer", "Aniston"), ("Kylie", "Jenner")
 
+INSERT INTO socials(celebrity_id, name, followers)
+SELECT id, "Facebook", 1000
+FROM celebrities
+WHERE id=1
 
-CREATE TABLE "accounts_myuser" (
-	"id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, 
-	"password" varchar(128) NOT NULL, 
-	"last_login" datetime NULL, 
-	"is_superuser" bool NOT NULL, 
-	"username" varchar(150) NOT NULL UNIQUE, 
-	"first_name" varchar(150) NOT NULL, 
-	"last_name" varchar(150) NOT NULL, 
-	"email" varchar(254) NOT NULL, 
-	"is_staff" bool NOT NULL, 
-	"is_active" bool NOT NULL, 
-	"date_joined" datetime NOT NULL, 
-	"is_moderator" bool NOT NULL
-)
-
-CREATE TABLE "accounts_myuser_groups" (
-	"id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, 
-	"myuser_id" bigint NOT NULL REFERENCES 
-	"accounts_myuser" ("id") DEFERRABLE INITIALLY DEFERRED, 
-	"group_id" integer NOT NULL REFERENCES "auth_group" ("id") DEFERRABLE INITIALLY DEFERRED
-)
+ALTER TABLE socials
+ADD CONSTRAINT celebrity_socials FOREIGN KEY (celebrity_id) REFERENCES celebrities(id) DEFERRABLE INITIALLY DEFERRED

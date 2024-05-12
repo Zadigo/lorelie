@@ -1,3 +1,4 @@
+import re
 from collections import OrderedDict
 
 from lorelie.backends import SQLiteBackend
@@ -18,7 +19,7 @@ class BaseTable(type):
         return super_new(cls, name, bases, attrs)
 
     @classmethod
-    def prepare(cls, table):
+    def prepare(cls, database):
         pass
 
 
@@ -129,6 +130,7 @@ class Table(AbstractTable):
         # Automatically create an ID field and set
         # it up with the table and backend
         id_field = AutoField()
+        # TODO: Call load_current_connection
         id_field.prepare(self)
         self.fields_map['id'] = id_field
 
@@ -138,6 +140,15 @@ class Table(AbstractTable):
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
+
+    def __setattr__(self, name, value):
+        if name == 'name':
+            if re.search(r'\W', value):
+                raise ValueError(
+                    "The table name should not contain carachters "
+                    "such as _, -, @ or %"
+                )
+        return super().__setattr__(name, value)
 
     def __getattribute__(self, name):
         if name == 'backend':
@@ -156,6 +167,9 @@ class Table(AbstractTable):
         field paramters"""
         if not isinstance(field, Field):
             raise ValueError(f"{field} should be be an instance of Field")
+
+        if field_name != field.name:
+            raise ValueError('Name does not match the internal field name')
 
         if field_name in self.fields_map:
             raise ValueError("Field is already present on the database")
@@ -185,7 +199,7 @@ class Table(AbstractTable):
         })
         return [sql]
 
-    def drop_table_sql(self, name):
+    def drop_table_sql(self):
         sql = self.backend.DROP_TABLE.format_map({
             'table': self.name
         })

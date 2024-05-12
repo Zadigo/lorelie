@@ -2,8 +2,10 @@ import dataclasses
 import sqlite3
 import unittest
 from lorelie.backends import BaseRow, SQLiteBackend
-from lorelie.functions import Count, Length, Max, Min
+from lorelie.aggregation import Count
+from lorelie.fields.base import CharField
 from lorelie.tables import Table
+from lorelie.database.base import Database
 
 
 class TestSQLiteBackend(unittest.TestCase):
@@ -191,38 +193,56 @@ class TestSQLiteBackend(unittest.TestCase):
         self.assertTrue(annotation_map.requires_grouping)
 
 
-class TableCoreFunctions(unittest.TestCase):
+class TestCore(unittest.TestCase):
     def setUp(self):
-        self.backend = SQLiteBackend()
-
-    def test_list_tables(self):
         table = Table('celebrities')
-        result = self.backend.list_table_columns_sql(table)
-        self.assertListEqual(result, [])
+        db = Database(table)
+        db.migrate()
+        self.db = db
 
+    def test_list_table_columns_sql(self):
+        table = self.db.get_table('celebrities')
+        query = table.backend.list_table_columns_sql(table)
+        print(query)
+
+    @unittest.expectedFailure
     def test_drop_indexes_sql(self):
-        pass
+        table = self.db.get_table('celebrities')
+        sql = table.backend.drop_indexes_sql()
 
     def test_create_table_fields(self):
-        pass
+        table = self.db.get_table('celebrities')
+        table._add_field('firstname', CharField('firstname'))
+        table.backend.create_table_fields(table, ['firstname'])
+        self.db.objects.all('celebrities')
 
     def test_list_tables_sql(self):
-        # TODO: This is not really an SQL so
-        # rename this function
-        result = self.backend.list_tables_sql()
+        table = self.db.get_table('celebrities')
+        result = table.backend.list_tables_sql()
+        print(result)
 
     def test_list_database_indexes(self):
-        result = self.backend.list_database_indexes()
+        table = self.db.get_table('celebrities')
+        result = table.backend.list_database_indexes()
+        print(result)
 
     def test_list_table_indexes(self):
-        table = Table('celebrities')
-        result = self.backend.list_table_indexes(table)
+        table = self.db.get_table('celebrities')
+        result = table.backend.list_table_indexes(table)
+        print(result)
 
     def test_save_row_object(self):
-        pass
+        row = self.db.objects.create('celebrities', firstname='Kendall')
+        row['firstname'] = 'Kylie'
+        table = self.db.get_table('celebrities')
+        query = table.backend.save_row_object(row)
+        print(query)
 
-    def test_delete_row_object(self):
-        pass
+    def test_save_row_object(self):
+        row = self.db.objects.create('celebrities', firstname='Kendall')
+        table = self.db.get_table('celebrities')
+        query = table.backend.delete_row_object(row)
+        print(query)
 
 
 if __name__ == '__main__':

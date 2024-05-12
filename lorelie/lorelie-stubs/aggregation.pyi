@@ -1,8 +1,8 @@
 from typing import Union, override
 
-from lorelie.backends import SQLiteBackend
 from lorelie.functions import Functions
 from lorelie.queries import QuerySet
+
 
 class MathMixin(Functions):
     @property
@@ -20,12 +20,33 @@ class MathMixin(Functions):
 class Count(MathMixin, Functions):
     @override
     def python_aggregation(self, values: list[int]) -> int: ...
-    @override
-    def as_sql(self, backend: SQLiteBackend) -> str: ...
 
 
 class Avg(MathMixin, Functions):
     @override
-    def python_aggregation(self, values: list[int]) -> float: ...
+    def python_aggregation(self, values: list[int]) -> Union[int, float]: ...
+
+
+class Variance(MathMixin, Functions):
     @override
-    def as_sql(self, backend: SQLiteBackend) -> str: ...
+    def python_aggregation(self, values: list[int]) -> Union[int, float]: ...
+
+
+class StDev(MathMixin, Functions):
+    @override
+    def python_aggregation(self, values: list[int]) -> Union[int, float]: ...
+
+
+class Sum(MathMixin, Functions):
+    @override
+    def python_aggregation(self, values: list[int]) -> Union[int, float]: ...
+
+
+class MeanAbsoluteDifference(MathMixin, Functions):
+    @override
+    def python_aggregation(self, values: list[int]) -> Union[int, float]: ...
+
+
+class CoefficientOfVariation(MathMixin, Functions):
+    @override
+    def python_aggregation(self, values: list[int]) -> Union[int, float]: ...

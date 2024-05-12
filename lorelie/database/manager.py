@@ -1,10 +1,14 @@
 import datetime
+import inspect
+import re
+from functools import partial
 
 import pytz
 
 from lorelie.aggregation import Avg, Count
-from lorelie.exceptions import TableExistsError
+from lorelie.exceptions import MigrationsExistsError, TableExistsError
 from lorelie.expressions import OrderBy
+from lorelie.fields.base import Value
 from lorelie.queries import QuerySet
 
 
@@ -37,13 +41,15 @@ class DatabaseManager:
         instance.auto_created = False
         return instance
 
-    def _get_select_sql(self, selected_table, columns=['rowid', '*']):
+    def _get_select_sql(self, selected_table, columns=['rowid', '*'], distinct=False):
         # This function creates and returns the base SQL line for
         # selecting values in the database: "select rowid, * where rowid=1"
         select_sql = selected_table.backend.SELECT.format_map({
             'fields': selected_table.backend.comma_join(columns),
             'table': selected_table.name,
         })
+        if distinct:
+            select_sql = re.sub(r'^select', 'select distinct', select_sql)
         return [select_sql]
 
     def _get_first_or_last_sql(self, selected_table, first=True):
@@ -68,6 +74,8 @@ class DatabaseManager:
         try:
             table = self.table_map[table_name]
         except KeyError:
+            if not self.database.migrations.migrated:
+                raise MigrationsExistsError()
             raise TableExistsError(table_name)
         else:
             table.backend.set_current_table(table)
@@ -180,11 +188,7 @@ class DatabaseManager:
             table=selected_table
         )
         query.run()
-        # return query.result_cache
         return QuerySet(query)
-
-    # async def aget(self, table, **kwargs):
-    #     return await sync_to_async(self.get)(table, **kwargs)
 
     def get(self, table, **kwargs):
         """Returns a specific row from the database
@@ -370,9 +374,29 @@ class DatabaseManager:
         result = self.aggregate(table, Count('id'))
         return result.get('id__count')
 
-    # def distinct(self, table, *columns):
-    #     selected_table = self.before_action(table)
-    #     select_sql
+    # def foreign_table(self, relationship):
+    #     result = relationship.split('__')
+    #     if len(result) != 2:
+    #         raise ValueError(
+    #             'Foreign table should contain the left table and right table e.g. left__right')
+    #     left_table, right_table = result
+    #     return ForeignTablesManager(left_table, right_table, self)
+
+    def distinct(self, table, *columns):
+        """Returns items from the database which are
+        distinct
+
+        >>> db.objects.distinct('celebrities', 'firstname')
+        """
+        selected_table = self.before_action(table)
+        select_sql = self._get_select_sql(
+            selected_table,
+            columns=columns,
+            distinct=True
+        )
+        query = self.database.query_class(select_sql, table=selected_table)
+        return QuerySet(query)
+
     # def bulk_create(self, *objs):
     # def dates()
     # def datetimes
@@ -416,3 +440,29 @@ class DatabaseManager:
 
     # async def async_all(self, table):
     #     return await sync_to_async(self.all)(table)
+
+
+class ForeignTablesManager:
+    def __init__(self, left_table, right_table, manager, reversed=False):
+        self.manager = manager
+        self.reversed = reversed
+        self.left_table = manager.database.get_table(left_table)
+        self.right_table = manager.database.get_table(right_table)
+        relationships = getattr(manager.database, 'relationships', None)
+        self.lookup_name = f'{left_table}_{right_table}'
+        self.relationship = relationships[self.lookup_name]
+
+    def __getattr__(self, name):
+        methods = {}
+        for name, value in self.manager.__dict__:
+            if value.startswith('__'):
+                continue
+
+            if inspect.ismethod(value):
+                methods[name] = value
+        try:
+            method = methods[name]
+        except KeyError:
+            raise AttributeError('Method does not exist')
+        else:
+            return partial(method, table=self.right_table.name)

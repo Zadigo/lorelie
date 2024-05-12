@@ -8,10 +8,11 @@ from dataclasses import field
 import pytz
 
 from lorelie.aggregation import Avg, Count
+from lorelie.exceptions import ConnectionExistsError
 from lorelie.expressions import Case
 from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear, Length,
                                Lower, Upper)
-from lorelie.queries import Query
+from lorelie.queries import Query, QuerySet
 
 
 class Connections:
@@ -37,7 +38,10 @@ class Connections:
     def get_last_connection(self):
         """Return the last connection from the
         connection map"""
-        return list(self.created_connections)[-1]
+        try:
+            return list(self.created_connections)[-1]
+        except IndexError:
+            raise ConnectionExistsError()
 
     def register(self, connection, name=None):
         if name is None:
@@ -80,7 +84,7 @@ class BaseRow:
         self._fields = fields
         self._cached_data = data
         self._backend = connections.get_last_connection()
-        
+
         table = getattr(self._backend, 'current_table', None)
         self.linked_to_table = getattr(table, 'name', None)
         self.updated_fields = {}
@@ -97,6 +101,13 @@ class BaseRow:
         # The rowid is not necessarily implemented by default in the
         # sqlite database. Hence why we test for the id field
         name_to_show = getattr(self, 'rowid', getattr(self, str_field, None))
+        if name_to_show is None:
+            # There might be situations where the user
+            # restricts the amount of fields to return
+            # from the database which will return None
+            # when trying to get str_field. So get the
+            # first field from the list of fields
+            name_to_show = getattr(self, self._fields[-0])
         return f'<{self._backend.current_table.verbose_name}: {name_to_show}>'
 
     def __setitem__(self, name, value):
@@ -135,7 +146,7 @@ class BaseRow:
         super().__setattr__(name, value)
 
     def __hash__(self):
-        return hash((self.rowid))
+        return hash((self.id))
 
     def __contains__(self, value):
         # Check that a value exists in
@@ -153,7 +164,7 @@ class BaseRow:
         return any(truth_array)
 
     def __eq__(self, value):
-        return any((self[key] == value for key in self._fields))
+        return any((self[field] == value for field in self._fields))
 
     def save(self):
         """Changes the data on the actual row
@@ -252,16 +263,14 @@ class SQL:
 
     ORDER_BY = 'order by {conditions}'
     GROUP_BY = 'group by {conditions}'
-    # UNIQUE_INDEX = 'create unique index {name} ON {table}({fields})'
 
-    LOWER = 'lower({field})'
-    UPPER = 'upper({field})'
-    LENGTH = 'length({field})'
-    MAX = 'max({field})'
-    MIN = 'min({field})'
+    # LOWER = 'lower({field})'
+    # UPPER = 'upper({field})'
+    # LENGTH = 'length({field})'
+    # MAX = 'max({field})'
+    # MIN = 'min({field})'
     AVERAGE = 'avg({field})'
     COUNT = 'count({field})'
-
     STRFTIME = 'strftime({format}, {value})'
 
     CHECK_CONSTRAINT = 'check ({conditions})'
@@ -609,6 +618,9 @@ class SQLiteBackend(SQL):
             database_name = f'{database_name}.sqlite'
         self.database_name = database_name
 
+        # sqlite3.register_converter()
+        # sqlite3.register_adapter()
+
         connection = sqlite3.connect(database_name)
         connection.create_function('hash', 1, MD5Hash.create_function())
         connection.row_factory = row_factory(self)
@@ -630,11 +642,11 @@ class SQLiteBackend(SQL):
         query.run()
         return query.result_cache
 
+    # TODO: Refactor this section
     def drop_indexes_sql(self, row):
-        sql = self.DROP_INDEX.format_map({
+        return self.DROP_INDEX.format_map({
             'value': row['name']
         })
-        return sql
 
     def create_table_fields(self, table, columns_to_create):
         field_params = []
@@ -692,15 +704,14 @@ class SQLiteBackend(SQL):
             })
         })
         query = Query([select_sql, where_clause], backend=self)
-        query.run()
-        return query.result_cache
+        return QuerySet(query, skip_transform=True)
 
     def list_table_indexes(self, table):
         # sql = f'PRAGMA index_list({self.quote_value(table.name)})'
         sql = f'PRAGMA index_list({table.name})'
         query = Query([sql], table=table)
         query.run()
-        return query.result_cache
+        return QuerySet(query, skip_transform=True)
 
     def save_row_object(self, row):
         """Creates the SQL statement required for

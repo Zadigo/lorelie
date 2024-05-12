@@ -2,7 +2,7 @@ import re
 import unittest
 
 from lorelie.backends import SQLiteBackend
-from lorelie.expressions import Q, Case, CombinedExpression, When
+from lorelie.expressions import Case, CombinedExpression, Q, When
 
 backend = SQLiteBackend()
 
@@ -47,8 +47,25 @@ class TestQ(unittest.TestCase):
             ["(firstname='Kendall' or firstname='Kylie')"]
         )
 
+    def test_multiple_filters(self):
+        logic = Q(firstname='Kendall', age__gt=20, age__lte=50)
+        result = logic.as_sql(backend)
+        self.assertListEqual(
+            result,
+            ["firstname='Kendall'", 'age>20', 'age<=50']
+        )
+
     def test_multioperators(self):
-        pass
+        multi = (
+            Q(firstname='Kendall') |
+            Q(lastname='Jenner') &
+            Q(age__gt=25, age__lte=56)
+        )
+        result = multi.as_sql(backend)
+        self.assertListEqual(
+            result,
+            ["(firstname='Kendall' or (lastname='Jenner' and age>25 and age<=56))"]
+        )
 
 
 class TestCombinedExpression(unittest.TestCase):

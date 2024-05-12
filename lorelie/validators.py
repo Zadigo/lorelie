@@ -7,14 +7,21 @@ class BaseValidator:
 
 
 class RegexValidator:
+    def __init__(self, regex=None):
+        self.regex = regex
+
+    def __call__(self, text):
+        pass
+
+
+class URLValidator(RegexValidator):
     pass
 
 
-class URLValidator:
-    pass
+url_validator = URLValidator()
 
 
-class EmailValidator:
+class EmailValidator(RegexValidator):
     def __call__(self, text):
         pass
 
@@ -70,7 +77,7 @@ def image_extensions():
 def image_extension_validator(value):
     extensions = image_extensions()
     validator = FileExtensionValidator(accepted_extensions=extensions)
-    return validator(value)
+    validator(value)
 
 
 class MaxLengthValidator:

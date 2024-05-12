@@ -1,4 +1,5 @@
 from sqlite3 import OperationalError
+import sqlite3
 
 from lorelie.aggregation import Count
 
@@ -48,12 +49,22 @@ class Query:
 
     @classmethod
     def run_script(cls, sql_tokens, backend=None, table=None):
-        instance = cls(sql_tokens, backend=backend, table=table)
         if sql_tokens:
-            result = instance._backend.connection.executescript(sql_tokens[0])
+            instance = cls(sql_tokens, backend=backend, table=table)
+
+            template = 'begin; {statements} commit;'
+            statements = []
+            for statement in sql_tokens:
+                statements.append(instance._backend.finalize_sql(statement))
+
+            joined_statements = instance._backend.simple_join(statements)
+            script = template.format(statements=joined_statements)
+
+            result = instance._backend.connection.executescript(script)
             instance._backend.connection.commit()
             instance.result_cache = list(result)
-        return instance
+            return instance
+        return False
 
     def prepare_sql(self):
         """Prepares a statement before it is sent
@@ -64,7 +75,13 @@ class Query:
         ... "select url from seen_urls where url='http://';"
         """
         sql = self._backend.simple_join(self._sql_tokens)
-        self._sql = self._backend.finalize_sql(sql)
+        finalized_sql = self._backend.finalize_sql(sql)
+        
+        is_valid = sqlite3.complete_statement(finalized_sql)
+        if not is_valid:
+            pass
+        
+        self._sql = finalized_sql
 
     def run(self, commit=False):
         """Runs an sql statement and stores the
@@ -74,7 +91,7 @@ class Query:
         try:
             result = self._backend.connection.execute(self._sql)
         except OperationalError as e:
-            print('OperationalError', e)
+            raise
         except Exception as e:
             print(e)
         else:
@@ -119,13 +136,19 @@ class ValuesIterable:
 
 
 class QuerySet:
-    def __init__(self, query):
+    def __init__(self, query, skip_transform=False):
         if not isinstance(query, Query):
             raise ValueError(f"{query} should be an instance of Query")
 
         self.query = query
         self.result_cache = []
         self.values_iterable_class = ValuesIterable
+        # There are certain cases where we want
+        # to use QuerySet but it's not affialiated
+        # to any table ex. returning a QuerySet of
+        # table indexes. This allows to skip the
+        # python transform of the data
+        self.skip_transform = skip_transform
 
     def __repr__(self):
         self.load_cache()
@@ -165,11 +188,9 @@ class QuerySet:
 
     def load_cache(self):
         if not self.result_cache:
-            # TODO: Run the query only when the
-            # queryset is evaluated as oppposed
-            # to running it in the methods: filters etc.
             self.query.run()
-            self.query.transform_to_python()
+            if not self.skip_transform:
+                self.query.transform_to_python()
             self.result_cache = self.query.result_cache
 
     def first(self):

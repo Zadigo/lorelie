@@ -189,7 +189,7 @@ class IntegerField(Field):
 
 
 class FloatField(Field):
-    pass
+    python_type = float
 
 
 class JSONField(Field):
@@ -326,6 +326,11 @@ class SlugField(CharField):
 
 class UUIDField(Field):
     pass
+
+
+
+class URLField(CharField):
+    base_validators = []
 
 
 class Value:

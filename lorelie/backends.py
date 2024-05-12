@@ -642,6 +642,7 @@ class SQLiteBackend(SQL):
         query.run()
         return query.result_cache
 
+    # TODO: Refactor this section
     def drop_indexes_sql(self, row):
         return self.DROP_INDEX.format_map({
             'value': row['name']

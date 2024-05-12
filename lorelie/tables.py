@@ -1,3 +1,4 @@
+import re
 from collections import OrderedDict
 
 from lorelie.backends import SQLiteBackend
@@ -140,6 +141,15 @@ class Table(AbstractTable):
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
 
+    def __setattr__(self, name, value):
+        if name == 'name':
+            if re.search(r'\W', value):
+                raise ValueError(
+                    "The table name should not contain carachters "
+                    "such as _, -, @ or %"
+                )
+        return super().__setattr__(name, value)
+
     def __getattribute__(self, name):
         if name == 'backend':
             backend = self.__dict__['backend']
@@ -157,6 +167,9 @@ class Table(AbstractTable):
         field paramters"""
         if not isinstance(field, Field):
             raise ValueError(f"{field} should be be an instance of Field")
+
+        if field_name != field.name:
+            raise ValueError('Name does not match the internal field name')
 
         if field_name in self.fields_map:
             raise ValueError("Field is already present on the database")

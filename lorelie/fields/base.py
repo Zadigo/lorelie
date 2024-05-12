@@ -234,6 +234,11 @@ class BooleanField(Field):
                 return 1
             return 0
 
+        if isinstance(data, int):
+            if (data in self.truth_types or
+                    data in self.false_types):
+                return data
+
         if isinstance(data, str):
             if data in self.truth_types:
                 return 1
@@ -242,7 +247,7 @@ class BooleanField(Field):
                 return 0
 
         raise ValidationError(
-            "The value for {name} should be either one of"
+            "The value for {name} should be either one of "
             "True, False, 0, 1, '0', '1', 't' or 'f'",
             name=self.name
         )
@@ -273,6 +278,8 @@ class DateFieldMixin:
         super().__init__(name, **kwargs)
 
     def parse_date(self, d):
+        if isinstance(d, datetime.date):
+            d = str(d)
         return datetime.datetime.strptime(d, self.date_format)
 
 
@@ -326,7 +333,6 @@ class SlugField(CharField):
 
 class UUIDField(Field):
     pass
-
 
 
 class URLField(CharField):

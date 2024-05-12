@@ -1,12 +1,16 @@
+import datetime
 import unittest
 
+import pytz
+
 from lorelie.backends import SQLiteBackend
-from lorelie.fields.base import AutoField, BooleanField, Field, IntegerField
+from lorelie.fields.base import (AutoField, BooleanField, DateField,
+                                 DateTimeField, Field, IntegerField, JSONField)
 from lorelie.tables import Table
 
 table = Table('celebrities', fields=[])
 table.backend = SQLiteBackend()
-table.prepare()
+# table.prepare()
 
 
 class TestField(unittest.TestCase):
@@ -106,6 +110,45 @@ class TestAutoField(unittest.TestCase):
             ['id', 'integer', 'primary key', 'autoincrement', 'not null']
         )
 
+
+class TestJsonField(unittest.TestCase):
+    def test_result(self):
+        field = JSONField('metadata')
+        field.prepare(table)
+
+        result = field.to_python('{"a": 1}')
+        self.assertDictEqual(result, {"a": 1})
+
+        result = field.to_database({'a': 1})
+        self.assertEqual(result, '{"a": 1}')
+
+
+class TestDateField(unittest.TestCase):
+    def test_result(self):
+        field = DateField('created_on')
+        field.prepare(table)
+
+        expected = datetime.datetime.now().date()
+        result = field.to_python(expected)
+        self.assertEqual(result, expected)
+
+
+        result = field.to_database(str(expected))
+        self.assertEqual(result, str(expected))
+
+
+class TestDateTimeField(unittest.TestCase):
+    def test_result(self):
+        field = DateTimeField('created_on')
+        field.prepare(table)
+
+        expected = datetime.datetime.now(tz=pytz.UTC)
+        result = field.to_python(expected)
+        self.assertEqual(result, expected)
+
+        result = field.to_database(str(expected))
+        self.assertEqual(result, str(expected))
+ 
 
 if __name__ == '__main__':
     unittest.main()

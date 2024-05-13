@@ -12,7 +12,7 @@ class Query:
     """
 
     def __init__(self, sql_tokens, backend=None, table=None):
-        self._table = table
+        self.table = table
         self._backend = table.backend if table is not None else backend
 
         from lorelie.backends import connections
@@ -30,6 +30,8 @@ class Query:
         self._sql_tokens = sql_tokens
         self.result_cache = []
         self.alias_fields = []
+        self.is_evaluated = False
+        self.statements = []
 
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self._sql}]>'
@@ -65,6 +67,9 @@ class Query:
             instance.result_cache = list(result)
             return instance
         return False
+
+    def add_sql_node(self, node):
+        self.statements.append(node)
 
     def prepare_sql(self):
         """Prepares a statement before it is sent
@@ -110,7 +115,7 @@ class Query:
                     instance = AliasField(name)
                     field = instance.get_data_field(value)
                 else:
-                    field = self._table.get_field(name)
+                    field = self.table.get_field(name)
                 setattr(row, name, field.to_python(value))
 
 
@@ -192,6 +197,10 @@ class QuerySet:
             if not self.skip_transform:
                 self.query.transform_to_python()
             self.result_cache = self.query.result_cache
+
+    def _test_chaining_on_queryset(self):
+        self.query.add_sql_node('order by firstname')
+        return self
 
     def first(self):
         return self.all()[-0]

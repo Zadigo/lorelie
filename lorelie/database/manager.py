@@ -6,6 +6,7 @@ from functools import partial
 import pytz
 
 from lorelie.aggregation import Avg, Count
+from lorelie.database.nodes import OrderByNode, SelectNode, WhereNode
 from lorelie.exceptions import MigrationsExistsError, TableExistsError
 from lorelie.expressions import OrderBy
 from lorelie.fields.base import Value
@@ -55,20 +56,7 @@ class DatabaseManager:
     def _get_first_or_last_sql(self, selected_table, first=True):
         """Returns the general SQL that returns the first
         or last value from the database"""
-        select_sql = self._get_select_sql(selected_table)
-
-        if first:
-            ordering_column = ['id']
-        else:
-            ordering_column = ['-id']
-
-        ordering = OrderBy(ordering_column)
-        order_by_sql = ordering.as_sql(selected_table.backend)
-        select_sql.extend(order_by_sql)
-
-        limit_sql = selected_table.backend.LIMIT.format(value=1)
-        select_sql.extend([limit_sql])
-        return select_sql
+        pass
 
     def before_action(self, table_name):
         try:
@@ -82,49 +70,45 @@ class DatabaseManager:
             table.load_current_connection()
             return table
 
-    def _test_chaining(self):
-        """TODO: This new method will chain the SQL nodes
-        within the query contained within the queryset
-        which will allow us to add, remove and format
-        the final SQL in a chain like format as opposed
-        to what we are doing right now"""
-        selected_table = self.before_action('celebrities')
-        query = selected_table.query_class([], table=selected_table)
-        query.add_sql_node('select * from celebrities')
-        return QuerySet(query)
-
     def first(self, table):
         """Returns the first row from
         a database table"""
         selected_table = self.before_action(table)
-        select_sql = self._get_first_or_last_sql(selected_table)
-        query = self.database.query_class(select_sql, table=selected_table)
-        query.run()
-        return query.result_cache[0]
+
+        select_node = SelectNode(selected_table)
+        orderby_node = OrderByNode(selected_table, 'id')
+
+        query = self.database.query_class(table=selected_table)
+        query.add_sql_nodes([select_node, orderby_node])
+        queryset = QuerySet(query)
+        return queryset[-0]
 
     def last(self, table):
         """Returns the last row from
         a database table"""
         selected_table = self.before_action(table)
-        select_sql = self._get_first_or_last_sql(selected_table, first=False)
-        query = self.database.query_class(select_sql, table=selected_table)
-        query.run()
-        return query.result_cache[0]
+
+        select_node = SelectNode(selected_table, limit=1)
+        orderby_node = OrderByNode(selected_table, '-id')
+
+        query = self.database.query_class(table=selected_table)
+        query.add_sql_nodes([select_node, orderby_node])
+        queryset = QuerySet(query)
+        return queryset[-0]
 
     def all(self, table):
         selected_table = self.before_action(table)
-        select_sql = self._get_select_sql(selected_table)
+        select_node = SelectNode(selected_table)
 
-        if bool(selected_table.ordering):
-            ordering_sql = selected_table.ordering.as_sql(
-                selected_table.backend
-            )
-            select_sql.extend(ordering_sql)
+        query = selected_table.query_class(table=selected_table)
 
-        query = self.database.query_class(select_sql, table=selected_table)
+        if selected_table.ordering:
+            orderby_node = OrderByNode(
+                selected_table, *selected_table.ordering)
+            query.add_sql_node(orderby_node)
+
+        query.add_sql_node(select_node)
         return QuerySet(query)
-        # query.run()
-        # return query.result_cache
 
     def create(self, table, **kwargs):
         """Creates a new row in the table of 
@@ -156,9 +140,10 @@ class DatabaseManager:
             values=joined_values
         )
 
-        query = self.database.query_class([sql], table=selected_table)
+        query = self.database.query_class(table=selected_table)
+        query.add_sql_nodes([sql])
         query.run(commit=True)
-        return self.last(selected_table.name)
+        return self.last(table)
 
     def filter(self, table, *args, **kwargs):
         """Filter the data in the database based on
@@ -176,34 +161,14 @@ class DatabaseManager:
         """
         selected_table = self.before_action(table)
 
-        tokens = selected_table.backend.decompose_filters(**kwargs)
-        filters = selected_table.backend.build_filters(tokens)
+        select_node = SelectNode(selected_table)
+        where_node = WhereNode(*args, **kwargs)
 
-        if args:
-            for expression in args:
-                filters.extend(expression.as_sql(selected_table.backend))
-
-        if len(filters) > 1:
-            filters = [
-                selected_table.backend.wrap_parenthentis(
-                    ' and '.join(filters)
-                )
-            ]
-
-        select_sql = self._get_select_sql(selected_table)
-        where_clause = selected_table.backend.WHERE_CLAUSE.format_map({
-            'params': selected_table.backend.comma_join(filters)
-        })
-        select_sql.append(where_clause)
-
-        query = self.database.query_class(
-            select_sql,
-            table=selected_table
-        )
-        query.run()
+        query = selected_table.query_class(table=selected_table)
+        query.add_sql_nodes([select_node, where_node])
         return QuerySet(query)
 
-    def get(self, table, **kwargs):
+    def get(self, table, *args, **kwargs):
         """Returns a specific row from the database
         based on a set of criteria
 
@@ -212,29 +177,36 @@ class DatabaseManager:
         """
         selected_table = self.before_action(table)
 
-        filters = selected_table.backend.build_filters(
-            selected_table.backend.decompose_filters(**kwargs)
-        )
+        # filters = selected_table.backend.build_filters(
+        #     selected_table.backend.decompose_filters(**kwargs)
+        # )
 
-        select_sql = self._get_select_sql(selected_table)
-        joined_statements = selected_table.backend.operator_join(filters)
-        where_clause = selected_table.backend.WHERE_CLAUSE.format_map({
-            'params': joined_statements
-        })
-        select_sql.extend([where_clause])
+        # select_sql = self._get_select_sql(selected_table)
+        # joined_statements = selected_table.backend.operator_join(filters)
+        # where_clause = selected_table.backend.WHERE_CLAUSE.format_map({
+        #     'params': joined_statements
+        # })
+        # select_sql.extend([where_clause])
 
-        query = self.database.query_class(
-            select_sql,
-            table=selected_table
-        )
-        query.run()
+        # query = self.database.query_class(
+        #     select_sql,
+        #     table=selected_table
+        # )
+        # query.run()
 
-        if not query.result_cache:
-            return None
+        # if not query.result_cache:
+        #     return None
 
-        if len(query.result_cache) > 1:
+        select_node = SelectNode(selected_table)
+        where_node = WhereNode(*args, **kwargs)
+
+        query = selected_table.query_class(table=selected_table)
+        query.add_sql_nodes([select_node, where_node])
+        queryset = QuerySet(query)
+
+        if len(queryset) > 1:
             raise ValueError("Get returnd more than one value")
-        return query.result_cache[0]
+        return queryset[-0]
 
     def annotate(self, table, **kwargs):
         """Annotations implements the usage of

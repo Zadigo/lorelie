@@ -682,7 +682,7 @@ class SQLiteBackend(SQL):
             query.run(commit=True)
 
     def list_tables_sql(self):
-        sql = self.SELECT.format(
+        select_clause = self.SELECT.format(
             fields=self.comma_join(['rowid', 'name']),
             table='sqlite_schema'
         )
@@ -699,7 +699,8 @@ class SQLiteBackend(SQL):
                 self.AND.format(rhv=not_like_clause)
             ])
         )
-        query = Query([sql, where_clause], backend=self)
+        query = Query(backend=self)
+        query.add_sql_nodes([select_clause, where_clause])
         query.run()
         return query.result_cache
 
@@ -715,7 +716,8 @@ class SQLiteBackend(SQL):
                 'value': self.quote_value('index')
             })
         })
-        query = Query([select_sql, where_clause], backend=self)
+        query = Query(backend=self)
+        query.add_sql_nodes([select_sql, where_clause])
         return QuerySet(query, skip_transform=True)
 
     def list_table_indexes(self, table):

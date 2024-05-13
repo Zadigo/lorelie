@@ -197,7 +197,7 @@ class Migrations:
 
         # The database might require another set of
         # parameters (ex. indexes) that we run here
-        Query.run_script(other_sqls_to_run, backend=backend)
+        Query.run_script(sql_tokens=other_sqls_to_run, backend=backend)
 
         # Create indexes for each table
         database_indexes = backend.list_database_indexes()
@@ -226,8 +226,7 @@ class Migrations:
         #         })
         #         table_constraints.append(sql_clause)
 
-        # Query.run_multiple(self.database.backend, *index_sqls)
-        Query.run_script(index_sqls)
+        Query.run_script(sql_tokens=index_sqls, backend=backend)
 
         self.tables_for_creation.clear()
         self.tables_for_deletion.clear()

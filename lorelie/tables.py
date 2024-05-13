@@ -1,4 +1,5 @@
 import re
+import inspect
 from collections import OrderedDict
 
 from lorelie.backends import SQLiteBackend
@@ -102,7 +103,7 @@ class Table(AbstractTable):
         # the column in the BaseRow
         self.str_field = str_field
 
-        self.ordering = OrderBy(ordering)
+        self.ordering = set(ordering)
 
         super().__init__()
         self.fields_map = OrderedDict()
@@ -111,8 +112,9 @@ class Table(AbstractTable):
 
         non_authorized_names = ['rowid', 'id']
         for field in fields:
-            if not isinstance(field, Field):
-                raise ValueError(f'{field} should be an instance of Field')
+            # TODO: This does not work
+            # if not issubclass(field.__class__, Field):
+            #     raise ValueError(f'{field} should be an instance of Field')
 
             if field.name in non_authorized_names:
                 raise ValueError(f'Invalid name "{field.name}" for field: {field}')
@@ -268,6 +270,7 @@ class Table(AbstractTable):
         create_sql = self.create_table_sql(
             self.backend.comma_join(field_params)
         )
-        query = self.query_class(create_sql, table=self)
+        query = self.query_class(table=self)
+        query.add_sql_nodes(create_sql)
         query.run(commit=True)
         self.is_prepared = True

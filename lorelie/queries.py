@@ -1,7 +1,9 @@
+from re import S
 import sqlite3
 from sqlite3 import OperationalError
 
 from lorelie.aggregation import Count
+from lorelie.database.nodes import BaseNode, SelectMap, WhereNode
 
 
 class Query:
@@ -11,30 +13,30 @@ class Query:
     the `result_cache`
     """
 
-    def __init__(self, sql_tokens, backend=None, table=None):
+    def __init__(self, table=None, backend=None):
         self.table = table
-        self._backend = table.backend if table is not None else backend
+        self.backend = table.backend if table is not None else backend
 
         from lorelie.backends import connections
-        if self._backend is None:
-            self._backend = connections.get_last_connection()
+        if self.backend is None:
+            self.backend = connections.get_last_connection()
 
         from lorelie.backends import SQLiteBackend
-        if not isinstance(self._backend, SQLiteBackend):
+        if not isinstance(self.backend, SQLiteBackend):
             raise ValueError(
                 "Backend connection should be an "
                 "instance SQLiteBackend"
             )
 
-        self._sql = None
-        self._sql_tokens = sql_tokens
+        self.sql = None
         self.result_cache = []
         self.alias_fields = []
         self.is_evaluated = False
         self.statements = []
+        self.select_map = SelectMap()
 
     def __repr__(self):
-        return f'<{self.__class__.__name__} [{self._sql}]>'
+        return f'<{self.__class__.__name__} [{self.sql}]>'
 
     @classmethod
     def run_multiple(cls, backend, *sqls, **kwargs):
@@ -45,33 +47,47 @@ class Query:
             yield instance
 
     @classmethod
-    def create(cls, backend, sql_tokens, table=None):
+    def create(cls, table=None, backend=None):
         """Creates a new `Query` class to be executed"""
-        return cls(backend, sql_tokens, table=table)
+        return cls(table=table, backend=backend)
 
     @classmethod
-    def run_script(cls, sql_tokens, backend=None, table=None):
-        if sql_tokens:
-            instance = cls(sql_tokens, backend=backend, table=table)
+    def run_script(cls, backend=None, table=None, sql_tokens=[]):
+        template = 'begin; {statements} commit;'
+        instance = cls(table=table, backend=backend)
+        instance.add_sql_nodes(sql_tokens)
 
-            template = 'begin; {statements} commit;'
-            statements = []
-            for statement in sql_tokens:
-                statements.append(instance._backend.finalize_sql(statement))
+        statements = []
+        for statement in instance.statements:
+            statements.append(instance.backend.finalize_sql(statement))
 
-            joined_statements = instance._backend.simple_join(statements)
-            script = template.format(statements=joined_statements)
+        joined_statements = instance.backend.simple_join(statements)
+        script = template.format(statements=joined_statements)
 
-            result = instance._backend.connection.executescript(script)
-            instance._backend.connection.commit()
-            instance.result_cache = list(result)
-            return instance
-        return False
+        result = instance.backend.connection.executescript(script)
+        instance.backend.connection.commit()
+        instance.result_cache = list(result)
+        return instance
 
     def add_sql_node(self, node):
+        if not isinstance(node, (BaseNode, str)):
+            raise ValueError('Node should be an instance of BaseNode or <str>')
+
+        if isinstance(node, BaseNode):
+            if node.node_name == 'order_by':
+                if self.select_map.order_by is not None:
+                    node = self.select_map.order_by & node
+            self.select_map[node.node_name] = node
+
         self.statements.append(node)
 
-    def prepare_sql(self):
+    def add_sql_nodes(self, nodes):
+        if not isinstance(nodes, list):
+            raise ValueError('Node should be an instance of BaseNode or <str>')
+        for node in nodes:
+            self.add_sql_node(node)
+
+    def pre_sql_setup(self):
         """Prepares a statement before it is sent
         to the database by joining the sql statements
         and implement a `;` to the end
@@ -79,29 +95,39 @@ class Query:
         >>> ["select url from seen_urls", "where url='http://'"]
         ... "select url from seen_urls where url='http://';"
         """
-        sql = self._backend.simple_join(self._sql_tokens)
-        finalized_sql = self._backend.finalize_sql(sql)
-        
+        text_statements = []
+
+        if self.select_map.should_resolve_map:
+            statement = self.select_map.resolve(self.backend)
+            text_statements.extend(statement)
+        else:
+            for statement in self.statements:
+                if isinstance(statement, BaseNode):
+                    text_statements.extend(statement.as_sql(self.backend))
+                elif isinstance(statement, str):
+                    text_statements.append(statement)
+
+        sql = self.backend.simple_join(text_statements)
+        finalized_sql = self.backend.finalize_sql(sql)
         is_valid = sqlite3.complete_statement(finalized_sql)
         if not is_valid:
             pass
-        
-        self._sql = finalized_sql
+        self.sql = finalized_sql
 
     def run(self, commit=False):
         """Runs an sql statement and stores the
         return data in the `result_cache`"""
-        self.prepare_sql()
+        self.pre_sql_setup()
 
         try:
-            result = self._backend.connection.execute(self._sql)
+            result = self.backend.connection.execute(self.sql)
         except OperationalError as e:
             raise
         except Exception as e:
             print(e)
         else:
             if commit:
-                self._backend.connection.commit()
+                self.backend.connection.commit()
             self.result_cache = list(result)
 
     def transform_to_python(self):
@@ -189,7 +215,7 @@ class QuerySet:
 
     @property
     def sql_statement(self):
-        return self.query._sql
+        return self.query.sql
 
     def load_cache(self):
         if not self.result_cache:
@@ -203,10 +229,12 @@ class QuerySet:
         return self
 
     def first(self):
-        return self.all()[-0]
+        self.query.select_map.limit = 1
+        return self
 
     def last(self):
-        return self.all()[-1]
+        self.query.select_map.limit = 1
+        return self
 
     def all(self):
         return self
@@ -214,52 +242,6 @@ class QuerySet:
     def filter(self, *args, **kwargs):
         backend = self.query._backend
         filters = backend.decompose_filters(**kwargs)
-
-        items = self.all()
-        for item in items:
-            for column, operator, value in filters:
-                if operator == '=':
-                    if item[column] == value:
-                        continue
-
-                if operator == '>':
-                    if item[column] > value:
-                        continue
-
-                if operator == '<':
-                    if item[column] < value:
-                        continue
-
-                if operator == '>=':
-                    if item[column] >= value:
-                        continue
-
-                if operator == '<=':
-                    if item[column] <= value:
-                        continue
-
-                if operator == '!=':
-                    if item[column] != value:
-                        continue
-
-                if operator == 'contains':
-                    if item[column] in value:
-                        continue
-
-                if operator == 'startswith':
-                    if item[column].startswith(value):
-                        continue
-
-                if operator == 'endswith':
-                    if item[column].endswith(value):
-                        continue
-
-                if operator == 'between':
-                    continue
-
-                if operator == 'endswith':
-                    if item[column] is None:
-                        continue
 
     def get(self, **kwargs):
         pass
@@ -274,7 +256,8 @@ class QuerySet:
         import pandas
         return pandas.DataFrame(self.values(*fields))
 
-    # def order_by(self, *fields):
+    def order_by(self, *fields):
+        pass
     #     ascending_fields = set()
     #     descending_fields = set()
 

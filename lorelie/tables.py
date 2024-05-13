@@ -141,6 +141,15 @@ class Table(AbstractTable):
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
 
+    def __eq__(self, table):
+        if not isinstance(table, Table):
+            return NotImplemented
+
+        return all([
+            self.name == table.name,
+            self.field_names == table.field_names
+        ])
+
     def __setattr__(self, name, value):
         if name == 'name':
             if re.search(r'\W', value):

@@ -1,3 +1,5 @@
+from lorelie.functions import Functions
+import inspect
 import time
 
 from lorelie.aggregation import Avg, Count
@@ -7,7 +9,7 @@ from lorelie.expressions import Case, Q, When
 from lorelie.fields.base import (CharField, DateField, DateTimeField,
                                  IntegerField, JSONField, Value)
 from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear, Length,
-                               Lower, Upper)
+                               Lower, SHA256Hash, Upper)
 from lorelie.tables import Table
 
 
@@ -226,4 +228,7 @@ for celebrity in celebrities:
 # qs = db.objects.distinct('celebrities', 'lastname')
 # print(qs)
 
-qs = db.objects._test_chaining()
+# qs = db.objects._test_chaining()
+
+qs = db.objects.annotate('celebrities', hash_name=SHA256Hash('firstname'))
+print(qs[0].hash_name)

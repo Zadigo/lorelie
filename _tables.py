@@ -230,5 +230,5 @@ for celebrity in celebrities:
 
 # qs = db.objects._test_chaining()
 
-qs = db.objects.annotate('celebrities', hash_name=SHA256Hash('firstname'))
-print(qs[0].hash_name)
+# qs = db.objects.annotate('celebrities', hash_name=SHA256Hash('firstname'))
+# print(qs[0].hash_name)

@@ -109,6 +109,7 @@ class Table(AbstractTable):
         self.auto_add_fields = set()
         self.auto_update_fields = set()
 
+        non_authorized_names = ['rowid', 'id']
         for field in fields:
             if not isinstance(field, Field):
                 raise ValueError(f'{field} should be an instance of Field')
@@ -161,6 +162,9 @@ class Table(AbstractTable):
                     "such as _, -, @ or %"
                 )
         return super().__setattr__(name, value)
+
+    def __contains__(self, value):
+        return value in self.field_names
 
     def __getattribute__(self, name):
         if name == 'backend':

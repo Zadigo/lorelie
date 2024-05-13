@@ -38,9 +38,9 @@ class Field:
         return hash((self.name))
 
     def __eq__(self, value):
-        if isinstance(value, Field):
-            return value.name == self.name
-        return self.name == value
+        if not isinstance(value, Field):
+            return NotImplemented
+        return self.name == value.name
 
     @property
     def field_type(self):
@@ -150,6 +150,11 @@ class CharField(Field):
         if data is None:
             return data
         return self.python_type(data)
+
+    def to_database(self, data):
+        if isinstance(data, (int, float, list, dict)):
+            data = str(data)
+        return super().to_database(data)
 
 
 class IntegerField(Field):

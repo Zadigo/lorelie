@@ -1,5 +1,6 @@
 import dataclasses
 import datetime
+import inspect
 import itertools
 import re
 import sqlite3
@@ -10,8 +11,8 @@ import pytz
 from lorelie.aggregation import Avg, Count
 from lorelie.exceptions import ConnectionExistsError
 from lorelie.expressions import Case
-from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear, Length,
-                               Lower, Upper)
+from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear,
+                               Functions, Length, Lower, Upper)
 from lorelie.queries import Query, QuerySet
 
 
@@ -586,6 +587,8 @@ class SQL:
         identify it since it requires a special """
         annotation_map = AnnotationMap()
 
+        # TODO: Refactor the for-loop and the annotation
+        # map so that it is less messed up
         for alias_name, function in conditions.items():
             annotation_map.alias_fields.append(alias_name)
             annotation_map.annotation_type_map[alias_name] = function.__class__.__name__
@@ -602,6 +605,14 @@ class SQL:
                     self
                 )
 
+            if Functions in inspect.getmro(function.__class__):
+                annotation_map.field_names.append(
+                    function.field_name
+                )
+                annotation_map.sql_statements_dict[alias_name] = function.as_sql(
+                    self
+                )
+
         return annotation_map
 
 
@@ -610,7 +621,7 @@ class SQLiteBackend(SQL):
     new connection to the database"""
 
     def __init__(self, database_name=None):
-        from lorelie.functions import MD5Hash
+        from lorelie.functions import MD5Hash, SHA256Hash
 
         if database_name is None:
             database_name = ':memory:'
@@ -623,6 +634,7 @@ class SQLiteBackend(SQL):
 
         connection = sqlite3.connect(database_name)
         connection.create_function('hash', 1, MD5Hash.create_function())
+        connection.create_function('sha256', 1, SHA256Hash.create_function())
         connection.row_factory = row_factory(self)
 
         self.connection = connection

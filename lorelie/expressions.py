@@ -8,7 +8,7 @@ class BaseExpression:
         self.sql_statement = None
 
     def as_sql(self, backend):
-        pass
+        return NotImplemented
 
 
 class NegatedExpression(BaseExpression):
@@ -57,12 +57,6 @@ class Case(BaseExpression):
         self.cases = list(cases)
 
     def as_sql(self, backend):
-        # sql = backend.CASE.format_map({
-        #     'field': self.field_name,
-        #     'conditions': backend.simple_join(statements_to_join),
-        #     'alias': self.alias_name
-        # })
-
         fields = set()
         statements_to_join = []
         for case in self.cases:

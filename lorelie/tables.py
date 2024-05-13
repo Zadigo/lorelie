@@ -109,9 +109,13 @@ class Table(AbstractTable):
         self.auto_add_fields = set()
         self.auto_update_fields = set()
 
+        non_authorized_names = ['rowid', 'id']
         for field in fields:
             if not isinstance(field, Field):
                 raise ValueError(f'{field} should be an instance of Field')
+
+            if field.name in non_authorized_names:
+                raise ValueError(f'Invalid name "{field.name}" for field: {field}')
 
             # Identify the date fields that require either
             # an auto_update or auto_add. Which means that
@@ -141,6 +145,15 @@ class Table(AbstractTable):
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
 
+    def __eq__(self, table):
+        if not isinstance(table, Table):
+            return NotImplemented
+
+        return all([
+            self.name == table.name,
+            self.field_names == table.field_names
+        ])
+
     def __setattr__(self, name, value):
         if name == 'name':
             if re.search(r'\W', value):
@@ -149,6 +162,9 @@ class Table(AbstractTable):
                     "such as _, -, @ or %"
                 )
         return super().__setattr__(name, value)
+
+    def __contains__(self, value):
+        return value in self.field_names
 
     def __getattribute__(self, name):
         if name == 'backend':

@@ -80,8 +80,8 @@ class TestTable(unittest.TestCase):
             self.table.validate_values(['height'], [189])
 
     def test_equality(self):
-        self.assertTrue(self.table == 'celebrities')
         self.assertTrue(self.table == self.table)
+        self.assertTrue('firstname' in self.table)
         self.assertTrue(self.table.has_field('firstname'))
 
 

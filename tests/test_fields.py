@@ -4,7 +4,7 @@ import unittest
 import pytz
 
 from lorelie.backends import SQLiteBackend
-from lorelie.fields.base import (AutoField, BooleanField, DateField,
+from lorelie.fields.base import (AutoField, BooleanField, CharField, DateField,
                                  DateTimeField, Field, IntegerField, JSONField)
 from lorelie.tables import Table
 
@@ -59,6 +59,27 @@ class TestField(unittest.TestCase):
         self.assertIsInstance(parameters, list)
         self.assertEqual(name, 'name')
         self.assertIn('name', parameters)
+
+
+class TestCharField(unittest.TestCase):
+    def test_result(self):
+        field = CharField('firstname')
+        field.prepare(table)
+
+        params = field.field_parameters()
+        self.assertListEqual(
+            params,
+            ['firstname', 'text', 'not null']
+        )
+
+        result = field.to_database({'a': 1})
+        self.assertEqual(result, "{'a': 1}")
+        result = field.to_database(['1'])
+        self.assertEqual(result, "['1']")
+        result = field.to_database('1')
+        self.assertEqual(result, '1')
+        result = field.to_database(1)
+        self.assertEqual(result, '1')
 
 
 class TestIntegerField(unittest.TestCase):

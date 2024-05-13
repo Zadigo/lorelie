@@ -9,7 +9,7 @@ from lorelie.aggregation import Avg, Count
 from lorelie.exceptions import MigrationsExistsError, TableExistsError
 from lorelie.expressions import OrderBy
 from lorelie.fields.base import Value
-from lorelie.queries import QuerySet
+from lorelie.queries import Query, QuerySet
 
 
 class DatabaseManager:
@@ -81,6 +81,17 @@ class DatabaseManager:
             table.backend.set_current_table(table)
             table.load_current_connection()
             return table
+
+    def _test_chaining(self):
+        """TODO: This new method will chain the SQL nodes
+        within the query contained within the queryset
+        which will allow us to add, remove and format
+        the final SQL in a chain like format as opposed
+        to what we are doing right now"""
+        selected_table = self.before_action('celebrities')
+        query = selected_table.query_class([], table=selected_table)
+        query.add_sql_node('select * from celebrities')
+        return QuerySet(query)
 
     def first(self, table):
         """Returns the first row from

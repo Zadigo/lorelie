@@ -1,5 +1,5 @@
-from sqlite3 import OperationalError
 import sqlite3
+from sqlite3 import OperationalError
 
 from lorelie.aggregation import Count
 

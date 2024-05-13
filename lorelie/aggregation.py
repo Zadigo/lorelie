@@ -61,6 +61,8 @@ class Avg(MathMixin, Functions):
 
 
 class Variance(MathMixin, Functions):
+    template_sql = 'variance({field})'
+
     def python_aggregation(self, values):
         average_instance = Avg(self.field_name)
         count_instance = Count(self.field_name)
@@ -73,6 +75,8 @@ class Variance(MathMixin, Functions):
 
 
 class StDev(MathMixin, Functions):
+    template_sql = 'stdev({field})'
+
     @staticmethod
     def create_function():
         return
@@ -88,6 +92,8 @@ class Sum(MathMixin, Functions):
 
 
 class MeanAbsoluteDifference(MathMixin, Functions):
+    template_sql = 'meanabsdifference({field})'
+
     def python_aggregation(self, values):
         average_instance = Avg(self.field_name)
         count_instance = Count(self.field_name)
@@ -99,6 +105,8 @@ class MeanAbsoluteDifference(MathMixin, Functions):
 
 
 class CoefficientOfVariation(MathMixin, Functions):
+    template_sql = 'coeffofvariation({field})'
+
     def python_aggregation(self, values):
         stdev_instance = StDev(self.field_name)
         average_instance = Avg(self.field_name)

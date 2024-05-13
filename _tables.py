@@ -1,3 +1,4 @@
+from functools import partial
 from lorelie.functions import Functions
 import inspect
 import time

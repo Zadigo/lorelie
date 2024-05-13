@@ -113,6 +113,9 @@ class Table(AbstractTable):
             if not isinstance(field, Field):
                 raise ValueError(f'{field} should be an instance of Field')
 
+            if field.name in non_authorized_names:
+                raise ValueError(f'Invalid name "{field.name}" for field: {field}')
+
             # Identify the date fields that require either
             # an auto_update or auto_add. Which means that
             # we will need to implement the current date/time

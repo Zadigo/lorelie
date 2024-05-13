@@ -14,10 +14,10 @@ class Functions:
 
     @staticmethod
     def create_function():
-        pass
+        return NotImplemented
 
     def as_sql(self, backend):
-        pass
+        return NotImplemented
 
 
 class Lower(Functions):
@@ -96,7 +96,7 @@ class Max(Functions):
 
 class Min(Functions):
     """Returns the min value of a given column
-    
+
     >>> db.objects.annotate('celebrities',  min_id=Min('id'))
     """
 
@@ -160,17 +160,43 @@ class ExtractDay(ExtractDatePartsMixin):
     """Extracts the day section of each
     iterated value:
 
-    >>> db.objects.annotate('celebrities', day=ExtractMonth('date_of_birth'))
+    >>> db.objects.annotate('celebrities', day=ExtractDay('date_of_birth'))
 
     Or filter data based on the return value of the function
 
-    >>> db.objects.filter('celebrities', day__gte=ExtractMonth('date_of_birth'))
+    >>> db.objects.filter('celebrities', day__gte=ExtractDay('date_of_birth'))
     """
     date_part = '%d'
 
 
+class ExtractHour(ExtractDatePartsMixin):
+    """Extracts the day section of each
+    iterated value:
+
+    >>> db.objects.annotate('celebrities', day=ExtractHour('date_of_birth'))
+
+    Or filter data based on the return value of the function
+
+    >>> db.objects.filter('celebrities', day__gte=ExtractHour('date_of_birth'))
+    """
+    date_part = '%H'
+
+
+class ExtractMinute(ExtractDatePartsMixin):
+    """Extracts the day section of each
+    iterated value:
+
+    >>> db.objects.annotate('celebrities', day=ExtractMinute('date_of_birth'))
+
+    Or filter data based on the return value of the function
+
+    >>> db.objects.filter('celebrities', day__gte=ExtractMinute('date_of_birth'))
+    """
+    date_part = '%M'
+
+
 class MD5Hash(Functions):
-    template_sql = 'Hash({field})'
+    template_sql = 'hash({field})'
 
     @staticmethod
     def create_function():
@@ -179,24 +205,35 @@ class MD5Hash(Functions):
             return hashlib.md5(text).hexdigest()
         return callback
 
-    def as_sql(self):
+    def as_sql(self, backend):
         return self.template_sql.format_map({
             'field': self.field_name
         })
 
 
+class SHA256Hash(MD5Hash):
+    template_sql = 'sha256({field})'
+
+    @staticmethod
+    def create_function():
+        def callback(text):
+            text = str(text).encode('utf-8')
+            return hashlib.sha256(text).hexdigest()
+        return callback
+
+
 # Extract,
-# ExtractDay,
-# ExtractHour,
+# ,
+# ,
 # ExtractIsoWeekDay,
 # ExtractIsoYear,
-# ExtractMinute,
-# ExtractMonth,
+# ,
+# ,
 # ExtractQuarter,
 # ExtractSecond,
 # ExtractWeek,
 # ExtractWeekDay,
-# ExtractYear,
+# ,
 # Now,
 # Trunc,
 # TruncDate,
@@ -234,10 +271,10 @@ class MD5Hash(Functions):
 # Sqrt,
 # Tan
 
-# MD5,
+# ,
 # SHA1,
 # SHA224,
-# SHA256,
+# ,
 # SHA384,
 # SHA512,
 # Chr,

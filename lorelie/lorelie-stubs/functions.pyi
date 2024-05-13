@@ -53,3 +53,7 @@ class Hash(ExtractDatePartsMixin):
 
 class MD5Hash(Functions):
     ...
+
+
+class SHA256Hash(Functions):
+    ...

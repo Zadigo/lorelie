@@ -1,9 +1,10 @@
-import json
 import datetime
-import ast
+import json
+from urllib.parse import unquote, urlparse
+
 from lorelie.constraints import MaxLengthConstraint
 from lorelie.exceptions import ValidationError
-from lorelie.validators import MaxValueValidator, MinValueValidator
+from lorelie.validators import MaxValueValidator, MinValueValidator, url_validator
 
 
 class Field:
@@ -342,7 +343,12 @@ class UUIDField(Field):
 
 
 class URLField(CharField):
-    base_validators = []
+    base_validators = [url_validator]
+
+    def to_database(self, data):
+        if data is None or data == '':
+            return data
+        return super().to_database(unquote(data))
 
 
 class Value:

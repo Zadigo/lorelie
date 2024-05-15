@@ -15,7 +15,9 @@ class RegexValidator:
 
 
 class URLValidator(RegexValidator):
-    pass
+    def __call__(self, value):
+        if not value.startswith('http'):
+            raise ValidationError(f"Url is not valid {value}")
 
 
 url_validator = URLValidator()

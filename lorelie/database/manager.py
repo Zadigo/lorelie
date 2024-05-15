@@ -135,6 +135,7 @@ class DatabaseManager:
             quote_values=False
         )
         values = selected_table.validate_values(fields, values)
+        pre_saved_values = self.pre_save(selected_table, values)
 
         # TODO: Create functions for datetimes and timezones
         current_date = datetime.datetime.now(tz=pytz.UTC)

@@ -430,10 +430,10 @@ class SQL:
         fields = list(data.keys())
         if quote_values:
             quoted_value = list(
-                map(lambda x: self.quote_value(x), data.values()))
+                map(lambda x: self.quote_value(x), data.values())
+            )
             return fields, quoted_value
-        else:
-            return fields, data.values()
+        return fields, data.values()
 
     def build_script(self, *sqls):
         return '\n'.join(map(lambda x: self.finalize_sql(x), sqls))

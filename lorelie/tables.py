@@ -42,23 +42,6 @@ class AbstractTable(metaclass=BaseTable):
     def __bool__(self):
         return self.is_prepared
 
-    # def clean(self, data):
-    #     """This function is used to process the
-    #     data after his has been fully processed
-    #     and prepared to tbe sent to the database
-
-    #     >>> def process_firstname(data):
-    #     ...     # Do something here
-    #     ...     data.firstname = 'Kylie'
-    #     ...     super().clean(data)
-
-    #     >>> table = Table('celebrities', fields=[CharField('firstname')])
-    #     ... table.clean(process_firstname)
-
-    #     >>> db = Database(table)
-    #     ... db.migrate()
-    #     """
-
     # TODO: Rename this to validate_new_values
     def validate_values(self, fields, values):
         """Validate an incoming value in regards

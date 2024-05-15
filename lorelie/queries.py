@@ -119,8 +119,6 @@ class Query:
         return data in the `result_cache`"""
         self.pre_sql_setup()
 
-        print('lorelie', self.sql, '\n')
-
         try:
             result = self.backend.connection.execute(self.sql)
         except OperationalError as e:
@@ -177,13 +175,13 @@ class EmptyQuerySet:
 
     def __len__(self):
         return 0
-    
+
     def __contains__(self):
         return False
-    
+
     def __eq__(self):
         return False
-    
+
     def __gt__(self):
         return False
 
@@ -289,7 +287,7 @@ class QuerySet:
 
         if len(queryset) > 1:
             raise ValueError("Queryset returned multiple values")
-        
+
         if not queryset:
             return None
 

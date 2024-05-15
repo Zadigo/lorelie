@@ -165,7 +165,7 @@ class BaseNode:
 
     def __and__(self, node):
         return NotImplemented
-    
+
     def __call__(self, *fields):
         return NotImplemented
 
@@ -209,11 +209,16 @@ class WhereNode(BaseNode):
     def __init__(self, *args, **expressions):
         self.expressions = expressions
         self.func_expressions = list(args)
+        self.invert = False
         super().__init__()
 
     def __call__(self, *args, **kwargs):
         self.expressions.update(**kwargs)
         self.func_expressions.extend(args)
+        return self
+
+    def __invert__(self):
+        self.invert = True
         return self
 
     @property
@@ -236,7 +241,10 @@ class WhereNode(BaseNode):
         resolved.extend(joined_filters)
 
         joined_resolved = backend.operator_join(resolved)
-        return [self.template_sql.format(params=joined_resolved)]
+        if self.invert:
+            joined_resolved = f'not {joined_resolved}'
+        where_clause = self.template_sql.format(params=joined_resolved)
+        return [where_clause]
 
 
 class OrderByNode(BaseNode):

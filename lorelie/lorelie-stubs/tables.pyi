@@ -1,4 +1,5 @@
-from typing import Any, Literal, OrderedDict, Type
+from collections.abc import Callable
+from typing import Any, Literal, NamedTuple, OrderedDict, Type
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint

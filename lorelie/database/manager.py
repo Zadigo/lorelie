@@ -1,3 +1,4 @@
+import collections
 import dataclasses
 import datetime
 import inspect
@@ -9,7 +10,8 @@ import pytz
 
 from lorelie.aggregation import Avg, Count, Sum
 from lorelie.database.nodes import OrderByNode, SelectNode, WhereNode
-from lorelie.exceptions import FieldExistsError, MigrationsExistsError, TableExistsError
+from lorelie.exceptions import (FieldExistsError, MigrationsExistsError,
+                                TableExistsError)
 from lorelie.expressions import OrderBy
 from lorelie.fields.base import Value
 from lorelie.queries import Query, QuerySet
@@ -60,15 +62,19 @@ class DatabaseManager:
         or last value from the database"""
         pass
 
-    def pre_save(self, selected_table, data):
+    def pre_save(self, selected_table, fields, values):
         """Pre-save stores the pre-processed data
         into a namedtuple that is then sent to the
         `clean` method on the table which then allows
         the user to modify the data before sending it
         to the database"""
-        fields = selected_table.field_names
-        values_object = namedtuple(selected_table.name, fields)
-        return values_object(**data)
+        named = collections.namedtuple(selected_table.name, fields)
+        data_dict = {}
+        for i, field in enumerate(fields):
+            if field == 'id' or field == 'rowid':
+                continue
+            data_dict[field] = values[i]
+        return named(**data_dict)
 
     def before_action(self, table_name):
         try:
@@ -135,7 +141,8 @@ class DatabaseManager:
             quote_values=False
         )
         values = selected_table.validate_values(fields, values)
-        pre_saved_values = self.pre_save(selected_table, values)
+
+        pre_saved_values = self.pre_save(selected_table, fields, values)
 
         # TODO: Create functions for datetimes and timezones
         current_date = datetime.datetime.now(tz=pytz.UTC)
@@ -257,7 +264,7 @@ class DatabaseManager:
         query.alias_fields = list(alias_fields)
         return QuerySet(query)
 
-    def values(self, table, *args):
+    def values(self, table, *fields):
         """Returns data from the database as a list
         of dictionnary values
 
@@ -284,7 +291,7 @@ class DatabaseManager:
 
         return list(dictionnaries())
 
-    def dataframe(self, table, *args):
+    def dataframe(self, table, *fields):
         """Returns data from the database as a
         pandas DataFrame object
 
@@ -432,12 +439,53 @@ class DatabaseManager:
         query.run(commit=True)
         return QuerySet(query)
 
-    # def dates()
-    # def datetimes
+    def dates(self, table, field, field_to_sort='year', ascending=True):
+        values = self.datetimes(
+            table,
+            field,
+            field_to_sort=field_to_sort,
+            ascending=ascending
+        )
+        return list(map(lambda x: x.date(), values))
+
+    def datetimes(self, table, field, field_to_sort='year', ascending=True):
+        selected_table = self.before_action(table)
+        select_node = SelectNode(selected_table, field)
+        query = selected_table.query_class(table=selected_table)
+        query.add_sql_node(select_node)
+        query.run()
+
+        def date_iterator(row):
+            d = datetime.datetime.strptime(
+                row[field], '%Y-%m-%d %H:%M:%S.%f%z')
+            return d
+
+        dates = map(date_iterator, query.result_cache)
+        return list(dates)
+
     # def difference()
     # def earliest()
     # def latest()
-    # def exclude()
+
+    def exclude(self, table, *args, **kwargs):
+        """Selects all the values from the database
+        that match the filters
+
+        >>> db.objects.exclude(firstname='Kendall')"""
+        selected_table = self.before_action(table)
+
+        select_node = SelectNode(selected_table)
+        where_node = ~WhereNode(*args, **kwargs)
+
+        query = selected_table.query_class(table=selected_table)
+        query.add_sql_nodes([select_node, where_node])
+
+        if selected_table.ordering:
+            ordering_node = OrderByNode(
+                selected_table, *selected_table.ordering)
+            query.add_sql_node(ordering_node)
+        return QuerySet(query)
+
     # def extra()
     # def only()
     # def get_or_create(self, table, defaults={}, **kwargs):

@@ -63,6 +63,22 @@ class TestWhereNode(unittest.TestCase):
             ["where firstname='Kendall' and age>=24"]
         )
 
+    def test_call_function(self):
+        w1 = WhereNode(firstname='Kendall')
+        self.assertListEqual(
+            w1.as_sql(table.backend),
+            ["where firstname='Kendall'"]
+        )
+        new_instance = w1(lastname='Jenner')
+        self.assertListEqual(
+            w1.as_sql(table.backend),
+            ["where firstname='Kendall' and lastname='Jenner'"]
+        )
+        self.assertListEqual(
+            new_instance.as_sql(table.backend),
+            ["where firstname='Kendall' and lastname='Jenner'"]
+        )
+
 
 class TestOrderNode(unittest.TestCase):
     def test_structure(self):

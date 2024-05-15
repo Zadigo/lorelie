@@ -53,7 +53,7 @@ class SelectMap:
             nodes.extend(self.order_by.as_sql(backend))
 
         if self.limit is not None:
-            nodes.extend(self.limit.as_sql(backend))
+            nodes.extend([f'limit {self.limit}'])
 
         if self.groupby is not None:
             nodes.extend(self.groupby.as_sql(backend))
@@ -165,6 +165,9 @@ class BaseNode:
 
     def __and__(self, node):
         return NotImplemented
+    
+    def __call__(self, *fields):
+        return NotImplemented
 
     @property
     def node_name(self):
@@ -177,14 +180,17 @@ class BaseNode:
 class SelectNode(BaseNode):
     template_sql = 'select {fields} from {table}'
 
-    def __init__(self, table, *fields, distinct=False, limit=None):
+    def __init__(self, table, *fields, distinct=False):
         self.distinct = distinct
-        self.limit = limit
         super().__init__(table=table, fields=fields)
 
     @property
     def node_name(self):
         return 'select'
+
+    def __call__(self, *fields):
+        new_fields = self.fields.extend(fields)
+        return self.__class__(self.table, *new_fields, distinct=self.distinct)
 
     def as_sql(self, backend):
         sql = self.template_sql.format_map({
@@ -204,6 +210,11 @@ class WhereNode(BaseNode):
         self.expressions = expressions
         self.func_expressions = list(args)
         super().__init__()
+
+    def __call__(self, *args, **kwargs):
+        self.expressions.update(**kwargs)
+        self.func_expressions.extend(args)
+        return self
 
     @property
     def node_name(self):

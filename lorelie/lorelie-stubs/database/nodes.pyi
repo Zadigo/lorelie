@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Literal, Union
+from typing import Any, Literal, Union, overload, override
 
 from tables import Table
 
@@ -78,15 +78,16 @@ class BaseNode:
 
 class SelectNode(BaseNode):
     distinct: bool = Literal[False]
-    limit: int = ...
 
     def __init__(
         self,
         table: Table,
         *fields: str,
         distinct: bool = Literal[False],
-        limit: int = ...
     ) -> None: ...
+
+    @override
+    def __call__(self, *fields: str) -> SelectNode: ...
 
 
 class WhereNode(BaseNode):
@@ -94,6 +95,8 @@ class WhereNode(BaseNode):
     func_expressions: list[Functions] = ...
 
     def __init__(self, *args: Functions, **expressions) -> None: ...
+    @override
+    def __call__(self, *args, **kwargs) -> WhereNode: ...
 
 
 class OrderByNode(BaseNode):
@@ -107,7 +110,7 @@ class OrderByNode(BaseNode):
 
     @staticmethod
     def construct_sql(
-        backend: SQLiteBackend, 
+        backend: SQLiteBackend,
         field: str,
         ascending: bool = Literal[True]
     ) -> Union[str, None]: ...

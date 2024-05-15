@@ -90,7 +90,7 @@ class DatabaseManager:
         a database table"""
         selected_table = self.before_action(table)
 
-        select_node = SelectNode(selected_table, limit=1)
+        select_node = SelectNode(selected_table)
         orderby_node = OrderByNode(selected_table, '-id')
 
         query = self.database.query_class(table=selected_table)

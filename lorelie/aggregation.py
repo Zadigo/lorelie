@@ -49,15 +49,16 @@ class Avg(MathMixin, Functions):
     >>> database.objects.annotate('celebrities', count_of_names=Count('name'))
     """
 
+    template_sql = 'avg({field})'
+
     def python_aggregation(self, values):
         number_of_items = len(values)
         return sum(values) / number_of_items
 
     def as_sql(self, backend):
-        sql = backend.AVERAGE.format_map({
+        return backend.AVERAGE.format_map({
             'field': self.field_name
         })
-        return sql
 
 
 class Variance(MathMixin, Functions):
@@ -87,8 +88,15 @@ class StDev(MathMixin, Functions):
 
 
 class Sum(MathMixin, Functions):
+    template_sql = 'sum({field})'
+
     def python_aggregation(self, values):
         return sum(values)
+
+    def as_sql(self, backend):
+        return self.template_sql.format_map({
+            'field': self.field_name
+        })
 
 
 class MeanAbsoluteDifference(MathMixin, Functions):

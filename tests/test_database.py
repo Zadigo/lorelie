@@ -4,6 +4,7 @@ from lorelie.backends import BaseRow
 from lorelie.database.base import Database
 from lorelie.expressions import Q
 from lorelie.fields.base import CharField, IntegerField, JSONField
+from lorelie.queries import QuerySet
 from lorelie.tables import Table
 
 celebrities = [
@@ -37,95 +38,84 @@ celebrities = [
     }
 ]
 
+table = Table(
+    'celebrities',
+    ordering=['firstname'],
+    fields=[
+        CharField('firstname'),
+        CharField('lastname'),
+        IntegerField('followers'),
+        JSONField('metadata', null=True)
+    ]
+)
+db = Database(table)
+db.migrate()
+
+# Cannot test this class maybe because of
+# the async???
+
 
 class TestDatabase(unittest.TestCase):
     def setUp(self):
-        table = Table('celebrities', ordering=['firstname'], fields=[
-            CharField('firstname'),
-            CharField('lastname'),
-            IntegerField('followers'),
-            JSONField('metadata', null=True)
-        ])
-        db = Database(table)
-        db.migrate()
-
         for celebrity in celebrities:
             db.objects.create('celebrities', **celebrity)
 
-        self.db = db
-
     def test_general_structure(self):
-        self.assertTrue(self.db.in_memory)
+        self.assertTrue(db.in_memory)
 
-        table = self.db.get_table('celebrities')
+        table = db.get_table('celebrities')
 
         self.assertIsInstance(table, Table)
-        self.assertTrue(len(self.db.table_instances) > 0)
+        self.assertTrue(len(db.table_instances) > 0)
 
-    # def test_connection_manipulation(self):
-    #     self.db.objects.create(
-    #         'celebrities',
-    #         firstname='Kendall',
-    #         lastname='Jenner',
-    #         followers=10
-    #     )
-
-    #     celebrity = self.db.objects.get(
-    #         'celebrities',
-    #         firstname='Kendall'
-    #     )
-
-    #     self.assertIsInstance(celebrity, BaseRow)
-    #     self.assertIsInstance(celebrity.id, int)
-    #     self.assertTrue(celebrity.firstname == 'Kendall')
-    #     self.assertIsInstance(celebrity, BaseRow)
+    def test_is_migrated(self):
+        self.assertTrue(db.migrations.migrated)
 
     def test_all_query(self):
-        queryset = self.db.objects.all('celebrities')
-        # TODO: Should expect Queryset
-        # self.assertIsInstance(queryset, list)
-        self.assertTrue(len(queryset) == 5)
+        qs = db.objects.all('celebrities')
+        self.assertIsInstance(qs, QuerySet)
+        self.assertTrue(len(qs) == 5)
 
-        celebrity = queryset[-1]
+        celebrity = qs[-1]
         self.assertIsInstance(celebrity, BaseRow)
         self.assertIsInstance(celebrity.firstname, str)
         self.assertEqual(celebrity.firstname, 'Margot')
 
     def test_get_query(self):
-        celebrity = self.db.objects.get('celebrities', firstname='Margot')
+        celebrity = db.objects.get('celebrities', firstname='Margot')
         self.assertTrue(celebrity.firstname == 'Margot')
 
     def test_values_query(self):
-        values = self.db.objects.values('celebrities', 'id')
+        values = db.objects.values('celebrities', 'id')
         self.assertIsInstance(values, list)
         self.assertIsInstance(values[0], dict)
 
     def test_filter_query(self):
-        queryset = self.db.objects.filter(
+        qs = db.objects.filter(
             'celebrities',
             lastname__contains='Jenner'
         )
-        self.assertEqual(len(queryset), 2)
+        self.assertEqual(len(qs), 2)
 
-        queryset = self.db.objects.filter(
+        qs = db.objects.filter(
             'celebrities',
             firstname='Kylie',
             lastname='Jenner'
         )
-        self.assertEqual(len(queryset), 1)
-        self.assertIn(queryset, 'Kylie')
+        self.assertEqual(len(qs), 1)
+        self.assertIn(qs, 'Kylie')
 
-        queryset = self.db.objects.filter(
+        qs = db.objects.filter(
             'celebrities',
             Q(firstname='Kendall') | Q(lastname='Robbie')
         )
-        self.assertEqual(len(queryset), 2)
+        self.assertEqual(len(qs), 2)
 
-        queryset = self.db.objects.filter(
+        qs = db.objects.filter(
             'celebrities',
             Q(followers__gte=1000) & Q(followers__lte=5000)
         )
-        self.assertEqual(len(queryset), 2)
+        self.assertEqual(len(qs), 2)
 
 
 if __name__ == '__main__':

@@ -168,6 +168,10 @@ class BaseRow:
     def __eq__(self, value):
         return any((self[field] == value for field in self._fields))
 
+    @property
+    def pk(self):
+        return self._cached_data.get('id', None)
+
     def save(self):
         """Changes the data on the actual row
         by calling `save_row_object`
@@ -240,6 +244,7 @@ class SQL:
     DROP_INDEX = 'drop index if exists {value}'
     DELETE = 'delete from {table}'
     INSERT = 'insert into {table} ({fields}) values({values})'
+    INSERT_BULK = 'insert into {table} ({fields}) values {values}'
     SELECT = 'select {fields} from {table}'
     UPDATE = 'update {table}'
     UPDATE_SET = 'set {params}'

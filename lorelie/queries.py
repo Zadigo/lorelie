@@ -253,7 +253,20 @@ class QuerySet:
         pass
 
     def values(self, *fields):
-        return list(self.values_iterable_class(self, fields=fields))
+        results = list(self.values_iterable_class(self, fields=fields))
+
+        return_values = []
+        for result in results:
+            item = {}
+            for field in fields:
+                if field in self.query.alias_fields:
+                    value = result[field]
+
+                if self.query.table.has_field(field):
+                    value = result[field]
+                item[field] = value
+            return_values.append(item)
+        return return_values
 
     def dataframe(self, *fields):
         import pandas

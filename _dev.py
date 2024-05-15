@@ -1,18 +1,59 @@
-from fields.base import CharField
-
+import dataclasses
+from lorelie.aggregation import Count, Sum
 from lorelie.backends import SQLiteBackend
 from lorelie.database.base import Database
+from lorelie.database.nodes import OrderByNode
 from lorelie.expressions import Q
+from lorelie.fields.base import CharField, DateTimeField, IntegerField
 from lorelie.functions import Lower, Upper
 from lorelie.tables import Table
-from lorelie.database.nodes import OrderByNode
 
-# db = Database(table)
-# db.migrate()
-# product = db.objects.create('products', name='Jupe courte')
-# product = db.objects.create('products', name='Jupe longue')
+table = Table(
+    'products',
+    ordering=['-name'],
+    fields=[
+        CharField('name'),
+        IntegerField('price', default=0),
+        DateTimeField('created_on', auto_add=True)
+    ]
+)
+
+db = Database(table)
+db.migrate()
+
+
+@dataclasses.dataclass
+class Product:
+    name: str
+    price: int
+
+
+new_product = Product('Jupe moyenne', 45)
+new_product2 = Product('Manteau bleu', 45)
+
+product = db.objects.create('products', name='Jupe courte', price=10)
+product = db.objects.create('products', name='Jupe longue', price=0)
+product = db.objects.create('products', name='Jupe longue', price=45)
+# product = db.objects.create('products', new_product)
+qs = db.objects.bulk_create('products', new_product, new_product2)
+
 # product = db.objects.first('products')
 # product = db.objects.last('products')
+qs = db.objects.all('products')
+# product = db.objects.get('products', id=1)
+# qs = db.objects.order_by('products', 'name')
+# result = db.objects.aggregate('products', Count('price'), Sum('price'))
+# result = db.objects.count('products')
+# qs = db.objects.values('products', 'price', 'id')
+# qs = db.objects.distinct('products', 'name')
+# qs = db.objects.filter('products', name__contains='Jupe')
+# qs = db.objects.annotate('products', lowered=Lower('name'))
+
+# sub_qs = qs.values('id', 'lowered')
+sub_qs = qs.order_by('price')
+print(sub_qs)
+print(sub_qs.sql_statement)
+print(sub_qs.values())
 
 # qs = db.objects.filter('products', name__eq='Jupe longue')
 # qs = db.objects.filter('products', name__contains='Jupe')
@@ -41,3 +82,6 @@ from lorelie.database.nodes import OrderByNode
 # qs = db.objects.all('products').order_by('name')
 # print(qs)
 # print(qs.sql_statement)
+
+# from django.db.models import Model
+# Model.objects.bulk_create()

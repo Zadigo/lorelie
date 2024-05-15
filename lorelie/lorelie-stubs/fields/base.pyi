@@ -113,6 +113,8 @@ class AutoField(Field):
 class DateFieldMixin:
     date_format: str = ...
     python_type: Type[str] = ...
+    auto_update: bool = Literal[False]
+    auto_add: bool = Literal[False]
 
     @override
     def __init__(
@@ -134,11 +136,14 @@ class DateField(DateFieldMixin, Field):
     def to_database(self, data: str) -> datetime.date: ...
 
 
-class DateTimeField(Field):
-    pass
+class DateTimeField(DateFieldMixin, Field):
+    @override
+    def to_python(self, data: str) -> datetime.date: ...
+    @override
+    def to_database(self, data: str) -> datetime.date: ...
 
 
-class TimeField(Field):
+class TimeField(DateTimeField):
     pass
 
 

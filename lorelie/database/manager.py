@@ -1,13 +1,15 @@
+import dataclasses
 import datetime
 import inspect
 import re
+from dataclasses import is_dataclass
 from functools import partial
 
 import pytz
 
-from lorelie.aggregation import Avg, Count
+from lorelie.aggregation import Avg, Count, Sum
 from lorelie.database.nodes import OrderByNode, SelectNode, WhereNode
-from lorelie.exceptions import MigrationsExistsError, TableExistsError
+from lorelie.exceptions import FieldExistsError, MigrationsExistsError, TableExistsError
 from lorelie.expressions import OrderBy
 from lorelie.fields.base import Value
 from lorelie.queries import Query, QuerySet
@@ -166,6 +168,12 @@ class DatabaseManager:
 
         query = selected_table.query_class(table=selected_table)
         query.add_sql_nodes([select_node, where_node])
+
+        if selected_table.ordering:
+            orderby_node = OrderByNode(
+                selected_table, *selected_table.ordering)
+            query.add_sql_node(orderby_node)
+
         return QuerySet(query)
 
     def get(self, table, *args, **kwargs):
@@ -177,26 +185,6 @@ class DatabaseManager:
         """
         selected_table = self.before_action(table)
 
-        # filters = selected_table.backend.build_filters(
-        #     selected_table.backend.decompose_filters(**kwargs)
-        # )
-
-        # select_sql = self._get_select_sql(selected_table)
-        # joined_statements = selected_table.backend.operator_join(filters)
-        # where_clause = selected_table.backend.WHERE_CLAUSE.format_map({
-        #     'params': joined_statements
-        # })
-        # select_sql.extend([where_clause])
-
-        # query = self.database.query_class(
-        #     select_sql,
-        #     table=selected_table
-        # )
-        # query.run()
-
-        # if not query.result_cache:
-        #     return None
-
         select_node = SelectNode(selected_table)
         where_node = WhereNode(*args, **kwargs)
 
@@ -206,6 +194,10 @@ class DatabaseManager:
 
         if len(queryset) > 1:
             raise ValueError("Get returnd more than one value")
+
+        if not queryset:
+            return None
+
         return queryset[-0]
 
     def annotate(self, table, **kwargs):
@@ -268,6 +260,11 @@ class DatabaseManager:
         query = self.database.query_class(table=selected_table)
         query.add_sql_node(select_node)
 
+        if selected_table.ordering:
+            orderby_node = OrderByNode(
+                selected_table, *selected_table.ordering)
+            query.add_sql_node(orderby_node)
+
         queryset = QuerySet(query)
 
         def dictionnaries():
@@ -275,17 +272,6 @@ class DatabaseManager:
                 yield row._cached_data
 
         return list(dictionnaries())
-
-        # select_sql = self._get_select_sql(selected_table, columns=columns)
-        # query = self.database.query_class(select_sql, table=selected_table)
-
-        # # TODO: Improve this section
-        # def dict_iterator(values):
-        #     for row in values:
-        #         yield row._cached_data
-
-        # query.run()
-        # return list(dict_iterator(query.result_cache))
 
     def dataframe(self, table, *args):
         """Returns data from the database as a
@@ -309,14 +295,11 @@ class DatabaseManager:
         """
         selected_table = self.before_action(table)
 
-        ordering = OrderBy(fields)
-        ordering_sql = ordering.as_sql(selected_table.backend)
+        select_node = SelectNode(selected_table)
+        order_by_node = OrderByNode(selected_table, *fields)
 
-        select_sql = self._get_select_sql(selected_table)
-        select_sql.extend(ordering_sql)
-
-        query = selected_table.query_class(select_sql, table=selected_table)
-        query.run()
+        query = selected_table.query_class(table=selected_table)
+        query.add_sql_nodes([select_node, order_by_node])
         return QuerySet(query)
 
     def aggregate(self, table, *args, **kwargs):
@@ -338,24 +321,25 @@ class DatabaseManager:
         # will implement in the kwargs
         none_aggregate_functions = []
         for function in functions:
-            if not isinstance(function, (Count, Avg)):
+            if not isinstance(function, (Count, Avg, Sum)):
                 none_aggregate_functions.count(function)
                 continue
             kwargs[function.aggregate_name] = function
 
         if none_aggregate_functions:
-            raise ValueError("Aggregate requires aggregate functions")
+            raise ValueError(
+                "Aggregate requires aggregate functions"
+            )
 
         aggregate_sqls = []
         annotation_map = selected_table.backend.build_annotation(**kwargs)
         aggregate_sqls.extend(annotation_map.joined_final_sql_fields)
 
-        select_sql = self._get_select_sql(
-            selected_table,
-            columns=aggregate_sqls
-        )
+        select_node = SelectNode(selected_table, *aggregate_sqls)
 
-        query = self.database.query_class(select_sql, table=selected_table)
+        query = selected_table.query_class(table=selected_table)
+        query.add_sql_node(select_node)
+        query.alias_fields = annotation_map.alias_fields
         query.run()
         return getattr(query.result_cache[0], '_cached_data', {})
 
@@ -383,15 +367,60 @@ class DatabaseManager:
         >>> db.objects.distinct('celebrities', 'firstname')
         """
         selected_table = self.before_action(table)
-        select_sql = self._get_select_sql(
-            selected_table,
-            columns=columns,
-            distinct=True
-        )
-        query = self.database.query_class(select_sql, table=selected_table)
+        select_node = SelectNode(selected_table, *columns, distinct=True)
+        query = selected_table.query_class(table=selected_table)
+        query.add_sql_node(select_node)
+        if selected_table.ordering:
+            ordering_node = OrderByNode(
+                selected_table, *selected_table.ordering)
+            query.add_sql_node(ordering_node)
         return QuerySet(query)
 
-    # def bulk_create(self, *objs):
+    def bulk_create(self, table, *objs):
+        selected_table = self.before_action(table)
+        invalid_objects_counter = 0
+        for obj in objs:
+            if not is_dataclass(obj):
+                invalid_objects_counter = invalid_objects_counter + 1
+                continue
+
+        if invalid_objects_counter > 0:
+            raise ValueError("Expected a set of dataclasses")
+
+        for obj in objs:
+            fields = dataclasses.fields(obj)
+            for field in fields:
+                if not selected_table.has_field(field.name):
+                    raise FieldExistsError(field, selected_table)
+
+        columns_to_use = set()
+        values_to_create = []
+        for obj in objs:
+            values = []
+            dataclass_fields = dataclasses.fields(obj)
+            for dataclass_field in dataclass_fields:
+                if dataclass_field not in columns_to_use:
+                    columns_to_use.add(dataclass_field.name)
+
+                field = selected_table.get_field(dataclass_field.name)
+                field_value = getattr(obj, dataclass_field.name)
+                field_value = field.to_database(field_value)
+                # field_value = selected_table.backend.quote_value(field_value)
+                values.append(field_value)
+            values_to_create.append(tuple(values))
+
+        values_to_create = list(map(lambda x: str(x), values_to_create))
+
+        create_sql = selected_table.backend.INSERT_BULK.format_map({
+            'table': selected_table.name,
+            'fields': selected_table.backend.comma_join(columns_to_use),
+            'values': selected_table.backend.comma_join(values_to_create)
+        })
+        query = selected_table.query_class(table=selected_table)
+        query.add_sql_node(create_sql)
+        query.run(commit=True)
+        return QuerySet(query)
+
     # def dates()
     # def datetimes
     # def difference()

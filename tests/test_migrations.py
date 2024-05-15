@@ -56,7 +56,7 @@ class TestMigrations(unittest.TestCase):
         db = Database()
         self.instance = Migrations(db)
 
-    def test_migrated(self):
+    def test_is_migrated(self):
         self.assertFalse(self.instance.migrated)
 
     @unittest.expectedFailure

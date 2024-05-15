@@ -320,8 +320,8 @@ class DateTimeField(DateFieldMixin, Field):
     date_format = '%Y-%m-%d %H:%M:%S.%f'
 
 
-class TimeField(Field):
-    pass
+class TimeField(DateTimeField):
+    date_format = '%H:%M:%S'
 
 
 class EmailField(CharField):

@@ -60,6 +60,16 @@ class DatabaseManager:
         or last value from the database"""
         pass
 
+    def pre_save(self, selected_table, data):
+        """Pre-save stores the pre-processed data
+        into a namedtuple that is then sent to the
+        `clean` method on the table which then allows
+        the user to modify the data before sending it
+        to the database"""
+        fields = selected_table.field_names
+        values_object = namedtuple(selected_table.name, fields)
+        return values_object(**data)
+
     def before_action(self, table_name):
         try:
             table = self.table_map[table_name]

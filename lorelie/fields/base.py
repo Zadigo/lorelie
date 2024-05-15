@@ -76,8 +76,8 @@ class Field:
 
         if not isinstance(data, self.python_type):
             raise ValueError(
-                f"{type(data)} should be an instance "
-                f"of {self.python_type}"
+                f"{type(data)} for column '{self.name}' "
+                f"should be an instance of {self.python_type}"
             )
         self.run_validators(data)
         # TODO: Why convert this to python
@@ -149,6 +149,7 @@ class CharField(Field):
     def to_python(self, data):
         if data is None:
             return data
+
         return self.python_type(data)
 
     def to_database(self, data):

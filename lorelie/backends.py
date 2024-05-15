@@ -313,6 +313,14 @@ class SQL:
 
         if value.startswith("'"):
             return value
+
+        # To handle special characters like 
+        # single quotes ('), we have to escape 
+        # them by doubling them up for the final 
+        # sql string
+        if "'" in value:
+            value = value.replace("'", "''")
+
         return f"'{value}'"
 
     @staticmethod

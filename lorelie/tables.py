@@ -42,6 +42,23 @@ class AbstractTable(metaclass=BaseTable):
     def __bool__(self):
         return self.is_prepared
 
+    # def clean(self, data):
+    #     """This function is used to process the
+    #     data after his has been fully processed
+    #     and prepared to tbe sent to the database
+
+    #     >>> def process_firstname(data):
+    #     ...     # Do something here
+    #     ...     data.firstname = 'Kylie'
+    #     ...     super().clean(data)
+
+    #     >>> table = Table('celebrities', fields=[CharField('firstname')])
+    #     ... table.clean(process_firstname)
+
+    #     >>> db = Database(table)
+    #     ... db.migrate()
+    #     """
+
     # TODO: Rename this to validate_new_values
     def validate_values(self, fields, values):
         """Validate an incoming value in regards
@@ -59,8 +76,9 @@ class AbstractTable(metaclass=BaseTable):
             except KeyError:
                 raise FieldExistsError(field, self)
 
+            value = list(values)[i]
             validated_value = self.backend.quote_value(
-                field.to_database(list(values)[i])
+                field.to_database(value)
             )
             validated_values.append(validated_value)
         return validated_values
@@ -117,7 +135,8 @@ class Table(AbstractTable):
             #     raise ValueError(f'{field} should be an instance of Field')
 
             if field.name in non_authorized_names:
-                raise ValueError(f'Invalid name "{field.name}" for field: {field}')
+                raise ValueError(f'Invalid name "{
+                                 field.name}" for field: {field}')
 
             # Identify the date fields that require either
             # an auto_update or auto_add. Which means that

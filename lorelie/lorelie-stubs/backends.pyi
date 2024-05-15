@@ -2,7 +2,7 @@ import dataclasses
 import re
 import sqlite3
 from sqlite3 import Cursor, Row
-from typing import Any, Callable, List, Literal, Tuple, Union
+from typing import Any, Callable, DefaultDict, List, Literal, Tuple, Union
 
 from lorelie.functions import Functions
 from lorelie.queries import Query, QuerySet
@@ -95,7 +95,7 @@ class SQL:
     WILDCARD_SINGLE: str = ...
 
     ASCENDING: str = ...
-    DESCENDNIG: str = ...
+    DESCENDING: str = ...
 
     ORDER_BY: str = ...
     GROUP_BY: str = ...
@@ -173,6 +173,9 @@ class SQL:
         self,
         **conditions: Functions
     ) -> AnnotationMap: ...
+
+    def decompose_sql_statement(
+        self, sql: str) -> DefaultDict[str, list[tuple[str, st]]]: ...
 
 
 class SQLiteBackend(SQL):

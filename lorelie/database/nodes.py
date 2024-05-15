@@ -16,6 +16,9 @@ multiple nodes together
 
 
 import dataclasses
+import re
+from collections import defaultdict
+
 from lorelie.expressions import CombinedExpression, Q
 
 
@@ -231,16 +234,31 @@ class OrderByNode(BaseNode):
     def __init__(self, table, *fields):
         self.ascending = set()
         self.descending = set()
-
-        if not isinstance(fields, (list, tuple)):
-            raise ValueError(
-                "Ordering fields should be a list "
-                "of field names on your table"
-            )
-        
-        fields = list(fields)
         super().__init__(table=table, fields=fields)
-        self.map_fields()
+
+        for field in self.fields:
+            if not isinstance(field, str):
+                raise ValueError(
+                    "Field should be of type <str>"
+                )
+
+            result = re.match(r'^(\-)?(\w+)$', field)
+            if result:
+                sign, name = result.groups()
+
+                if (name in self.ascending or
+                        name in self.descending):
+                    raise ValueError(
+                        "The field has been registered twice in "
+                        "ascending or descending fields"
+                    )
+
+                if sign:
+                    self.descending.add(name)
+                else:
+                    self.ascending.add(name)
+
+        self.cached_fields = list(self.ascending.union(self.descending))
 
     @property
     def node_name(self):
@@ -252,42 +270,31 @@ class OrderByNode(BaseNode):
     def __and__(self, node):
         if not isinstance(node, OrderByNode):
             return NotImplemented
+
         other_fields = set(node.fields)
         other_fields.update(self.fields)
         return node.__class__(self.table, *list(other_fields))
-    
-    def map_fields(self):
-        for field in self.fields:
-            if field.startswith('-'):
-                field = field.removeprefix('-')
-                self.descending.add(field)
-            else:
-                self.ascending.add(field)
+
+    @staticmethod
+    def construct_sql(backend, field, ascending=True):
+        if field == '*':
+            return None
+
+        if ascending:
+            return backend.ASCENDING.format_map({'field': field})
+        else:
+            return backend.DESCENDING.format_map({'field': field})
 
     def as_sql(self, backend):
-        conditions = []
-
-        for field in self.ascending:
-            if field == '*':
-                continue
-
-            conditions.append(
-                backend.ASCENDING.format_map({'field': field})
-            )
-
-        for field in self.descending:
-            if field == '*':
-                continue
-
-            conditions.append(
-                backend.DESCENDNIG.format_map({'field': field})
-            )
-
-        if not conditions:
-            return []
-
+        ascending_fields = map(
+            lambda x: self.construct_sql(backend, x),
+            self.ascending
+        )
+        descending_fields = map(
+            lambda x: self.construct_sql(backend, x, ascending=False),
+            self.descending
+        )
+        conditions = list(ascending_fields) + list(descending_fields)
         fields = backend.comma_join(conditions)
         ordering_sql = backend.ORDER_BY.format_map({'conditions': fields})
         return [ordering_sql]
-        # joined_fields = backend.comma_join(self.fields)
-        # return [self.template_sql.format(fields=joined_fields)]

@@ -6,6 +6,7 @@ from tables import Table
 from lorelie.backends import SQLiteBackend
 from lorelie.functions import Functions
 
+
 @dataclasses.dataclass
 class SelectMap:
     select: type[SelectNode] = None
@@ -31,7 +32,7 @@ class RawSQL:
     select_map: SelectMap = ...
 
     def __init__(
-        self, backend: SQLiteBackend, 
+        self, backend: SQLiteBackend,
         *
         nodes: Union[str, BaseNode]
     ) -> None: ...
@@ -98,9 +99,15 @@ class WhereNode(BaseNode):
 class OrderByNode(BaseNode):
     ascending: set = ...
     descending: set = ...
+    cached_fields: list[str] = ...
 
     def __init__(self, table: Table, *fields: str) -> None: ...
     def __hash__(self) -> int: ...
     def __and__(self, node) -> OrderByNode: ...
 
-    def map_fields(self) -> None: ...
+    @staticmethod
+    def construct_sql(
+        backend: SQLiteBackend, 
+        field: str,
+        ascending: bool = Literal[True]
+    ) -> Union[str, None]: ...

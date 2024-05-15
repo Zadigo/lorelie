@@ -3,7 +3,7 @@ import sqlite3
 from sqlite3 import OperationalError
 
 from lorelie.aggregation import Count
-from lorelie.database.nodes import BaseNode, SelectMap, WhereNode
+from lorelie.database.nodes import BaseNode, SelectMap, WhereNode, OrderByNode
 
 
 class Query:
@@ -154,16 +154,19 @@ class ValuesIterable:
         self.fields = fields
 
     def __iter__(self):
-        self.queryset.load_cache()
+        for row in self.queryset:
+            yield row._cached_data
 
-        if not self.fields:
-            self.fields = self.queryset.query._table.field_names
+        # self.queryset.load_cache()
 
-        for row in self.queryset.result_cache:
-            result = {}
-            for field in self.fields:
-                result[field] = row[field]
-            yield result
+        # if not self.fields:
+        #     self.fields = self.queryset.query._table.field_names
+
+        # for row in self.queryset.result_cache:
+        #     result = {}
+        #     for field in self.fields:
+        #         result[field] = row[field]
+        #     yield result
 
 
 class QuerySet:
@@ -257,7 +260,11 @@ class QuerySet:
         return pandas.DataFrame(self.values(*fields))
 
     def order_by(self, *fields):
-        pass
+        orderby_node = OrderByNode(self.query.table, *fields)
+        if not self.query.is_evaluated:
+            self.query.add_sql_node(orderby_node)
+        return self.__class__(self.query)
+
     #     ascending_fields = set()
     #     descending_fields = set()
 
@@ -288,7 +295,7 @@ class QuerySet:
     #         for field in ascending_fields
     #     ]
     #     descending_statements = [
-    #         self.query._backend.DESCENDNIG.format_map({'field': field})
+    #         self.query._backend.DESCENDING.format_map({'field': field})
     #         for field in descending_fields
     #     ]
     #     final_statement = ascending_statements + descending_statements

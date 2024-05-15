@@ -4,6 +4,7 @@ import inspect
 import itertools
 import re
 import sqlite3
+from collections import defaultdict, namedtuple
 from dataclasses import field
 
 import pytz
@@ -260,7 +261,7 @@ class SQL:
     WILDCARD_SINGLE = '_'
 
     ASCENDING = '{field} asc'
-    DESCENDNIG = '{field} desc'
+    DESCENDING = '{field} desc'
 
     ORDER_BY = 'order by {conditions}'
     GROUP_BY = 'group by {conditions}'
@@ -614,6 +615,53 @@ class SQL:
                 )
 
         return annotation_map
+
+    def decompose_sql_statement(self, sql):
+        regexes = {
+            'select': {
+                'columns': re.compile(r'^select\s(.*)\sfrom'),
+                'table': re.compile(r'from\s(\w+)'),
+                'where': re.compile(r'where\s(.*)\s?'),
+                'group_by': re.compile(r'group\sby\s(.*)\s?'),
+                'order_by': re.compile(r'order\sby\s(.*)\s?'),
+                'limit': re.compile(r'limit\s(\d+)\s?')
+            }
+        }
+
+        @dataclasses.dataclass
+        class StatementMap:
+            columns: list = dataclasses.field(default_factory=list)
+            table: str = None
+            where: list = dataclasses.field(default_factory=list)
+            group_by: list = dataclasses.field(default_factory=list)
+            order_by: list = dataclasses.field(default_factory=list)
+            limit: int = None
+
+            def __setitem__(self, key, value):
+                setattr(self, key, value)
+
+        sql_bits = defaultdict(list)
+        for name, values in regexes.items():
+            if not name in sql:
+                continue
+
+            bits = sql_bits[name]
+            for key, regex in values.items():
+                result = regex.match(sql)
+
+                if not result:
+                    result = regex.search(sql)
+
+                if not result:
+                    continue
+
+                statement_map = StatementMap()
+                tokens = result.group(1).split(',')
+                tokens = list(map(lambda x: x.strip(), tokens))
+
+                statement_map[key] = tokens
+                bits.append((key, tokens))
+        return sql_bits
 
 
 class SQLiteBackend(SQL):

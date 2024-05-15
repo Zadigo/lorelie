@@ -1,3 +1,4 @@
+from collections import defaultdict
 import dataclasses
 import sqlite3
 import unittest
@@ -191,6 +192,21 @@ class TestSQLiteBackend(unittest.TestCase):
                 'count(name) as name']
         )
         self.assertTrue(annotation_map.requires_grouping)
+
+    def test_decompose_sql(self):
+        bits = self.backend.decompose_sql_statement(
+            'select *, name from celebrities'
+        )
+        self.assertIsInstance(bits, defaultdict)
+        select_map = bits['select']
+        column, values = select_map[0]
+        self.assertEqual(column, 'columns')
+        self.assertListEqual(values, ['*', 'name'])
+
+        bits = self.backend.decompose_sql_statement(
+            "select *, name from celebrities where name like 'kend%'"
+        )
+        print(bits)
 
 
 class TestCore(unittest.TestCase):

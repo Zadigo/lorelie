@@ -131,7 +131,7 @@ class OrderBy(BaseExpression):
 
         for field in self.descending:
             conditions.append(
-                backend.DESCENDNIG.format_map({'field': field})
+                backend.DESCENDING.format_map({'field': field})
             )
 
         fields = backend.comma_join(conditions)

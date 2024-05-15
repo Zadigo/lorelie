@@ -234,26 +234,23 @@ class DatabaseManager:
         alias_fields = list(kwargs.keys())
         base_return_fields = ['rowid', '*']
         annotation_map = selected_table.backend.build_annotation(**kwargs)
-        annotation_sql = selected_table.backend.comma_join(
+        annotated_sql_fields = selected_table.backend.comma_join(
             annotation_map.joined_final_sql_fields
         )
-        base_return_fields.append(annotation_sql)
+        base_return_fields.append(annotated_sql_fields)
 
-        select_sql = self._get_select_sql(
-            selected_table,
-            columns=base_return_fields
-        )
+        select_node = SelectNode(selected_table, *base_return_fields)
 
-        if annotation_map.requires_grouping:
-            grouping_fields = set(annotation_map.field_names)
-            groupby_sql = selected_table.backend.GROUP_BY.format_map({
-                'conditions': selected_table.backend.comma_join(grouping_fields)
-            })
-            select_sql.append(groupby_sql)
+        query = self.database.query_class(table=selected_table)
+        query.add_sql_nodes([select_node])
 
-        # TODO: Create a query and only run it when
-        # we need with QuerySet for the other functions
-        query = self.database.query_class(select_sql, table=selected_table)
+        # if annotation_map.requires_grouping:
+        #     grouping_fields = set(annotation_map.field_names)
+        #     groupby_sql = selected_table.backend.GROUP_BY.format_map({
+        #         'conditions': selected_table.backend.comma_join(grouping_fields)
+        #     })
+        #     query.select_map.group_by = groupby_sql
+
         query.alias_fields = list(alias_fields)
         return QuerySet(query)
 
@@ -267,16 +264,28 @@ class DatabaseManager:
         selected_table = self.before_action(table)
 
         columns = list(args) or ['rowid', '*']
-        select_sql = self._get_select_sql(selected_table, columns=columns)
-        query = self.database.query_class(select_sql, table=selected_table)
+        select_node = SelectNode(selected_table, *columns)
+        query = self.database.query_class(table=selected_table)
+        query.add_sql_node(select_node)
 
-        # TODO: Improve this section
-        def dict_iterator(values):
-            for row in values:
+        queryset = QuerySet(query)
+
+        def dictionnaries():
+            for row in queryset:
                 yield row._cached_data
 
-        query.run()
-        return list(dict_iterator(query.result_cache))
+        return list(dictionnaries())
+
+        # select_sql = self._get_select_sql(selected_table, columns=columns)
+        # query = self.database.query_class(select_sql, table=selected_table)
+
+        # # TODO: Improve this section
+        # def dict_iterator(values):
+        #     for row in values:
+        #         yield row._cached_data
+
+        # query.run()
+        # return list(dict_iterator(query.result_cache))
 
     def dataframe(self, table, *args):
         """Returns data from the database as a

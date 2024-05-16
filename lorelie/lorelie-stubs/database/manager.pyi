@@ -70,7 +70,7 @@ class DatabaseManager:
     ) -> list[datetime.date]: ...
 
     def datetimes(
-        self, 
+        self,
         table: str,
         field: str,
         field_to_sort=Literal['year'],
@@ -84,11 +84,25 @@ class DatabaseManager:
     def only(self, table: str, *fields) -> QuerySet[BaseRow]: ...
     def exclude(self, table: str, *args, **kwargs) -> QuerySet[BaseRow]: ...
     def extra(self, table: str) -> QuerySet[BaseRow]: ...
-    def get_or_create(self, table: str) -> Union[BaseRow, QuerySet]: ...
+
+    def get_or_create(
+        self, table: str,
+        defaults: dict = ...,
+        conflict_field: str = ...,
+        **kwargs
+    ) -> Union[BaseRow, QuerySet]: ...
+
     def select_for_update(self, table: str) -> QuerySet[BaseRow]: ...
     def select_related(self, table: str) -> QuerySet[BaseRow]: ...
     def fetch_related(self, table: str) -> QuerySet[BaseRow]: ...
-    def update_or_create(self, table: str) -> QuerySet: ...
+
+    def update_or_create(
+        self, table: str,
+        update_defaults: dict = ...,
+        create_defaults: dict = ...,
+        conflict_field: str = ...,
+        **kwargs
+    ) -> QuerySet: ...
 
     def resolve_expression(
         self,

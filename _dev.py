@@ -11,6 +11,7 @@ from lorelie.tables import Table
 table = Table(
     'products',
     ordering=['-name'],
+    str_field='name',
     fields=[
         CharField('name'),
         IntegerField('price', default=0),
@@ -34,7 +35,16 @@ new_product2 = Product('Manteau bleu', 45)
 product = db.objects.create('products', name='Jupe courte', price=10)
 product = db.objects.create('products', name='Jupe longue', price=0)
 product = db.objects.create('products', name='Jupe longue', price=45)
-print(product)
+
+# db.objects.update_or_create(
+#     'products',
+#     update_defaults={'price': 45},
+#     create_defaults={'name': 'Goola', 'price': 14},
+#     conflict_field='name',
+#     name='Jupe courte'
+# )
+# print(db.objects.values('products', 'id', 'name'))
+
 # product = db.objects.create('products', new_product)
 # qs = db.objects.bulk_create('products', new_product, new_product2)
 

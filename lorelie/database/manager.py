@@ -14,7 +14,7 @@ from lorelie.exceptions import (FieldExistsError, MigrationsExistsError,
                                 TableExistsError)
 from lorelie.expressions import OrderBy
 from lorelie.fields.base import Value
-from lorelie.queries import Query, QuerySet
+from lorelie.queries import Query, QuerySet, ValuesIterable
 
 
 class DatabaseManager:
@@ -275,7 +275,8 @@ class DatabaseManager:
         """
         selected_table = self.before_action(table)
 
-        columns = list(args) or ['rowid', '*']
+        # columns = list(fields) or ['rowid', '*']
+        columns = list(fields)
         select_node = SelectNode(selected_table, *columns)
         query = self.database.query_class(table=selected_table)
         query.add_sql_node(select_node)
@@ -287,11 +288,12 @@ class DatabaseManager:
 
         queryset = QuerySet(query)
 
-        def dictionnaries():
-            for row in queryset:
-                yield row._cached_data
+        # def dictionnaries():
+        #     for row in queryset:
+        #         yield row._cached_data
 
-        return list(dictionnaries())
+        # return list(dictionnaries())
+        return list(ValuesIterable(queryset, fields=columns))
 
     def dataframe(self, table, *fields):
         """Returns data from the database as a
@@ -506,7 +508,78 @@ class DatabaseManager:
     # def select_for_update()
     # def select_related()
     # def fetch_related()
-    # def update_or_create()
+
+    def update_or_create(self, table, update_defaults={}, create_defaults={}, conflict_field=None, **kwargs):
+        """Updates a set of rows in the database selected on the
+        filters determined by kwargs and then uses the `update_defaults`
+        parameter to update existing values or the `create_defaults`
+        dictionnary to create the values that do not exist. If `create_defaults`
+        is not specified, this function will do nothing on the conflictual fields
+
+        >>> update_defaults = {'age': 24}
+        ... create_defaults = {'firstname': 'Margot', 'lastname': 'Robbie', 'age': 24}
+        ... db.objects.update_or_create('celebrities', update_defaults=update_defaults, create_defaults=create_defaults, firstname='Margot')
+        """
+        selected_table = self.before_action(table)
+
+        update_fields, update_values = selected_table.backend.dict_to_sql(
+            update_defaults
+        )
+        quoted_update_values = selected_table.backend.quote_values(
+            update_values
+        )
+
+        upsert_sql = selected_table.backend.UPSERT.format_map({
+            'table': selected_table.name,
+            'fields': selected_table.backend.comma_join(update_fields),
+            'values': selected_table.backend.comma_join(quoted_update_values)
+        })
+
+        query = selected_table.query_class(table=selected_table)
+        query.add_sql_nodes([upsert_sql])
+
+        if create_defaults:
+            create_fields, create_values = selected_table.backend.dict_to_sql(
+                create_defaults
+            )
+            quoted_update_values = selected_table.backend.quote_values(
+                create_values
+            )
+
+            set_params = []
+            for i, field in enumerate(create_fields):
+                set_params.append(selected_table.backend.EQUALITY.format_map({
+                    'field': field,
+                    'value': create_values[i]
+                }))
+
+            update_set_params = selected_table.backend.comma_join(set_params)
+
+            lookup_params = selected_table.backend.decompose_filters(**kwargs)
+            built_lookup_params = selected_table.backend.build_filters(
+                lookup_params,
+                space_characters=False
+            )
+
+            if conflict_field is None:
+                if update_fields:
+                    conflict_field = update_fields[0]
+
+                if create_fields:
+                    conflict_field = create_fields[0]
+                raise ValueError('No conflict field was specified')
+
+            upsert_condition_sql = selected_table.backend.UPSERT_CONDITION.format_map({
+                'conflict_field': conflict_field,
+                'create_values': update_set_params,
+                'conditions': selected_table.backend.operator_join(built_lookup_params)
+            })
+            query.add_sql_node(upsert_condition_sql)
+        else:
+            query.add_sql_node('do nothing')
+
+        return QuerySet(query)
+
     # def resolve_expression()
 
 

@@ -248,6 +248,8 @@ class SQL:
     SELECT = 'select {fields} from {table}'
     UPDATE = 'update {table}'
     UPDATE_SET = 'set {params}'
+    UPSERT = 'insert into {table} ({fields}) values({values}) on conflict'
+    UPSERT_CONDITION = '({conflict_field}) do update set {create_values} where {conditions}'
     REPLACE = 'replace into {table} ({fields}) values({values})'
 
     AND = 'and {rhv}'
@@ -280,7 +282,7 @@ class SQL:
     COUNT = 'count({field})'
     STRFTIME = 'strftime({format}, {value})'
 
-    CHECK_CONSTRAINT = 'check ({conditions})'
+    CHECK_CONSTRAINT = 'check({conditions})'
 
     CASE = 'case {field} {conditions} end {alias}'
     WHEN = 'when {condition} then {value}'
@@ -331,7 +333,7 @@ class SQL:
             value = value.replace("'", "''")
 
         return f"'{value}'"
-
+    
     @staticmethod
     def comma_join(values):
         def check_integers(value):
@@ -396,6 +398,10 @@ class SQL:
         """Returns the alias statement for a given sql
         statement like in `count(name) as top_names`"""
         return f'{condition} as {alias}'
+
+    def quote_values(self, values):
+        """Quotes multiple values at once"""
+        return list(map(lambda x: self.quote_value(x), values))
 
     def quote_startswith(self, value):
         """Creates a startswith wildcard and returns

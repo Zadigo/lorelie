@@ -36,6 +36,27 @@ class TestTable(unittest.TestCase):
     def test_fields_constraints(self):
         pass
 
+    def test_field_types(self):
+        self.assertDictEqual(
+            self.table.field_types, 
+            {'firstname': 'text', 'lastname': 'text', 'followers': 'integer'}
+        )
+
+        # When we have mixed type fields, we have to determine
+        # how to resovle the resulting value from these mixed
+        # elements so that we can get a consistent result
+        state = self.table.compare_field_types(
+            CharField('firstname'),
+            CharField('lastname')
+        )
+        self.assertFalse(state)
+
+        state = self.table.compare_field_types(
+            CharField('firstname'),
+            IntegerField('age')
+        )
+        self.assertTrue(state)
+
     def test_build_field_parameters(self):
         parameters = self.table.build_field_parameters()
         self.assertListEqual(

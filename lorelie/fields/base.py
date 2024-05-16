@@ -1,10 +1,13 @@
 import datetime
 import json
+import string
+import re
 from urllib.parse import unquote, urlparse
 
 from lorelie.constraints import MaxLengthConstraint
 from lorelie.exceptions import ValidationError
-from lorelie.validators import MaxValueValidator, MinValueValidator, url_validator
+from lorelie.validators import (MaxValueValidator, MinValueValidator,
+                                url_validator)
 
 
 class Field:
@@ -13,7 +16,7 @@ class Field:
 
     def __init__(self, name, *, max_length=None, null=False, primary_key=False, default=None, unique=False, validators=[]):
         self.constraints = []
-        self.name = name
+        self.name = self.validate_field_name(name)
         self.null = null
         self.primary_key = primary_key
         self.default = default
@@ -21,6 +24,7 @@ class Field:
         self.table = None
         self.max_length = max_length
         self.base_validators = self.base_validators + validators
+        self.standard_field_types = ['text', 'integer', 'blob', 'real', 'null']
         self.base_field_parameters = {
             'primary key': False,
             'null': False,
@@ -46,6 +50,26 @@ class Field:
     @property
     def field_type(self):
         return 'text'
+
+    @property
+    def is_standard_field_type(self):
+        return self.field_type in self.standard_field_types
+
+    @staticmethod
+    def validate_field_name(name):
+        result = re.search(r'^(\w+\_?)+$', name)
+        if not result:
+            raise ValueError(
+                "Field name is not a valid name and contains "
+                f"invalid carachters: {name}"
+            )
+
+        result = re.search(r'\s?', name)
+        if result:
+            raise ValueError(
+                "Field name contains invalid spaces"
+            )
+        return name.lower()
 
     @classmethod
     def create(cls, name, params):
@@ -137,9 +161,11 @@ class Field:
         if not isinstance(table, Table):
             raise ValueError(f"{table} should be an instance of Table")
 
+        # Register the constraints present
+        # on the field at the table level
         for instance in self.constraints:
             table.field_constraints[self.name] = instance
-
+        
         self.table = table
 
     def deconstruct(self):
@@ -198,9 +224,17 @@ class IntegerField(Field):
 class FloatField(Field):
     python_type = float
 
+    @property
+    def field_type(self):
+        return 'float'
+
 
 class JSONField(Field):
     python_type = dict
+
+    @property
+    def field_type(self):
+        return 'dict'
 
     def to_python(self, data):
         if data is None:
@@ -227,6 +261,10 @@ class JSONField(Field):
 class BooleanField(Field):
     truth_types = ['true', 't', 1, '1']
     false_types = ['false', 'f', 0, '0']
+
+    @property
+    def field_type(self):
+        return 'bool'
 
     def to_python(self, data):
         if data in self.truth_types:
@@ -299,6 +337,10 @@ class DateField(DateFieldMixin, Field):
     current date every time a value is updated
     """
 
+    @property
+    def field_type(self):
+        return 'datetime.date'
+
     def to_python(self, data):
         if data is None or data == '':
             return data
@@ -321,9 +363,17 @@ class DateTimeField(DateFieldMixin, Field):
     """
     date_format = '%Y-%m-%d %H:%M:%S.%f'
 
+    @property
+    def field_type(self):
+        return 'datetime.datetime'
+
 
 class TimeField(DateTimeField):
     date_format = '%H:%M:%S'
+
+    @property
+    def field_type(self):
+        return 'datetime.time'
 
 
 class EmailField(CharField):
@@ -338,7 +388,7 @@ class SlugField(CharField):
     pass
 
 
-class UUIDField(Field):
+class UUIDField(CharField):
     pass
 
 

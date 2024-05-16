@@ -154,16 +154,18 @@ class DatabaseManager:
 
         joined_fields = selected_table.backend.comma_join(fields)
         joined_values = selected_table.backend.comma_join(values)
-        sql = selected_table.backend.INSERT.format(
+        insert_sql = selected_table.backend.INSERT.format(
             table=selected_table.name,
             fields=joined_fields,
             values=joined_values
         )
 
         query = self.database.query_class(table=selected_table)
-        query.add_sql_nodes([sql])
-        query.run(commit=True)
-        return self.last(table)
+        # See: https://www.sqlitetutorial.net/sqlite-returning/
+        query.add_sql_nodes([insert_sql, 'returning *'])
+        query.run(commit=False)
+        # return self.last(table)
+        return query.return_single_item
 
     def filter(self, table, *args, **kwargs):
         """Filter the data in the database based on
@@ -504,24 +506,8 @@ class DatabaseManager:
     # def select_for_update()
     # def select_related()
     # def fetch_related()
-    # def update(self, table, **kwargs):
-    #     """Updates multiples rows in the database at once
-
-    #     >>> db.objects.update('celebrities', firstname='Kendall')
-    #     """
-    #     selected_table = self.before_action(table)
-
-    #     update_sql = selected_table.backend.UPDTATE.format_map({
-    #         table: selected_table.name
-    #     })
-
-    #     columns_to_set = []
-    #     columns, values = selected_table.backend.dict_to_sql(kwargs)
     # def update_or_create()
     # def resolve_expression()
-
-    # async def async_all(self, table):
-    #     return await sync_to_async(self.all)(table)
 
 
 class ForeignTablesManager:

@@ -68,6 +68,10 @@ class Query:
         instance.backend.connection.commit()
         instance.result_cache = list(result)
         return instance
+    
+    @property
+    def return_single_item(self):
+        return self.result_cache[-0]
 
     def add_sql_node(self, node):
         if not isinstance(node, (BaseNode, str)):

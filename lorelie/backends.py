@@ -303,7 +303,16 @@ class SQL:
         'range': 'between',
         'ne': '!=',
         'in': 'in',
-        'isnull': 'isnull'
+        'isnull': 'isnull',
+        'regex': 'regexp',
+        'day': '',
+        'month': '',
+        'iso_year': '',
+        'year': '',
+        'minute': '',
+        'second': '',
+        'hour': '',
+        'time': ''
     }
 
     @staticmethod

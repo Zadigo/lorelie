@@ -34,7 +34,7 @@ new_product2 = Product('Manteau bleu', 45)
 product = db.objects.create('products', name='Jupe courte', price=10)
 product = db.objects.create('products', name='Jupe longue', price=0)
 product = db.objects.create('products', name='Jupe longue', price=45)
-
+print(product)
 # product = db.objects.create('products', new_product)
 # qs = db.objects.bulk_create('products', new_product, new_product2)
 

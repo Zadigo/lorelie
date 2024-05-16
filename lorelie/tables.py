@@ -1,10 +1,8 @@
 import re
-import inspect
 from collections import OrderedDict
 
 from lorelie.backends import SQLiteBackend
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
-from lorelie.expressions import OrderBy
 from lorelie.fields.base import (AutoField, DateField, DateTimeField, Field,
                                  IntegerField)
 from lorelie.queries import Query
@@ -13,14 +11,16 @@ from lorelie.queries import Query
 class BaseTable(type):
     def __new__(cls, name, bases, attrs):
         super_new = super().__new__
+
         if 'prepare' in attrs:
             new_class = super_new(cls, name, bases, attrs)
             cls.prepare(new_class)
             return new_class
+        
         return super_new(cls, name, bases, attrs)
 
     @classmethod
-    def prepare(cls, database):
+    def prepare(cls, table):
         pass
 
 
@@ -32,6 +32,7 @@ class AbstractTable(metaclass=BaseTable):
     def __init__(self):
         self.backend = None
         self.is_prepared = False
+        self.field_types = OrderedDict()
 
     def __hash__(self):
         return hash((self.name, self.verbose_name, *self.field_names))
@@ -41,6 +42,22 @@ class AbstractTable(metaclass=BaseTable):
 
     def __bool__(self):
         return self.is_prepared
+
+    @staticmethod
+    def validate_table_name(name):
+        result = re.search(r'^(\w+\_?)+$', name)
+        if not result:
+            raise ValueError(
+                "Table name is not a valid name and contains "
+                f"invalid carachters: {name}"
+            )
+
+        result = re.search(r'\s?', name)
+        if result:
+            raise ValueError(
+                "Table name contains invalid spaces"
+            )
+        return name.lower()
 
     # TODO: Rename this to validate_new_values
     def validate_values(self, fields, values):
@@ -94,7 +111,7 @@ class Table(AbstractTable):
     """
 
     def __init__(self, name, *, fields=[], index=[], constraints=[], ordering=[], str_field='id'):
-        self.name = name
+        self.name = self.validate_table_name(name)
         self.verbose_name = name.lower().title()
         self.indexes = index
         self.table_constraints = constraints
@@ -118,8 +135,10 @@ class Table(AbstractTable):
             #     raise ValueError(f'{field} should be an instance of Field')
 
             if field.name in non_authorized_names:
-                raise ValueError(f'Invalid name "{
-                                 field.name}" for field: {field}')
+                raise ValueError(
+                    f'Invalid name "{field.name}" '
+                    f'for field: {field}'
+                )
 
             # Identify the date fields that require either
             # an auto_update or auto_add. Which means that
@@ -132,7 +151,14 @@ class Table(AbstractTable):
                 if field.auto_update:
                     self.auto_update_fields.add(field.name)
 
+            self.field_types[field.name] = field.field_type
+
             field.prepare(self)
+            # If the user uses the same keys multiple
+            # times, leave the error for him to resolve
+            # since this will just override the first
+            # apparition of the duplicate field multiple
+            # times in the map
             self.fields_map[field.name] = field
 
         # Automatically create an ID field and set
@@ -181,6 +207,22 @@ class Table(AbstractTable):
                 )
         return super().__getattribute__(name)
 
+    @staticmethod
+    def compare_field_types(*fields):
+        """Compare the different field types
+        and check if we are dealing with
+        mixed types"""
+        unique_types = set()
+        odd_types = set()
+
+        for field in fields:
+            unique_types.add(field.field_type)
+
+            if field.field_type in unique_types:
+                odd_types.add(field.field_type)
+
+        return len(odd_types) > 1
+
     def _add_field(self, field_name, field):
         """Internala function to add a field on the
         database. Returns the newly constructued
@@ -195,6 +237,7 @@ class Table(AbstractTable):
             raise ValueError("Field is already present on the database")
 
         self.fields_map[field_name] = field
+
         field_params = self.build_field_parameters()
         field_params = [
             self.backend.simple_join(params)

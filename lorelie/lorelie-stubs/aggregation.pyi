@@ -50,3 +50,11 @@ class MeanAbsoluteDifference(MathMixin, Functions):
 class CoefficientOfVariation(MathMixin, Functions):
     @override
     def python_aggregation(self, values: list[int]) -> Union[int, float]: ...
+
+
+class Max(Functions):
+    ...
+
+
+class Min(Functions):
+    ...

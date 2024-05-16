@@ -1,10 +1,25 @@
 from typing import (Any, Callable, Literal, Tuple, Type, TypedDict, Union, Unpack,
-                    override)
+                    override, TypeVar)
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import MaxLengthConstraint
 from lorelie.tables import Table
 import datetime
+
+OutputFieldOptions = TypeVar(
+    'OutputFieldOptions',
+    CharField,
+    DateTimeField,
+    DateField,
+    EmailField,
+    FilePathField,
+    FloatField,
+    IntegerField,
+    JSONField,
+    SlugField,
+    UUIDField,
+    URLField
+)
 
 
 class FieldOptions(TypedDict):
@@ -18,6 +33,7 @@ class FieldOptions(TypedDict):
 class Field:
     python_type: Type[Union[str, bool, list, dict]] = ...
     base_validators: list[Callable[[Union[str, int]], None]]
+    standard_field_types: list[str] = ...
     base_constraints: list[MaxLengthConstraint] = ...
     name: str = ...
     null: bool = ...
@@ -47,6 +63,12 @@ class Field:
     @property
     def field_type(self) -> str: ...
 
+    @property
+    def is_standard_field_type(self) -> bool: ...
+
+    @staticmethod
+    def validate_field_name(name: str) -> str: ...
+
     @classmethod
     def create(
         cls,
@@ -63,7 +85,9 @@ class Field:
 
 
 class CharField(Field):
-    ...
+    @override
+    @property
+    def field_type(self) -> Literal['text']: ...
 
 
 class IntegerField(Field):
@@ -71,6 +95,7 @@ class IntegerField(Field):
     min_value: int = ...
     max_value: int = ...
 
+    @override
     def __init__(
         self,
         name: str,
@@ -80,13 +105,23 @@ class IntegerField(Field):
         **kwargs: Unpack[FieldOptions]
     ) -> None: ...
 
+    @override
+    @property
+    def field_type(self) -> Literal['integer']: ...
+
 
 class FloatField(Field):
-    pass
+    @override
+    @property
+    def field_type(self) -> Literal['float']: ...
 
 
 class JSONField(Field):
     python_type: Type[dict] = ...
+
+    @override
+    @property
+    def field_type(self) -> Literal['dict']: ...
 
     @override
     def to_python(self, data: str) -> dict: ...
@@ -100,13 +135,17 @@ class BooleanField(Field):
     false_types: list[Union[str, int]] = ...
 
     @override
+    @property
+    def field_type(self) -> Literal['bool']: ...
+
+    @override
     def to_python(self, data: Union[str, bool]) -> bool: ...
 
     @override
     def to_database(self, data: Union[str, bool]) -> int: ...
 
 
-class AutoField(Field):
+class AutoField(IntegerField):
     python_type: Type[int] = ...
 
 
@@ -131,48 +170,74 @@ class DateFieldMixin:
 
 class DateField(DateFieldMixin, Field):
     @override
+    @property
+    def field_type(self) -> Literal['datetime.date']: ...
+
+    @override
     def to_python(self, data: str) -> datetime.date: ...
+
     @override
     def to_database(self, data: str) -> datetime.date: ...
 
 
 class DateTimeField(DateFieldMixin, Field):
     @override
+    @property
+    def field_type(self) -> Literal['datetime.datetime']: ...
+
+    @override
     def to_python(self, data: str) -> datetime.date: ...
+
     @override
     def to_database(self, data: str) -> datetime.date: ...
 
 
 class TimeField(DateTimeField):
-    pass
+    @override
+    @property
+    def field_type(self) -> Literal['datetime.time']: ...
 
 
 class EmailField(CharField):
-    pass
+    ...
 
 
 class FilePathField(CharField):
-    pass
+    ...
 
 
 class SlugField(CharField):
-    pass
+    ...
 
 
 class UUIDField(Field):
-    pass
+    ...
+
+
+class URLField(CharField):
+    ...
 
 
 class Value:
-    output_field: Union[CharField, IntegerField,
-                        DateTimeField, DateField, JSONField]
+    output_field: Union[
+        CharField,
+        DateTimeField,
+        DateField,
+        EmailField,
+        FilePathField,
+        FloatField,
+        IntegerField,
+        JSONField,
+        SlugField,
+        UUIDField,
+        URLField
+    ]
     value: Any = ...
 
     def __init__(
         self,
         value: Any,
-        output_field: Union[CharField, IntegerField,
-                            DateTimeField, DateField, JSONField] = ...
+        output_field: OutputFieldOptions = ...
     ) -> None: ...
 
     def __repr__(self) -> str: ...

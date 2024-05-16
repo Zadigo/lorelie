@@ -52,7 +52,7 @@ class AbstractTable(metaclass=BaseTable):
                 f"invalid carachters: {name}"
             )
 
-        result = re.search(r'\s?', name)
+        result = re.search(r'\s+', name)
         if result:
             raise ValueError(
                 "Table name contains invalid spaces"
@@ -184,6 +184,9 @@ class Table(AbstractTable):
             self.field_names == table.field_names
         ])
 
+    def __contains__(self, value):
+        return value in self.field_names
+
     def __setattr__(self, name, value):
         if name == 'name':
             if re.search(r'\W', value):
@@ -192,9 +195,6 @@ class Table(AbstractTable):
                     "such as _, -, @ or %"
                 )
         return super().__setattr__(name, value)
-
-    def __contains__(self, value):
-        return value in self.field_names
 
     def __getattribute__(self, name):
         if name == 'backend':
@@ -212,16 +212,14 @@ class Table(AbstractTable):
         """Compare the different field types
         and check if we are dealing with
         mixed types"""
-        unique_types = set()
-        odd_types = set()
+        seen_types = []
 
         for field in fields:
-            unique_types.add(field.field_type)
+            seen_types.append(field.field_type)
 
-            if field.field_type in unique_types:
-                odd_types.add(field.field_type)
+        unique_types = set(seen_types)
 
-        return len(odd_types) > 1
+        return len(unique_types) > 1
 
     def _add_field(self, field_name, field):
         """Internala function to add a field on the

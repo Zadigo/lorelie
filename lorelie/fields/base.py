@@ -40,12 +40,16 @@ class Field:
         return f'<{self.__class__.__name__}[{self.name}]>'
 
     def __hash__(self):
-        return hash((self.name))
+        return hash((self.name, self.field_type))
 
     def __eq__(self, value):
         if not isinstance(value, Field):
             return NotImplemented
-        return self.name == value.name
+        
+        return any([
+            self.name == value.name,
+            self.field_type == value.field_type
+        ])
 
     @property
     def field_type(self):
@@ -57,17 +61,17 @@ class Field:
 
     @staticmethod
     def validate_field_name(name):
-        result = re.search(r'^(\w+\_?)+$', name)
+        result = re.match(r'^(\w+\_?)+$', name)
         if not result:
             raise ValueError(
                 "Field name is not a valid name and contains "
                 f"invalid carachters: {name}"
             )
 
-        result = re.search(r'\s?', name)
+        result = re.search(r'\s+', name)
         if result:
             raise ValueError(
-                "Field name contains invalid spaces"
+                f'Field name "{name}" contains invalid spaces'
             )
         return name.lower()
 

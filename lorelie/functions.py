@@ -12,6 +12,13 @@ class Functions:
     def __str__(self):
         return f'<{self.__class__.__name__}({self.field_name})>'
 
+    @property
+    def alias_field_name(self):
+        """Potential alias name that can be used
+        if this function is not used via an 
+        explicit alias"""
+        return f'{self.__class__.__name__.lower()}_{self.field_name}'
+
     @staticmethod
     def create_function():
         return NotImplemented
@@ -64,61 +71,6 @@ class Length(Functions):
         return self.template_sql.format_map({
             'field': self.field_name
         })
-
-
-class Max(Functions):
-    """Returns the max value of a given column
-
-    >>> db.objects.annotate('celebrities',  max_id=Max('id'))
-    """
-
-    template_sql = 'max({field})'
-
-    def as_sql(self, backend):
-        # SELECT rowid, * FROM seen_urls WHERE rowid = (SELECT max(rowid) FROM seen_urls)
-        select_clause = backend.SELECT.format_map({
-            'fields': backend.comma_join(['rowid', '*']),
-            'table': backend.table.name
-        })
-        subquery_clause = backend.SELECT.format_map({
-            'fields': backend.MAX.format_map({'field': self.field_name}),
-            'table': backend.table.name
-        })
-        where_condition = backend.EQUALITY.format_map({
-            'field': self.field_name,
-            'value': backend.wrap_parenthentis(subquery_clause)
-        })
-        where_clause = backend.WHERE_CLAUSE.format_map({
-            'params': where_condition
-        })
-        return backend.simple_join([select_clause, where_clause])
-
-
-class Min(Functions):
-    """Returns the min value of a given column
-
-    >>> db.objects.annotate('celebrities',  min_id=Min('id'))
-    """
-
-    template_sql = 'min({field})'
-
-    def as_sql(self, backend):
-        select_clause = backend.SELECT.format_map({
-            'fields': backend.comma_join(['rowid', '*']),
-            'table': backend.table.name
-        })
-        subquery_clause = backend.SELECT.format_map({
-            'fields': backend.MIN.format_map({'field': self.field_name}),
-            'table': backend.table.name
-        })
-        where_condition = backend.EQUALITY.format_map({
-            'field': self.field_name,
-            'value': backend.wrap_parenthentis(subquery_clause)
-        })
-        where_clause = backend.WHERE_CLAUSE.format_map({
-            'params': where_condition
-        })
-        return backend.simple_join([select_clause, where_clause])
 
 
 class ExtractDatePartsMixin(Functions):
@@ -222,6 +174,52 @@ class SHA256Hash(MD5Hash):
         return callback
 
 
+class Trim(Functions):
+    template_sql = 'trim({field})'
+
+    def as_sql(self, backend):
+        return self.template_sql.format(field=self.field_name)
+
+
+class LTrim(Trim):
+    template_sql = 'ltrim({field})'
+
+
+class RTrim(Trim):
+    template_sql = 'rtrim({field})'
+
+
+class SubStr(Functions):
+    template_sql = 'substr({field}, {start}, {end})'
+
+    def __init__(self, field_name, start, end):
+        self.start = start
+        self.end = end
+        super().__init__(field_name)
+
+    def as_sql(self, backend):
+        return self.template_sql.format_map({
+            'field': self.field_name,
+            'start': self.start,
+            'end': self.end
+        })
+
+
+class Concat(Functions):
+    template_sql = 'concat({fields})'
+
+    def __init__(self, *fields):
+        self.fields = list(fields)
+        super().__init__()
+
+    @property
+    def alias_field_name(self):
+        return None
+
+    def as_sql(self, backend):
+        return backend.comma_join(self.fields)
+
+
 # Extract,
 # ,
 # ,
@@ -278,24 +276,24 @@ class SHA256Hash(MD5Hash):
 # SHA384,
 # SHA512,
 # Chr,
-# Concat,
+# ,
 # ConcatPair,
 # Left,
 # Length,
-# Lower,
+# ,
 # LPad,
-# LTrim,
+# ,
 # Ord,
 # Repeat,
 # Replace,
 # Reverse,
 # Right,
 # RPad,
-# RTrim,
+# ,
 # StrIndex,
-# Substr,
-# Trim,
-# Upper,
+# ,
+# ,
+# ,
 
 
 # CumeDist,

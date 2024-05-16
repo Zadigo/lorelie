@@ -90,6 +90,7 @@ class BaseRow:
         table = getattr(self._backend, 'current_table', None)
         self.linked_to_table = getattr(table, 'name', None)
         self.updated_fields = {}
+        self.pk = getattr(self, 'rowid', getattr(self, 'id', None))
 
         for key, value in self._cached_data.items():
             setattr(self, key, value)
@@ -99,10 +100,10 @@ class BaseRow:
         # of the value a given column e.g. <id: 1> which can
         # be changed for example to <id: Kendall Jenner> if the
         # user chooses to use that column to represent the column
-        str_field = self._backend.current_table.str_field or 'id'
+        str_field = self._backend.current_table.str_field or self.pk
         # The rowid is not necessarily implemented by default in the
-        # sqlite database. Hence why we test for the id field
-        name_to_show = getattr(self, 'rowid', getattr(self, str_field, None))
+        # created sqlite tables. Hence why we test for the id field
+        name_to_show = getattr(self, str_field, None) or self.pk
         if name_to_show is None:
             # There might be situations where the user
             # restricts the amount of fields to return
@@ -148,7 +149,7 @@ class BaseRow:
         super().__setattr__(name, value)
 
     def __hash__(self):
-        return hash((self.id))
+        return hash((self.pk))
 
     def __contains__(self, value):
         # Check that a value exists in
@@ -168,9 +169,10 @@ class BaseRow:
     def __eq__(self, value):
         return any((self[field] == value for field in self._fields))
 
-    @property
-    def pk(self):
-        return self._cached_data.get('id', None)
+    # @property
+    # def pk(self):
+    #     # return self._cached_data.get('id', None)
+    #     return getattr(self, 'rowid', getattr(self, 'id', None))
 
     def save(self):
         """Changes the data on the actual row
@@ -726,7 +728,9 @@ class SQLiteBackend(SQL):
 
     def list_table_columns_sql(self, table):
         sql = f'pragma table_info({table.name})'
-        query = Query([sql], table=table)
+        # query = Query([sql], table=table)
+        query = Query(table=table)
+        query.add_sql_node(sql)
         query.run()
         return query.result_cache
 
@@ -799,7 +803,8 @@ class SQLiteBackend(SQL):
     def list_table_indexes(self, table):
         # sql = f'PRAGMA index_list({self.quote_value(table.name)})'
         sql = f'PRAGMA index_list({table.name})'
-        query = Query([sql], table=table)
+        query = Query(table=table)
+        query.add_sql_node([[sql]])
         query.run()
         return QuerySet(query, skip_transform=True)
 
@@ -838,7 +843,8 @@ class SQLiteBackend(SQL):
             })
         })
 
-        query = Query([update_sql, update_set, where_sql], backend=self)
+        query = Query(backend=self)
+        query.add_sql_nodes([update_sql, update_set, where_sql])
         query.run(commit=True)
         return query
 
@@ -856,6 +862,7 @@ class SQLiteBackend(SQL):
             })
         })
 
-        query = Query([delete_sql, where_sql], backend=self)
+        query = Query(backend=self)
+        query.add_sql_nodes([delete_sql, where_sql])
         query.run(commit=True)
         return query

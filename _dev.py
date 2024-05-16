@@ -1,7 +1,9 @@
 import dataclasses
+
 from lorelie.aggregation import Count, Sum
 from lorelie.backends import SQLiteBackend
 from lorelie.database.base import Database
+from lorelie.database.indexes import Index
 from lorelie.database.nodes import OrderByNode
 from lorelie.expressions import Q
 from lorelie.fields.base import CharField, DateTimeField, IntegerField
@@ -12,6 +14,9 @@ table = Table(
     'products',
     ordering=['-name'],
     str_field='name',
+    index=[
+        Index('product_name', 'name')
+    ],
     fields=[
         CharField('name'),
         IntegerField('price', default=0),
@@ -19,7 +24,7 @@ table = Table(
     ]
 )
 
-db = Database(table)
+db = Database(table, name='test_database')
 db.migrate()
 
 
@@ -32,10 +37,11 @@ class Product:
 new_product = Product('Jupe moyenne', 45)
 new_product2 = Product('Manteau bleu', 45)
 
-product = db.objects.create('products', name='Jupe courte', price=10)
-product = db.objects.create('products', name='Jupe longue', price=0)
-product = db.objects.create('products', name='Jupe longue', price=45)
+# product = db.objects.create('products', name='Jupe courte', price=10)
+# product = db.objects.create('products', name='Jupe longue', price=0)
+# product = db.objects.create('products', name='Jupe longue', price=45)
 
+print(db.objects.filter('products', name__contains='courte').values('name'))
 # db.objects.update_or_create(
 #     'products',
 #     update_defaults={'price': 45},

@@ -162,10 +162,13 @@ class DatabaseManager:
 
         query = self.database.query_class(table=selected_table)
         # See: https://www.sqlitetutorial.net/sqlite-returning/
-        query.add_sql_nodes([insert_sql, 'returning *'])
-        query.run(commit=False)
-        # return self.last(table)
-        return query.return_single_item
+        # query.add_sql_nodes([insert_sql, 'returning *'])
+        # query.run(commit=True)
+        # return query.return_single_item
+        
+        query.add_sql_nodes([insert_sql])
+        query.run(commit=True)
+        return self.last(table)
 
     def filter(self, table, *args, **kwargs):
         """Filter the data in the database based on

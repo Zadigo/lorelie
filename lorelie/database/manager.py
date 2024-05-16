@@ -14,6 +14,7 @@ from lorelie.exceptions import (FieldExistsError, MigrationsExistsError,
                                 TableExistsError)
 from lorelie.expressions import OrderBy
 from lorelie.fields.base import Value
+from lorelie.functions import Functions
 from lorelie.queries import Query, QuerySet, ValuesIterable
 
 
@@ -223,7 +224,7 @@ class DatabaseManager:
 
         return queryset[-0]
 
-    def annotate(self, table, **kwargs):
+    def annotate(self, table, *args, **kwargs):
         """Annotations implements the usage of
         functions in the query
 
@@ -245,6 +246,14 @@ class DatabaseManager:
         ... instance.objects.annotate('celebrities', alt_name=case)
         """
         selected_table = self.before_action(table)
+
+        for func in args:
+            if not isinstance(func, Functions):
+                raise ValueError('Func should be an instnae of Functions')
+            kwargs.update({func.alias_field_name: func})
+
+        if not kwargs:
+            return self.all(table)
 
         alias_fields = list(kwargs.keys())
         base_return_fields = ['rowid', '*']

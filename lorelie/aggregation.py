@@ -122,3 +122,58 @@ class CoefficientOfVariation(MathMixin, Functions):
             stdev_instance.python_aggregation(values) /
             average_instance.python_aggregation(values)
         )
+
+
+class Max(Functions):
+    """Returns the max value of a given column
+
+    >>> db.objects.annotate('celebrities',  max_id=Max('id'))
+    """
+
+    template_sql = 'max({field})'
+
+    def as_sql(self, backend):
+        # SELECT rowid, * FROM seen_urls WHERE rowid = (SELECT max(rowid) FROM seen_urls)
+        select_clause = backend.SELECT.format_map({
+            'fields': backend.comma_join(['rowid', '*']),
+            'table': backend.table.name
+        })
+        subquery_clause = backend.SELECT.format_map({
+            'fields': backend.MAX.format_map({'field': self.field_name}),
+            'table': backend.table.name
+        })
+        where_condition = backend.EQUALITY.format_map({
+            'field': self.field_name,
+            'value': backend.wrap_parenthentis(subquery_clause)
+        })
+        where_clause = backend.WHERE_CLAUSE.format_map({
+            'params': where_condition
+        })
+        return backend.simple_join([select_clause, where_clause])
+
+
+class Min(Functions):
+    """Returns the min value of a given column
+
+    >>> db.objects.annotate('celebrities',  min_id=Min('id'))
+    """
+
+    template_sql = 'min({field})'
+
+    def as_sql(self, backend):
+        select_clause = backend.SELECT.format_map({
+            'fields': backend.comma_join(['rowid', '*']),
+            'table': backend.table.name
+        })
+        subquery_clause = backend.SELECT.format_map({
+            'fields': backend.MIN.format_map({'field': self.field_name}),
+            'table': backend.table.name
+        })
+        where_condition = backend.EQUALITY.format_map({
+            'field': self.field_name,
+            'value': backend.wrap_parenthentis(subquery_clause)
+        })
+        where_clause = backend.WHERE_CLAUSE.format_map({
+            'params': where_condition
+        })
+        return backend.simple_join([select_clause, where_clause])

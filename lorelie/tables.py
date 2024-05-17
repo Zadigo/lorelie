@@ -117,6 +117,7 @@ class Table(AbstractTable):
         self.indexes = index
         self.table_constraints = constraints
         self.field_constraints = {}
+        self.is_foreign_key_table = False
         # The str_field is the name of the
         # field to be used for representing
         # the column in the BaseRow

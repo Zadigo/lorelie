@@ -778,7 +778,8 @@ class SQLiteBackend(SQL):
                 'table': table.name,
                 'params': self.simple_join(statements)
             })
-            query = Query([alter_sql], table=table)
+            query = Query(table=table)
+            query.add_sql_nodes([alter_sql])
             query.run(commit=True)
 
     def list_tables_sql(self):

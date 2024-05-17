@@ -33,6 +33,7 @@ class AbstractTable(metaclass=BaseTable):
         self.backend = None
         self.is_prepared = False
         self.field_types = OrderedDict()
+        self.database = None
 
     def __hash__(self):
         return hash((self.name, self.verbose_name, *self.field_names))

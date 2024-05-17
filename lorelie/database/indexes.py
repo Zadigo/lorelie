@@ -2,8 +2,14 @@ import secrets
 
 
 class Index:
-    """Used for creating and index on the database
-    on certain fields
+    """Used to create an index in the database, enhancing 
+    the performance of queries on specified fields.
+
+    An index is a database object that helps speed up the retrieval 
+    of rows by using pointers. Indexes are created on database tables 
+    and can significantly enhance the performance of data retrieval 
+    operations by allowing the database to find rows more quickly 
+    and efficiently.
 
     >>> table = Table('celebrities', index=[Index('index_name', 'firstname')])
     """

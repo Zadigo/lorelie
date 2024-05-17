@@ -1,23 +1,21 @@
-
-
 class BaseExpression:
-    template = None
-
-    def __init__(self):
-        self.backend = None
-        self.sql_statement = None
+    template_sql = None
 
     def as_sql(self, backend):
         return NotImplemented
 
 
 class NegatedExpression(BaseExpression):
-    template = 'not {expression}'
+    template_sql = 'not {expression}'
 
 
 class When(BaseExpression):
+    """Represents a conditional expression in an SQL query. 
+    It defines a condition and the corresponding value when 
+    the condition is met.
+    """
+    
     def __init__(self, condition, then_case, **kwargs):
-        super().__init__()
         self.condition = condition
         self.then_case = then_case
         self.field_name = None
@@ -41,12 +39,15 @@ class When(BaseExpression):
 
 
 class Case(BaseExpression):
+    """Represents a conditional expression in an SQL query. 
+    It evaluates multiple conditions and returns a value 
+    based on the first condition that is met."""
+
     CASE = 'case {conditions}'
     CASE_ELSE = 'else {value}'
     CASE_END = 'end {alias}'
 
     def __init__(self, *cases, default=None):
-        super().__init__()
         self.field_name = None
         self.alias_name = None
         self.default = default
@@ -88,10 +89,10 @@ class Case(BaseExpression):
 
 
 class OrderBy(BaseExpression):
-    """Creates an order by SQL clause
-    for an existing expression"""
+    """Represents an ORDER BY SQL clause 
+    to specify the sorting of query results."""
 
-    template = 'order by {conditions}'
+    template_sql = 'order by {conditions}'
 
     def __init__(self, fields):
         self.ascending = set()
@@ -104,7 +105,6 @@ class OrderBy(BaseExpression):
             )
         self.fields = list(fields)
         self.map_fields()
-        super().__init__()
 
     def __bool__(self):
         return len(self.fields) > 0
@@ -211,6 +211,20 @@ class CombinedExpression:
 
 
 class Q(BaseExpression):
+    """Represents a filter expression within SQL queries, 
+    employed within the `WHERE` clause for example
+    to define complex filter conditions.
+    
+    >>> Q(firstname="Kendall") & Q(lastname="Jenner")
+
+    The expression above expression results in a logical AND operation
+    between two Q instances, where each instance represents a filter condition.
+
+    >>> Q(firstname="Kendall") | Q(lastname="Jenner")
+
+    The above expression results in a logical OR operation.
+    """
+
     def __init__(self, **expressions):
         self.expressions = expressions
 

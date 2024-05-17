@@ -7,10 +7,13 @@ from lorelie.database.nodes import BaseNode, OrderByNode, SelectMap, WhereNode
 
 
 class Query:
-    """This class represents an sql statement query
-    and is responsible for executing the query on the
-    database. The return data is stored on
-    the `result_cache`
+    """This class represents an SQL statement query and is responsible for executing 
+    the query on the database. It handles the retrieval of data, which is then stored 
+    in the `result_cache` attribute for subsequent use. 
+    
+    The class offers methods for executing multiple queries against the database, running scripts, 
+    and preparing statements before sending them to the database. It also includes functionality 
+    to transform the retrieved data into Python objects.
     """
 
     def __init__(self, table=None, backend=None):
@@ -198,6 +201,10 @@ class EmptyQuerySet:
 
 
 class QuerySet:
+    """Represents a set of results obtained from executing an SQL query. 
+    It provides methods for manipulating and retrieving data from the database
+    """
+    
     def __init__(self, query, skip_transform=False):
         if not isinstance(query, Query):
             raise ValueError(f"{query} should be an instance of Query")

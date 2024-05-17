@@ -1,4 +1,5 @@
 from collections.abc import Callable
+import sqlite3
 from typing import Any, Literal, override
 
 from lorelie.backends import SQLiteBackend
@@ -17,7 +18,7 @@ class Functions:
     def alias_field_name(self) -> str: ...
 
     @staticmethod
-    def create_function() -> Callable[[int, float, str], Any]: ...
+    def create_function(connection: sqlite3.Connection) -> None: ...
 
     def as_sql(self, backend: SQLiteBackend) -> list[str]: ...
 

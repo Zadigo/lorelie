@@ -8,7 +8,8 @@ from functools import partial
 
 import pytz
 
-from lorelie.aggregation import Avg, Count, Sum
+from lorelie.aggregation import (Avg, Count, MeanAbsoluteDifference, StDev,
+                                 Sum, Variance, CoefficientOfVariation, Max, Min)
 from lorelie.database.nodes import OrderByNode, SelectNode, WhereNode
 from lorelie.exceptions import (FieldExistsError, MigrationsExistsError,
                                 TableExistsError)
@@ -155,18 +156,22 @@ class DatabaseManager:
 
         joined_fields = selected_table.backend.comma_join(fields)
         joined_values = selected_table.backend.comma_join(values)
-        insert_sql = selected_table.backend.INSERT.format(
-            table=selected_table.name,
-            fields=joined_fields,
-            values=joined_values
-        )
 
         query = self.database.query_class(table=selected_table)
         # See: https://www.sqlitetutorial.net/sqlite-returning/
         # query.add_sql_nodes([insert_sql, 'returning *'])
         # query.run(commit=True)
         # return query.return_single_item
-        
+
+        #     select_node = SelectNode(selected_table, 'id', *joined_values)
+        #     where_node = WhereNode(id__eq=1)
+
+        insert_sql = selected_table.backend.INSERT.format(
+            table=selected_table.name,
+            fields=joined_fields,
+            values=joined_values
+        )
+
         query.add_sql_nodes([insert_sql])
         query.run(commit=True)
         return self.last(table)
@@ -355,7 +360,7 @@ class DatabaseManager:
         # will implement in the kwargs
         none_aggregate_functions = []
         for function in functions:
-            if not isinstance(function, (Count, Avg, Sum)):
+            if not isinstance(function, (Count, Avg, Sum, MeanAbsoluteDifference, CoefficientOfVariation, Variance, StDev, Max, Min)):
                 none_aggregate_functions.count(function)
                 continue
             kwargs[function.aggregate_name] = function
@@ -596,26 +601,91 @@ class DatabaseManager:
 
 
 class ForeignTablesManager:
-    def __init__(self, left_table, right_table, manager, reversed=False):
-        self.manager = manager
-        self.reversed = reversed
-        self.left_table = manager.database.get_table(left_table)
-        self.right_table = manager.database.get_table(right_table)
-        relationships = getattr(manager.database, 'relationships', None)
-        self.lookup_name = f'{left_table}_{right_table}'
-        self.relationship = relationships[self.lookup_name]
+    def __init__(self, right_table_name, left_table, reverse=False):
+        self.reverse = reverse
+        self.left_table = left_table
+        self.right_table = left_table.database.get_table(right_table_name)
 
-    def __getattr__(self, name):
-        methods = {}
-        for name, value in self.manager.__dict__:
-            if value.startswith('__'):
-                continue
+        if not self.right_table.is_foreign_key_table:
+            raise ValueError(
+                "Trying to access a table which has no "
+                "foreign key relationship with the related "
+                f"table: {right_table_name} <- {left_table}"
+            )
+        self.relatationship_name = f'{
+            self.left_table.name}_{self.right_table.name}'
+        relationships = getattr(left_table.database, 'relationships')
+        self.relationship = relationships[self.relatationship_name]
+        self.database_manager = getattr(self.left_table.database, 'objects')
+        self.current_row = None
 
-            if inspect.ismethod(value):
-                methods[name] = value
-        try:
-            method = methods[name]
-        except KeyError:
-            raise AttributeError('Method does not exist')
-        else:
-            return partial(method, table=self.right_table.name)
+    def __repr__(self):
+        direction = '->'
+        if self.reverse:
+            direction = '<-'
+        return f'<{self.__class__.__name__} [from {direction} to]>'
+
+    # def __getattr__(self, name):
+    #     methods = {}
+    #     for name, value in self.manager.__dict__:
+    #         if value.startswith('__'):
+    #             continue
+
+    #         if inspect.ismethod(value):
+    #             methods[name] = value
+    #     try:
+    #         method = methods[name]
+    #     except KeyError:
+    #         raise AttributeError('Method does not exist')
+    #     else:
+    #         return partial(method, table=self.right_table.name)
+
+    def all(self):
+        select_node = SelectNode(self.right_table)
+        query = Query(table=self.right_table)
+        query.add_sql_node(select_node)
+        return QuerySet(query)
+
+    def last(self):
+        select_node = SelectNode(self.right_table)
+        orderby_node = OrderByNode(self.right_table, '-id')
+
+        query = self.right_table.database.query_class(table=self.right_table)
+        query.add_sql_nodes([select_node, orderby_node])
+        queryset = QuerySet(query)
+        return queryset[-0]
+
+    def create(self, **kwargs):
+        fields, values = self.right_table.backend.dict_to_sql(
+            kwargs,
+            quote_values=False
+        )
+        values = self.right_table.validate_values(fields, values)
+
+        # pre_saved_values = self.pre_save(self.right_table, fields, values)
+
+        # TODO: Create functions for datetimes and timezones
+        current_date = datetime.datetime.now(tz=pytz.UTC)
+        if self.right_table.auto_add_fields:
+            for field in self.right_table.auto_add_fields:
+                fields.append(field)
+                date = self.right_table.backend.quote_value(str(current_date))
+                values.append(date)
+
+        fields.insert(0, self.relationship.backward_related_field)
+        values.insert(0, self.current_row.id)
+
+        joined_fields = self.right_table.backend.comma_join(fields)
+        joined_values = self.right_table.backend.comma_join(values)
+
+        query = self.right_table.database.query_class(table=self.right_table)
+
+        insert_sql = self.right_table.backend.INSERT.format(
+            table=self.right_table.name,
+            fields=joined_fields,
+            values=joined_values
+        )
+
+        query.add_sql_nodes([insert_sql])
+        query.run(commit=True)
+        return self.last()

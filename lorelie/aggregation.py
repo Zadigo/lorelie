@@ -27,8 +27,12 @@ class MathMixin:
         return self.python_aggregation(list(iterator()))
 
     def as_sql(self, backend):
+        name_or_function = None
+        if isinstance(self.field_name, Functions):
+            name_or_function = self.field_name.as_sql(backend)
+
         return self.template_sql.format_map({
-            'field': self.field_name
+            'field': name_or_function or self.field_name
         })
 
 

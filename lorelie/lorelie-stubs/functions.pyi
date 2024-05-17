@@ -63,7 +63,23 @@ class MD5Hash(Functions):
     ...
 
 
-class SHA256Hash(Functions):
+class SHA1Hash(MD5Hash):
+    ...
+
+
+class SHA224Hash(MD5Hash):
+    ...
+
+
+class SHA256Hash(MD5Hash):
+    ...
+
+
+class SHA384Hash(MD5Hash):
+    ...
+
+
+class SHA512Hash(MD5Hash):
     ...
 
 

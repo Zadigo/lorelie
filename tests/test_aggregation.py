@@ -5,6 +5,7 @@ from lorelie.aggregation import (Avg, CoefficientOfVariation, Count, Max,
                                  Variance)
 from lorelie.backends import SQLiteBackend
 from lorelie.fields.base import IntegerField
+from lorelie.functions import Length
 from lorelie.tables import Table
 
 backend = SQLiteBackend()
@@ -13,6 +14,7 @@ table.backend = backend
 backend.set_current_table(table)
 
 # select rowid, * from celebrities where age=(select max(age) from celebrities)
+
 
 class TestAggregation(unittest.TestCase):
     def test_max_aggregation(self):
@@ -69,4 +71,7 @@ class TestAggregation(unittest.TestCase):
         expected_sql = "meanabsdifference(age)"
         self.assertEqual(sql, expected_sql)
 
-
+    def test_nested_aggregation(self):
+        nested = Max(Length('name'))
+        sql = nested.as_sql(table.backend)
+        self.assertEqual(sql, 'max(length(name))')

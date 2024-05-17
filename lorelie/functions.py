@@ -167,6 +167,26 @@ class MD5Hash(Functions):
         })
 
 
+class SHA1Hash(MD5Hash):
+    template_sql = 'sha1({field})'
+
+    def create_function(self, connection):
+        def callback(text):
+            text = str(text).encode('utf-8')
+            return hashlib.sha1(text).hexdigest()
+        connection.create_function('sha1', 1, callback)
+
+
+class SHA224Hash(MD5Hash):
+    template_sql = 'sha224({field})'
+
+    def create_function(self, connection):
+        def callback(text):
+            text = str(text).encode('utf-8')
+            return hashlib.sha224(text).hexdigest()
+        connection.create_function('sha224', 1, callback)
+
+
 class SHA256Hash(MD5Hash):
     template_sql = 'sha256({field})'
 
@@ -176,6 +196,28 @@ class SHA256Hash(MD5Hash):
             text = str(text).encode('utf-8')
             return hashlib.sha256(text).hexdigest()
         connection.create_function('sha256', 1, callback)
+
+
+class SHA384Hash(MD5Hash):
+    template_sql = 'sha384({field})'
+
+    @staticmethod
+    def create_function(connection):
+        def callback(text):
+            text = str(text).encode('utf-8')
+            return hashlib.sha384(text).hexdigest()
+        connection.create_function('sha384', 1, callback)
+
+
+class SHA512Hash(MD5Hash):
+    template_sql = 'sha512({field})'
+
+    @staticmethod
+    def create_function(connection):
+        def callback(text):
+            text = str(text).encode('utf-8')
+            return hashlib.sha512(text).hexdigest()
+        connection.create_function('sha512', 1, callback)
 
 
 class Trim(Functions):
@@ -214,6 +256,7 @@ class Concat(Functions):
 
     def __init__(self, *fields):
         self.fields = list(fields)
+        # TODO: Will raise an error
         super().__init__()
 
     @property
@@ -225,17 +268,12 @@ class Concat(Functions):
 
 
 # Extract,
-# ,
-# ,
 # ExtractIsoWeekDay,
 # ExtractIsoYear,
-# ,
-# ,
 # ExtractQuarter,
 # ExtractSecond,
 # ExtractWeek,
 # ExtractWeekDay,
-# ,
 # Now,
 # Trunc,
 # TruncDate,
@@ -273,32 +311,18 @@ class Concat(Functions):
 # Sqrt,
 # Tan
 
-# ,
-# SHA1,
-# SHA224,
-# ,
-# SHA384,
-# SHA512,
 # Chr,
-# ,
 # ConcatPair,
 # Left,
 # Length,
-# ,
 # LPad,
-# ,
 # Ord,
 # Repeat,
 # Replace,
 # Reverse,
 # Right,
 # RPad,
-# ,
 # StrIndex,
-# ,
-# ,
-# ,
-
 
 # CumeDist,
 # DenseRank,

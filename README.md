@@ -128,3 +128,100 @@ __parameters__
 __Example__
 
 Consider a scenario where you have a table named 'articles' with a column named 'content', which contains textual content of varying lengths. You may want to analyze the distribution of article lengths or filter articles based on their length. This can be achieved using the Length function as follows:
+
+### ExtractYear
+
+The `ExtractYear` function extracts the year component from a date value in a specified column.
+
+```python
+db.objects.annotate('table_name', year=ExtractYear('date_column'))
+```
+
+```sql
+SELECT STRFTIME('%Y', date_column) AS year FROM table_name;
+```
+
+__Example__
+
+This will add a new column named 'year' to the 'celebrities' table, containing the year component of each value from the 'date_of_birth' column.
+
+
+### ExtractMonth
+
+Like [ExtractYear](#extractyear) but extracts the month component from a date value in a specified column.
+
+```python
+db.objects.annotate('table_name', year=ExtractMonth('date_column'))
+```
+
+```sql
+SELECT STRFTIME('%m', date_column) AS year FROM table_name;
+```
+
+__Example__
+
+This will add a new column named 'month' to the 'celebrities' table, containing the year component of each value from the 'date_of_birth' column.
+
+### ExtractDay
+
+Like [ExtractYear](#extractyear) and [ExtractYear](#extractmonth) but extracts the day component from a date value in a specified column.
+
+```python
+db.objects.annotate('table_name', year=ExtractDay('date_column'))
+```
+
+```sql
+SELECT STRFTIME('%d', date_column) AS year FROM table_name;
+```
+
+__Example__
+
+This will add a new column named 'day' to the 'celebrities' table, containing the year component of each value from the 'date_of_birth' column.
+
+### ExtractHour
+
+Like [ExtractYear](#extractyear), [ExtractYear](#extractmonth) and [ExtractYear](#extractday) but extracts the hour component from a datetime value in a specified column.
+
+```python
+db.objects.annotate('table_name', year=ExtractHour('date_column'))
+```
+
+```sql
+SELECT STRFTIME('%H', date_column) AS year FROM table_name;
+```
+
+__Example__
+
+This will add a new column named 'hour' to the 'celebrities' table, containing the year component of each value from the 'date_of_birth' column.
+
+### ExtractMinute
+
+Like [ExtractYear](#extracthour) but extracts the minute component from a datetime value in a specified column.
+
+```python
+db.objects.annotate('table_name', year=ExtractMinute('date_column'))
+```
+
+```sql
+SELECT STRFTIME('%M', date_column) AS year FROM table_name;
+```
+
+__Example__
+
+This will add a new column named 'minute' to the 'celebrities' table, containing the year component of each value from the 'date_of_birth' column.
+
+### MD5Hash
+
+The `MD5Hash` function calculates the MD5 hash of each value in a specified column.
+
+```python
+db.objects.annotate('table_name', year=MD5Hash('date_column'))
+```
+
+```sql
+SELECT hash(name) AS hash_name FROM table_name;
+```
+
+__Example__
+
+This will add a new column named 'minute' to the 'celebrities' table, containing the year component of each value from the 'date_of_birth' column.

@@ -743,7 +743,10 @@ class SQLiteBackend(SQL):
         """Track the current table that is being updated
         or queried at the connection level for other parts
         of the project that require this knowledge"""
-        self.current_table = table
+        if self.current_table is None:
+            self.current_table = table
+        elif self.current_table != table:
+            self.current_table = table
 
     def list_table_columns_sql(self, table):
         sql = f'pragma table_info({table.name})'

@@ -27,7 +27,8 @@ class Query:
                 "Backend connection should be an "
                 "instance SQLiteBackend"
             )
-
+        
+        self.backend.set_current_table(table)
         self.sql = None
         self.result_cache = []
         self.alias_fields = []
@@ -68,7 +69,7 @@ class Query:
         instance.backend.connection.commit()
         instance.result_cache = list(result)
         return instance
-    
+
     @property
     def return_single_item(self):
         return self.result_cache[-0]
@@ -144,6 +145,12 @@ class Query:
                 if name in self.alias_fields:
                     instance = AliasField(name)
                     field = instance.get_data_field(value)
+                elif name.endswith('_id'):
+                    # TODO: Deal with related name
+                    # fields e.g. products_id. For
+                    # now just return the id of the
+                    # related field
+                    return row[name]
                 else:
                     field = self.table.get_field(name)
                 setattr(row, name, field.to_python(value))
@@ -270,10 +277,7 @@ class QuerySet:
             try:
                 # Try to update and existing where
                 # clause otherwise create a new one
-                self.query.select_map.where(
-                    self.query.table,
-                    *build_filters
-                )
+                self.query.select_map.where(*args, **kwargs)
             except TypeError:
                 self.query.select_map.where = WhereNode(*args, **kwargs)
         return QuerySet(self.query)

@@ -1,8 +1,5 @@
 import secrets
 
-from lorelie.backends import SQLiteBackend
-
-
 class CheckConstraint:
     template_sql = 'check({condition})'
 
@@ -37,9 +34,6 @@ class MaxLengthConstraint(CheckConstraint):
         return len(value) > self.limit
 
     def as_sql(self, backend):
-        if not isinstance(backend, SQLiteBackend):
-            raise ValueError()
-
         condition = backend.CONDITION.format_map({
             'field': self.field.name,
             'operator': '>',

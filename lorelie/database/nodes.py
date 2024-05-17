@@ -56,10 +56,10 @@ class SelectMap:
             nodes.extend([f'limit {self.limit}'])
 
         if self.groupby is not None:
-            nodes.extend(self.groupby.as_sql(backend))
+            nodes.extend([self.groupby])
 
         if self.having is not None:
-            nodes.extend(self.having.as_sql(backend))
+            nodes.extend([self.having])
 
         return nodes
 
@@ -213,7 +213,7 @@ class WhereNode(BaseNode):
         super().__init__()
 
     def __call__(self, *args, **kwargs):
-        self.expressions.update(**kwargs)
+        self.expressions.update(kwargs)
         self.func_expressions.extend(args)
         return self
 

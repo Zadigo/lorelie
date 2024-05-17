@@ -343,3 +343,95 @@ SELECT hash(name) AS hash_name FROM table_name;
 __Example__
 
 This will add a new column named 'minute' to the 'celebrities' table, containing the year component of each value from the 'date_of_birth' column.
+
+
+## Aggregation
+
+This section covers several classes that implement various aggregating functions used in an SQLite database context. These functions are useful for performing operations like counting rows, calculating averages, and determining statistical measures directly within the database or in a Python environment.
+
+__Properties and Methods__
+
+* `aggregate_name`: Returns the name of the aggregate function based on the field name.
+* `python_aggregation`(values): Should be implemented by subclasses to define the local aggregation logic.
+* `use_queryset`(field, queryset): Aggregates values locally using a queryset.
+* `as_sql`(backend): Generates the SQL representation of the function.
+
+### Count
+
+The `Count` class is used to count the number of rows that match a specified condition or all rows in a table if no condition is specified.
+
+```python
+db.objects.aggregate('products', Count('price'))
+```
+
+### Avg
+
+The `Avg` class calculates the average of the specified field.
+
+```python
+db.objects.aggregate('products', Avg('price'))
+```
+
+### Variance
+
+The `Variance` class calculates the variance of the specified field.
+
+```python
+db.objects.aggregate('products', Avg('price'))
+```
+
+### StDev
+
+The `StDev` class calculates the standard deviation of the specified field.
+
+```python
+db.objects.aggregate('products', StDev('price'))
+```
+
+### Sum
+
+The `Sum` class calculates the sum of the specified field.
+
+```python
+db.objects.aggregate('products', Sum('price'))
+```
+
+### MeanAbsoluteDifference
+
+The `MeanAbsoluteDifference` class calculates the mean absolute difference of the specified field.
+
+```python
+db.objects.aggregate('products', MeanAbsoluteDifference('price'))
+```
+
+### MeanAbsoluteDifference
+
+The `MeanAbsoluteDifference` class calculates the mean coefficient of variation of the specified field.
+
+```python
+db.objects.aggregate('products', MeanAbsoluteDifference('price'))
+```
+
+### CoefficientOfVariation
+
+The `CoefficientOfVariation` class calculates the coefficient of variation of the specified field.
+
+```python
+db.objects.aggregate('products', CoefficientOfVariation('price'))
+```
+
+### Max
+
+The `Max` class returns the maximum value of the specified field.
+
+```python
+db.objects.aggregate('products', Max('price'))
+```
+
+### Min
+
+The `Min` class returns the minimum value of the specified field.
+
+```python
+db.objects.aggregate('products', Min('price'))
+```

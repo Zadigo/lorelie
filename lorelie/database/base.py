@@ -291,7 +291,8 @@ class Database:
                 "Both tables need to be registered in the database "
                 "namespace in order to create a relationship"
             )
-
+        
+        right_table.is_foreign_key_table = True
         relationship_map = RelationshipMap(left_table, right_table)
 
         field = ForeignKeyField(relationship_map=relationship_map)

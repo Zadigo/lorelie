@@ -1,27 +1,35 @@
 import math
+
 from lorelie.functions import Functions
 
 
-class MathMixin(Functions):
+class MathMixin:
     @property
     def aggregate_name(self):
         function_name = self.__class__.__name__.lower()
         return f'{self.field_name}__{function_name}'
 
     def python_aggregation(self, values):
-        """Logic that implements that manner
+        """Logic that implements the manner
         in which the collected data should be
-        aggregated. Subclasses should implement
-        their own aggregating logic"""
-        pass
+        aggregated for locally create functions. 
+        Subclasses should implement their own 
+        aggregating logic for the data"""
+        return NotImplemented
 
     def use_queryset(self, field, queryset):
         """Method to aggregate values locally
-        using the Math aggregation functions"""
+        using a queryset as opposed to data
+        returned directly from the database"""
         def iterator():
             for item in queryset:
                 yield item[self.field_name]
         return self.python_aggregation(list(iterator()))
+
+    def as_sql(self, backend):
+        return self.template_sql.format_map({
+            'field': self.field_name
+        })
 
 
 class Count(MathMixin, Functions):
@@ -29,16 +37,13 @@ class Count(MathMixin, Functions):
     that match a specified condition or all rows in 
     a table if no condition is specified
 
-    >>> database.objects.annotate('celebrities', count_of_names=Count('name'))
+    >>> database.objects.aggregate('celebrities', Count('name'))
     """
+
+    template_sql = 'count({field})'
 
     def python_aggregation(self, values):
         return len(values)
-
-    def as_sql(self, backend):
-        return backend.COUNT.format_map({
-            'field': self.field_name
-        })
 
 
 class Avg(MathMixin, Functions):
@@ -46,7 +51,7 @@ class Avg(MathMixin, Functions):
     that match a specified condition or all rows in 
     a table if no condition is specified
 
-    >>> database.objects.annotate('celebrities', count_of_names=Count('name'))
+    >>> database.objects.aggregate('celebrities', count_of_names=Count('name'))
     """
 
     template_sql = 'avg({field})'
@@ -55,36 +60,48 @@ class Avg(MathMixin, Functions):
         number_of_items = len(values)
         return sum(values) / number_of_items
 
-    def as_sql(self, backend):
-        return backend.AVERAGE.format_map({
-            'field': self.field_name
-        })
+
+class MathVariance:
+    """Math function that calculates
+    the variance for a given set of 
+    values"""
+
+    def __init__(self):
+        self.total = 0
+        self.count = 0
+        self.values = []
+
+    def step(self, value):
+        self.total += value
+        self.count += 1
+        self.values.append(value)
+
+    def finalize(self):
+        average = self.total / self.count
+        variance = list(map(lambda x: abs(x - average)**2, self.values))
+        return sum(variance) / self.count
+
+
+class MathStDev(MathVariance):
+    def finalize(self):
+        result= super().finalize()
+        return math.sqrt(result)
 
 
 class Variance(MathMixin, Functions):
     template_sql = 'variance({field})'
 
-    def python_aggregation(self, values):
-        average_instance = Avg(self.field_name)
-        count_instance = Count(self.field_name)
-
-        average_total = average_instance.python_aggregation(values)
-        count_total = count_instance.python_aggregation(values)
-
-        variance = list(map(lambda x: (x - average_total)**2, values))
-        return sum(variance) / count_total
+    @staticmethod
+    def create_function(connection):
+        connection.create_aggregate('variance', 1, MathVariance)
 
 
 class StDev(MathMixin, Functions):
     template_sql = 'stdev({field})'
 
     @staticmethod
-    def create_function():
-        return
-
-    def python_aggregation(self, values):
-        variance_instance = Variance(self.field_name)
-        return math.sqrt(variance_instance.python_aggregation(values))
+    def create_function(connection):
+        connection.create_aggregate('stdev', 1, MathStDev)
 
 
 class Sum(MathMixin, Functions):
@@ -92,88 +109,69 @@ class Sum(MathMixin, Functions):
 
     def python_aggregation(self, values):
         return sum(values)
+    
 
-    def as_sql(self, backend):
-        return self.template_sql.format_map({
-            'field': self.field_name
-        })
+class MathMeanAbsoluteDifference:
+    """Math function that calculates
+    the mean absolute differences for
+    a given set of values"""
+
+    def __init__(self):
+        self.total = 0
+        self.count = 0
+        self.values = []
+
+    def step(self, value):
+        self.total += value
+        self.count += 1
+        self.values.append(value)
+
+    def finalize(self):
+        average = self.total / self.count
+        differences = list(map(lambda x: abs(x - average), self.values))
+        return sum(differences) / self.count
 
 
 class MeanAbsoluteDifference(MathMixin, Functions):
     template_sql = 'meanabsdifference({field})'
 
-    def python_aggregation(self, values):
-        average_instance = Avg(self.field_name)
-        count_instance = Count(self.field_name)
+    @staticmethod
+    def create_function(connection):
+        connection.create_aggregate('meanabsdifference', 1, MathMeanAbsoluteDifference)
 
-        average = average_instance.python_aggregation(values)
-        differences = list(map(lambda x: abs(x - average), values))
-        count_total = count_instance.python_aggregation(differences)
-        return count_total
+    def python_aggregation(self, values):
+        instance = MathMeanAbsoluteDifference()
+        instance.values = values
+        return instance.calculation
+
+
+class MathCoefficientOfVariation(MathMeanAbsoluteDifference):
+    def finalize(self):
+        result = super().finalize()
+        return result / (self.total / self.count)
 
 
 class CoefficientOfVariation(MathMixin, Functions):
     template_sql = 'coeffofvariation({field})'
 
-    def python_aggregation(self, values):
-        stdev_instance = StDev(self.field_name)
-        average_instance = Avg(self.field_name)
-        return (
-            stdev_instance.python_aggregation(values) /
-            average_instance.python_aggregation(values)
-        )
+    @staticmethod
+    def create_function(connection):
+        connection.create_aggregate('coeffofvariation', 1, MathCoefficientOfVariation)
 
 
-class Max(Functions):
+class Max(MathMixin, Functions):
     """Returns the max value of a given column
 
-    >>> db.objects.annotate('celebrities',  max_id=Max('id'))
+    >>> db.objects.aggregate('celebrities',  Max('id'))
     """
 
     template_sql = 'max({field})'
 
-    def as_sql(self, backend):
-        # SELECT rowid, * FROM seen_urls WHERE rowid = (SELECT max(rowid) FROM seen_urls)
-        select_clause = backend.SELECT.format_map({
-            'fields': backend.comma_join(['rowid', '*']),
-            'table': backend.table.name
-        })
-        subquery_clause = backend.SELECT.format_map({
-            'fields': backend.MAX.format_map({'field': self.field_name}),
-            'table': backend.table.name
-        })
-        where_condition = backend.EQUALITY.format_map({
-            'field': self.field_name,
-            'value': backend.wrap_parenthentis(subquery_clause)
-        })
-        where_clause = backend.WHERE_CLAUSE.format_map({
-            'params': where_condition
-        })
-        return backend.simple_join([select_clause, where_clause])
 
-
-class Min(Functions):
+class Min(MathMixin, Functions):
     """Returns the min value of a given column
 
-    >>> db.objects.annotate('celebrities',  min_id=Min('id'))
+    >>> db.objects.aggregate('celebrities', Min('id'))
     """
 
     template_sql = 'min({field})'
-
-    def as_sql(self, backend):
-        select_clause = backend.SELECT.format_map({
-            'fields': backend.comma_join(['rowid', '*']),
-            'table': backend.table.name
-        })
-        subquery_clause = backend.SELECT.format_map({
-            'fields': backend.MIN.format_map({'field': self.field_name}),
-            'table': backend.table.name
-        })
-        where_condition = backend.EQUALITY.format_map({
-            'field': self.field_name,
-            'value': backend.wrap_parenthentis(subquery_clause)
-        })
-        where_clause = backend.WHERE_CLAUSE.format_map({
-            'params': where_condition
-        })
-        return backend.simple_join([select_clause, where_clause])

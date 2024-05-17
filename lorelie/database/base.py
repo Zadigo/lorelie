@@ -162,6 +162,7 @@ class Database:
                 raise ValueError('Value should be an instance of Table')
 
             table.load_current_connection()
+            setattr(table, 'database', self)
             self.table_map[table.name] = table
 
         self.table_instances = list(tables)

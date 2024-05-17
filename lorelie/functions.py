@@ -20,7 +20,11 @@ class Functions:
         return f'{self.__class__.__name__.lower()}_{self.field_name}'
 
     @staticmethod
-    def create_function():
+    def create_function(connection):
+        """Use this function to register a local
+        none existing function in the database
+        function space in other to use none
+        conventional functions"""
         return NotImplemented
 
     def as_sql(self, backend):
@@ -151,11 +155,11 @@ class MD5Hash(Functions):
     template_sql = 'hash({field})'
 
     @staticmethod
-    def create_function():
+    def create_function(connection):
         def callback(text):
             text = str(text).encode('utf-8')
             return hashlib.md5(text).hexdigest()
-        return callback
+        connection.create_function('hash', 1, callback)
 
     def as_sql(self, backend):
         return self.template_sql.format_map({
@@ -167,11 +171,11 @@ class SHA256Hash(MD5Hash):
     template_sql = 'sha256({field})'
 
     @staticmethod
-    def create_function():
+    def create_function(connection):
         def callback(text):
             text = str(text).encode('utf-8')
             return hashlib.sha256(text).hexdigest()
-        return callback
+        connection.create_function('sha256', 1, callback)
 
 
 class Trim(Functions):

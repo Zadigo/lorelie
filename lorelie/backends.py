@@ -726,8 +726,12 @@ class SQLiteBackend(SQL):
         # sqlite3.register_adapter()
 
         connection = sqlite3.connect(database_name)
-        connection.create_function('hash', 1, MD5Hash.create_function())
-        connection.create_function('sha256', 1, SHA256Hash.create_function())
+        MD5Hash.create_function(connection)
+        SHA256Hash.create_function(connection)
+        MeanAbsoluteDifference.create_function(connection)
+        Variance.create_function(connection)
+        StDev.create_function(connection)
+        CoefficientOfVariation.create_function(connection)
         connection.row_factory = row_factory(self)
 
         self.connection = connection

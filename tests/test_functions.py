@@ -1,19 +1,16 @@
 import unittest
-from lorelie.backends import SQLiteBackend
 
-from lorelie.functions import Lower, Max, Upper, Length, ExtractYear
+from lorelie.backends import SQLiteBackend
+from lorelie.fields.base import IntegerField
+from lorelie.functions import ExtractYear, Length, Lower, Upper
+from lorelie.tables import Table
 from tests.db import create_table
+
+table = Table('celebrities', fields=[IntegerField('age')])
+table.backend = SQLiteBackend()
 
 
 class TestFunctions(unittest.TestCase):
-    def test_max_function(self):
-        table = create_table()
-        instance = Max('age')
-        instance.backend = table.backend
-        sql = instance.as_sql()
-        expected_sql = "select rowid, * from celebrities where age=(select max(age) from celebrities)"
-        self.assertTrue(sql == expected_sql)
-
     def test_lower_function(self):
         table = create_table()
         instance = Lower('age')

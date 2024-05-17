@@ -60,6 +60,124 @@ table = database.get_table('my_table')
 ```
 
 
+## Fields
+
+The `Field` class defines a generic field in a database table. It serves as a base class for more specific field types like `CharField`. It includes various attributes and methods to manage the properties and behavior of database fields.
+
+__Conversion methods__
+
+```python
+def to_python(self, data):
+    return data
+```
+Converts the given data to a Python string. If the data is None, it returns None.
+
+```python
+def to_database(self, data):
+    return data
+```
+
+Converts the given data to a string if it is not already one, then calls the superclass method to convert it to the database representation.
+
+__Usage example__
+
+```python
+
+from lorelie.database.base import Database
+from lorelie.fields.base import CharField, IntegerField
+from lorelie.tables import Table
+
+table = Table(
+    'products',
+    fields=[
+        CharField('name'),
+        IntegerField('price', default=0),
+        DateTimeField('created_on', auto_add=True)
+    ]
+)
+
+db = Database(table)
+db.migrate()
+```
+
+### CharField
+
+The `CharField` class is a subclass of Field designed to handle text data.
+
+__parameters__
+
+* `name` (str): The name of the field.
+* `max_length` (int, optional): The maximum length for the field value (applicable for text fields).
+* `null` (bool, optional): Whether the field can have null values. Defaults to False.
+* `primary_key` (bool, optional): Whether the field is a primary key. Defaults to False.
+* `default` (optional): The default value for the field.
+* `unique` (bool, optional): Whether the field value must be unique. Defaults to False.
+* `validators` (list, optional): A list of validators to apply to the field value.
+
+### IntegerField
+
+The `IntegerField` class is a subclass of `Field` designed to handle integer data.
+
+### FloatField
+
+The `FloatField` class is a subclass of `Field` designed to handle floating-point data.
+
+__Parameters__
+
+* `name` (str): The name of the field.
+* `min_value` (int, optional): The minimum value for the field.
+* `max_value` (int, optional): The maximum value for the field.
+
+### JSONField
+
+The `JSONField` class is a subclass of `Field` designed to handle JSON data.
+
+### BooleanField
+
+The `BooleanField` class is a subclass of `Field` designed to handle boolean data.
+
+### AutoField
+
+The `AutoField` class is a subclass of `IntegerField` designed to handle auto-incrementing primary key fields.
+
+### DateField
+
+The `DateField` class is a subclass of `Field` designed to handle date data.
+
+__Parameters__
+
+* `name` (str): The name of the field.
+* `auto_update` (bool, optional): Automatically update the field with the current date on each update. Defaults to False.
+* `auto_add` (bool, optional): Automatically set the field to the current date on creation. Defaults to False.
+
+### DateTimeField
+
+The `DateTimeField` class is a subclass of `DateField` designed to handle datetime data.
+
+### TimeField
+
+The `TimeField` is a subclass of `DateTimeField` designed to handle time data.
+
+### EmailField
+
+The `EmailField` is a subclass of `CharField` designed to handle email data.
+
+### FilePathField
+
+The `FilePathField` is a subclass of `CharField` designed to handle file path data.
+
+### SlugField
+
+The `SlugField` is a subclass of `CharField` designed to handle slug data.
+
+### UUIDField
+
+The `UUIDField` is a subclass of `CharField` designed to handle UUID data.
+
+### URLField
+
+The `URLField` is a subclass of `CharField` designed to handle url data.
+
 ## Functions
 
 ### Lower

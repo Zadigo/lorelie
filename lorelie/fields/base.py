@@ -228,9 +228,9 @@ class IntegerField(Field):
 class FloatField(Field):
     python_type = float
 
-    @property
-    def field_type(self):
-        return 'float'
+    # @property
+    # def field_type(self):
+    #     return 'float'
 
 
 class JSONField(Field):
@@ -266,9 +266,9 @@ class BooleanField(Field):
     truth_types = ['true', 't', 1, '1']
     false_types = ['false', 'f', 0, '0']
 
-    @property
-    def field_type(self):
-        return 'bool'
+    # @property
+    # def field_type(self):
+    #     return 'bool'
 
     def to_python(self, data):
         if data in self.truth_types:
@@ -341,9 +341,9 @@ class DateField(DateFieldMixin, Field):
     current date every time a value is updated
     """
 
-    @property
-    def field_type(self):
-        return 'datetime.date'
+    # @property
+    # def field_type(self):
+    #     return 'datetime.date'
 
     def to_python(self, data):
         if data is None or data == '':
@@ -367,17 +367,17 @@ class DateTimeField(DateFieldMixin, Field):
     """
     date_format = '%Y-%m-%d %H:%M:%S.%f'
 
-    @property
-    def field_type(self):
-        return 'datetime.datetime'
+    # @property
+    # def field_type(self):
+    #     return 'datetime.datetime'
 
 
 class TimeField(DateTimeField):
     date_format = '%H:%M:%S'
 
-    @property
-    def field_type(self):
-        return 'datetime.time'
+    # @property
+    # def field_type(self):
+    #     return 'datetime.time'
 
 
 class EmailField(CharField):

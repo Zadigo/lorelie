@@ -161,10 +161,7 @@ class BaseRow:
                 truth_array.append(False)
                 continue
 
-            if isinstance(item, int):
-                item = str(item)
-
-            truth_array.append(value in item)
+            truth_array.append(value in str(item))
         return any(truth_array)
 
     def __eq__(self, value):

@@ -278,6 +278,13 @@ class Database:
         ... db.objects.foreign_key('social_media').all()
         ... db.objects.foreign_key('social_media', reverse=True).all()
         """
+        if (not isinstance(left_table, Table) and
+                not isinstance(right_table, Table)):
+            raise ValueError(
+                "Both tables should be an instance of "
+                f"Table: {left_table}, {right_table}"
+            )
+        
         if (left_table not in self.table_instances and
                 right_table not in self.table_instances):
             raise ValueError(

@@ -268,12 +268,12 @@ class DatabaseManager:
         query = self.database.query_class(table=selected_table)
         query.add_sql_nodes([select_node])
 
-        # if annotation_map.requires_grouping:
-        #     grouping_fields = set(annotation_map.field_names)
-        #     groupby_sql = selected_table.backend.GROUP_BY.format_map({
-        #         'conditions': selected_table.backend.comma_join(grouping_fields)
-        #     })
-        #     query.select_map.group_by = groupby_sql
+        if annotation_map.requires_grouping:
+            grouping_fields = set(annotation_map.field_names)
+            groupby_sql = selected_table.backend.GROUP_BY.format_map({
+                'conditions': selected_table.backend.comma_join(grouping_fields)
+            })
+            query.select_map.groupby = groupby_sql
 
         query.alias_fields = list(alias_fields)
         return QuerySet(query)

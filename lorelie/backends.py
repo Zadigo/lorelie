@@ -9,7 +9,8 @@ from dataclasses import field
 
 import pytz
 
-from lorelie.aggregation import Avg, Count
+from lorelie.aggregation import Avg, Count, MeanAbsoluteDifference, Variance, StDev, CoefficientOfVariation
+from lorelie.database.manager import ForeignTablesManager
 from lorelie.exceptions import ConnectionExistsError
 from lorelie.expressions import Case
 from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear,
@@ -342,15 +343,15 @@ class SQL:
         if value.startswith("'"):
             return value
 
-        # To handle special characters like 
-        # single quotes ('), we have to escape 
-        # them by doubling them up for the final 
+        # To handle special characters like
+        # single quotes ('), we have to escape
+        # them by doubling them up for the final
         # sql string
         if "'" in value:
             value = value.replace("'", "''")
 
         return f"'{value}'"
-    
+
     @staticmethod
     def comma_join(values):
         def check_integers(value):

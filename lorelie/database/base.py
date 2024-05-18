@@ -198,45 +198,20 @@ class Database:
     def __contains__(self, value):
         return value in self.table_names
 
-    # TODO: Implement this functionnality
-    # def __getattribute__(self, name):
-    #     if name.endswith('_tbl'):
-    #         # When the user calls db.celebrities_tbl
-    #         # for example, we have to reimplement the objects
-    #         # manager on the table so that we can get
-    #         # db.celebrities_tbl.objects which returns
-    #         # DatabaseManager
-    #         lhv, _ = name.split('_tbl')
-
-    #         try:
-    #             table = self.table_map[lhv]
-    #         except KeyError as e:
-    #             raise ExceptionGroup(
-    #                 "Missing table",
-    #                 [
-    #                     KeyError(e.args),
-    #                     TableExistsError(lhv)
-    #                 ]
-    #             )
-
-    #         manager = DatabaseManager.as_manager()
-    #         manager.database = self
-    #         manager.table_map = self.table_map
-
-    #         setattr(table, 'objects', manager)
-
-    #         # The tricky part is on all the manager
-    #         # database functions e.g. all, filter
-    #         # we have to normally pass the table's
-    #         # name. However, since we already know
-    #         # the table that is being called, we
-    #         # to alias these functions aka
-    #         # all() -> all('celebrities') which
-    #         # gives db.celebrities_tbl.objects.all()
-    #         # instead of
-    #         # db.celebrities_tbl.objects.all('celebrities')
-    #         return table
-    #     return super().__getattribute__(name)
+    def __getattr__(self, name):
+        # TODO: Continue to improve this
+        # section so that we can call the
+        # tables directly from the database
+        if name in self.table_names:
+            try:
+                current_table = self.table_map[name]
+            except:
+                raise TableExistsError(name)
+            else:
+                manager = self.objects
+                setattr(manager, '_test_current_table_on_manager', current_table)
+                return self.objects
+        return name
 
     def __hash__(self):
         return hash((self.database_name, *self.table_names))

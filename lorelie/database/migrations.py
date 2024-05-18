@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 import datetime
 import json
 import secrets
@@ -173,6 +174,12 @@ class Migrations:
             self.create_migration_table()
             self.tables_for_creation.add('lorelie_migrations')
 
+        # TODO: Reunite table deletion, creation
+        # index creation etc. into one single
+        # script. Reunite all the functionnalities
+        # for table creation or listing into either
+        # one area aka the backend or the migration
+
         # Eventually create the tables
         if self.tables_for_creation:
             for table_name in self.tables_for_creation:
@@ -212,7 +219,7 @@ class Migrations:
             if table_instance is None:
                 continue
 
-            self.check_fields(table_instances[database_row['name']], backend)
+            self.check_fields(table_instance, backend)
 
         # The database might require another set of
         # parameters (ex. indexes) that we run here

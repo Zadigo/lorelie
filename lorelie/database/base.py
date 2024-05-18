@@ -45,6 +45,7 @@ databases = Databases()
 class RelationshipMap:
     left_table: Table
     right_table: Table
+    junction_table: Table = None
     relationship_type: str = dataclasses.field(default='foreign')
     field: Union[ForeignKeyField] = None
     can_be_validated: bool = False
@@ -327,6 +328,18 @@ class Database:
         self.relationships[relationship_map.relationship_field_name] = relationship_map
 
     def many_to_many(self, left_table, right_table, primary_key=True, related_name=None):
+        # Create an intermediate junction table that
+        # will serve to query many to many fields
+        # junction_name = f'{left_table.name}_{right_table.name}'
+        # table = Table(junction_name, fields=[
+        #     IntegerField(f'{left_table.name}_id'),
+        #     IntegerField(f'{right_table.name}_id'),
+        # ])
+        # self._add_table(table)
+
+        # relationship_map = RelationshipMap(left_table, right_table)
+        # relationship_map.junction_table = table
+        # self.relationships[relationship_map.relationship_field_name] = relationship_map
         pass
 
     def one_to_one_key(self, left_table, right_table, on_delete=None, related_name=None):

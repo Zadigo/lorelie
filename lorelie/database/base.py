@@ -105,6 +105,19 @@ class RelationshipMap:
         return table == self.right_table
 
 
+@dataclasses.dataclass
+class TriggersMap:
+    pre_save: list = field(default_factory=list)
+    post_save: list = field(default_factory=list)
+    pre_delete: list = field(default_factory=list)
+
+    def list_functions(self, table, trigger_name):
+        """Returns the list of functions for a given
+        specific trigger name"""
+        container = getattr(self, trigger_name, [])
+        return list(filter(lambda x: table in x, container))
+
+
 class Database:
     """This class links and unifies independent
     tables together for a unique database and allows 
@@ -262,6 +275,18 @@ class Database:
         tables, implementing the constraints and all other
         table parameters specified by on the table"""
         self.migrations.check(self.table_map)
+
+    def register_trigger(self, table=None, trigger=None):
+        def wrapper(func):
+            @wraps(func)
+            def inner(**kwargs):
+                if trigger is not None:
+                    func(database=self, table=table, **kwargs)
+
+            if trigger == 'pre_save':
+                self.triggers_map.pre_save.append((table, inner))
+            return inner
+        return wrapper
 
     def foreign_key(self, left_table, right_table, on_delete=None, related_name=None):
         """Adds a foreign key between two databases by using the

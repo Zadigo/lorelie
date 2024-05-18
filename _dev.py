@@ -39,9 +39,9 @@ db = Database(table, models, name='test_database')
 db.foreign_key(table, models)
 
 
-@db.register_trigger(table=table, trigger='pre_save')
-def some_trigger(instance, table, **kwargs):
-    pass
+# @db.register_trigger(table=table, trigger='pre_save')
+# def some_trigger(instance, table, **kwargs):
+#     pass
 
 
 db.migrate()

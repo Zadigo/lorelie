@@ -1,3 +1,4 @@
+from collections.abc import Awaitable, Coroutine
 from typing import Any, Literal, NamedTuple, Type, Union
 
 import pandas
@@ -117,7 +118,8 @@ class DatabaseManager:
     ) -> dict[str, int]: ...
 
     def count(self, table: str) -> int: ...
-    def foreign_table(self, relationship: str) -> ForeignTablesManager: ...
+
+    async def aall(self, table: str) -> Awaitable[QuerySet]: ...
 
 
 class ForeignTablesManager:

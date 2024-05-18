@@ -210,9 +210,9 @@ class CharField(Field):
         return self.python_type(data)
 
     def to_database(self, data):
-        if isinstance(data, (int, float, list, dict)):
-            data = str(data)
-        return super().to_database(data)
+        # if isinstance(data, (int, float, list, dict)):
+        #     data = str(data)
+        return super().to_database(str(data))
 
 
 class IntegerField(Field):

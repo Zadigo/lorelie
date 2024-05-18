@@ -7,9 +7,11 @@ from dataclasses import is_dataclass
 from functools import partial
 
 import pytz
+from asgiref.sync import sync_to_async
 
-from lorelie.aggregation import (Avg, Count, MeanAbsoluteDifference, StDev,
-                                 Sum, Variance, CoefficientOfVariation, Max, Min)
+from lorelie.aggregation import (Avg, CoefficientOfVariation, Count, Max,
+                                 MeanAbsoluteDifference, Min, StDev, Sum,
+                                 Variance)
 from lorelie.database.nodes import OrderByNode, SelectNode, WhereNode
 from lorelie.exceptions import (FieldExistsError, MigrationsExistsError,
                                 TableExistsError)
@@ -30,6 +32,7 @@ class DatabaseManager:
         # Tells if the manager was
         # created via as_manager
         self.auto_created = True
+        self._test_current_table_on_manager = None
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.database}>'
@@ -51,13 +54,7 @@ class DatabaseManager:
     def _get_select_sql(self, selected_table, columns=['rowid', '*'], distinct=False):
         # This function creates and returns the base SQL line for
         # selecting values in the database: "select rowid, * where rowid=1"
-        select_sql = selected_table.backend.SELECT.format_map({
-            'fields': selected_table.backend.comma_join(columns),
-            'table': selected_table.name,
-        })
-        if distinct:
-            select_sql = re.sub(r'^select', 'select distinct', select_sql)
-        return [select_sql]
+        pass
 
     def _get_first_or_last_sql(self, selected_table, first=True):
         """Returns the general SQL that returns the first
@@ -174,7 +171,8 @@ class DatabaseManager:
 
         query.add_sql_nodes([insert_sql])
         query.run(commit=True)
-        return self.last(table)
+        # return self.last(table)
+        return []
 
     def filter(self, table, *args, **kwargs):
         """Filter the data in the database based on
@@ -596,6 +594,9 @@ class DatabaseManager:
             query.add_sql_node('do nothing')
 
         return QuerySet(query)
+
+    async def aall(self, table):
+        return await sync_to_async(self.all)(table)
 
     # def resolve_expression()
 

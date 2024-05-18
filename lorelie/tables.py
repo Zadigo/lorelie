@@ -46,6 +46,12 @@ class AbstractTable(metaclass=BaseTable):
 
     @staticmethod
     def validate_table_name(name):
+        if name == 'objects':
+            raise ValueError(
+                "Table name uses a reserved "
+                "keyword: objects"
+            )
+        
         result = re.search(r'^(\w+\_?)+$', name)
         if not result:
             raise ValueError(

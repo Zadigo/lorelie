@@ -13,10 +13,13 @@ from lorelie.validators import (MaxValueValidator, MinValueValidator,
 class Field:
     python_type = str
     base_validators = []
+    default_field_errors = {}
 
-    def __init__(self, name, *, max_length=None, null=False, primary_key=False, default=None, unique=False, validators=[]):
+    def __init__(self, name, *, max_length=None, null=False, primary_key=False, default=None, unique=False, validators=[], verbose_name=None, editable=False):
         self.constraints = []
         self.name = self.validate_field_name(name)
+        self.verbose_name = verbose_name
+        self.editable = editable
         self.null = null
         self.primary_key = primary_key
         self.default = default

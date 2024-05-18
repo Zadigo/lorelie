@@ -1,8 +1,7 @@
 import unittest
 
+from lorelie.backends import SQLiteBackend
 from lorelie.exceptions import ConnectionExistsError, FieldExistsError
-from lorelie.fields import base
-from lorelie.backends import BaseRow, SQLiteBackend
 from lorelie.fields.base import CharField, Field, IntegerField
 from lorelie.tables import Table
 

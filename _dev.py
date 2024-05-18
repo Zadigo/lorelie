@@ -1,3 +1,5 @@
+import pathlib
+import asyncio
 import dataclasses
 
 from lorelie.aggregation import (Avg, CoefficientOfVariation, Count, Max,
@@ -35,10 +37,17 @@ models = Table(
 
 db = Database(table, models, name='test_database')
 db.foreign_key(table, models)
+
+
+@db.register_trigger(table=table, trigger='pre_save')
+def some_trigger(instance, table, **kwargs):
+    pass
+
+
 db.migrate()
 
-item = db.objects.get('products', id__eq=2)
-print(item)
+# item = db.objects.get('products', id__eq=2)
+# print(item)
 # item.models_rel.create(firstname='Kendall', lastname='Jenner')
 # qs = item.models_rel.all()
 # print(qs)
@@ -75,3 +84,10 @@ print(item)
 #     Min('price')
 # )
 # print(result)
+
+# async def main():
+#     qs = await db.objects.aall('products')
+#     print(qs)
+
+# if __name__ == '__main__':
+#     asyncio.run(main())

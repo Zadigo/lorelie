@@ -112,9 +112,17 @@ class Field:
                 f"should be an instance of {self.python_type}"
             )
         self.run_validators(data)
-        # TODO: Why convert this to python
-        # value for the database?
-        return self.to_python(data)
+        try:
+            # return self.to_python(data)
+
+            # TODO: Why convert this to python
+            # value for the database?
+            return self.to_python(data)
+        except (TypeError, ValueError):
+            raise ValidationError(
+                "The value for {name} is not valid",
+                name=self.name
+            )
 
     def field_parameters(self):
         """Adapt the python function parameters to the
@@ -143,9 +151,17 @@ class Field:
         self.base_field_parameters['unique'] = self.unique
 
         if self.default is not None:
-            database_value = self.to_database(self.default)
-            value = self.table.backend.quote_value(database_value)
-            initial_parameters.extend(['default', value])
+            database_value = self.to_database(default_value)
+
+            try:
+                value = self.table.backend.quote_value(database_value)
+            except:
+                raise AttributeError(
+                    "Field does not seem to be associated to a table "
+                    "and therefore cannot its default value"
+                )
+            else:
+                initial_parameters.extend(['default', value])
 
         true_parameters = list(filter(
             lambda x: x[1] is True,
@@ -158,8 +174,15 @@ class Field:
             # FIXME: AutoField needs to be setup with
             # AutoField.table.backend which is None otherwise
             # it raises a NoneType error in this section
-            constraint_sql = constraint.as_sql(self.table.backend)
-            base_field_parameters.append(constraint_sql)
+            try:
+                constraint_sql = constraint.as_sql(self.table.backend)
+            except:
+                raise AttributeError(
+                    "Field does not seem to be associated to a table "
+                    "and therefore cannot build the constraints"
+                )
+            else:
+                base_field_parameters.append(constraint_sql)
 
         return base_field_parameters
 

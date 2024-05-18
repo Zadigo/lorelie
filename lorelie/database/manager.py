@@ -171,8 +171,7 @@ class DatabaseManager:
 
         query.add_sql_nodes([insert_sql])
         query.run(commit=True)
-        # return self.last(table)
-        return []
+        return self.last(table)
 
     def filter(self, table, *args, **kwargs):
         """Filter the data in the database based on
@@ -198,7 +197,9 @@ class DatabaseManager:
 
         if selected_table.ordering:
             orderby_node = OrderByNode(
-                selected_table, *selected_table.ordering)
+                selected_table, 
+                *selected_table.ordering
+            )
             query.add_sql_node(orderby_node)
 
         return QuerySet(query)
@@ -318,7 +319,7 @@ class DatabaseManager:
         ... pandas.DataFrame
         """
         import pandas
-        return pandas.DataFrame(self.values(table, *args))
+        return pandas.DataFrame(self.values(table, *fields))
 
     def order_by(self, table, *fields):
         """Returns data ordered by the fields specified

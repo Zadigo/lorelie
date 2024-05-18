@@ -9,7 +9,7 @@ from lorelie.backends import SQLiteBackend
 from lorelie.database.base import Database
 from lorelie.database.indexes import Index
 from lorelie.database.nodes import OrderByNode
-from lorelie.expressions import Q
+from lorelie.expressions import Q, Case, When
 from lorelie.fields.base import CharField, DateTimeField, IntegerField, Value
 from lorelie.functions import (Concat, ExtractDay, ExtractMonth, ExtractYear,
                                Lower, SubStr, Upper)
@@ -35,7 +35,7 @@ models = Table(
     ]
 )
 
-db = Database(table, models, name='test_database')
+db = Database(table, models)
 db.foreign_key(table, models)
 
 
@@ -46,48 +46,12 @@ db.foreign_key(table, models)
 
 db.migrate()
 
-# item = db.objects.get('products', id__eq=2)
-# print(item)
-# item.models_rel.create(firstname='Kendall', lastname='Jenner')
-# qs = item.models_rel.all()
-# print(qs)
-# print(qs.sql_statement)
+db.objects.create('products', name='Jupe de luxe')
 
-# @dataclasses.dataclass
-# class Product:
-#     name: str
-#     price: int
-
-
-# new_product = Product('Jupe moyenne', 45)
-# new_product2 = Product('Manteau bleu', 45)
-
-# product = db.objects.create('products', name='Jupe courte', price=10)
-# product = db.objects.create('products', name='Jupe longue', price=0)
-# product = db.objects.create('products', name='Jupe longue', price=45)
-
-# qs = db.objects.annotate('products', Count('price'))
-# qs2 = qs.filter(name='Jupe longue').filter(id=2)
-# print(qs2)
-# print(qs2.sql_statement)
-
-# result = db.objects.aggregate(
-#     'products',
-#     Count('price'),
-#     Sum('price'),
-#     Avg('price'),
-#     MeanAbsoluteDifference('price'),
-#     Variance('price'),
-#     StDev('price'),
-#     CoefficientOfVariation('price'),
-#     Max('price'),
-#     Min('price')
-# )
-# print(result)
-
-# async def main():
-#     qs = await db.objects.aall('products')
-#     print(qs)
-
-# if __name__ == '__main__':
-#     asyncio.run(main())
+a = When('name__eq=Jupe de luxe', 'Mode')
+b = When('name__eq=Jupe de mode', 'Fashion')
+c = When(Q(name__contains='Jupe') & Q(name__ne='Google'), 'Quick')
+case = Case(a, b, c, default='google')
+v = db.objects.annotate('products', c=case)
+print(v)
+print(v.sql_statement)

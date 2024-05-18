@@ -12,25 +12,31 @@ class NegatedExpression(BaseExpression):
 class When(BaseExpression):
     """Represents a conditional expression in an SQL query. 
     It defines a condition and the corresponding value when 
-    the condition is met.
+    the condition is met
     """
-    
+
     def __init__(self, condition, then_case, **kwargs):
         self.condition = condition
         self.then_case = then_case
         self.field_name = None
 
     def as_sql(self, backend):
-        decomposed_filter = backend.decompose_filters_from_string(
-            self.condition
-        )
-        self.field_name = decomposed_filter[0]
-        condition = backend.simple_join(
-            backend.build_filters(
+        list_of_filters = []
+        if isinstance(self.condition, (Q, CombinedExpression)):
+            complex_filter = self.condition.as_sql(backend)
+            list_of_filters.extend(complex_filter)
+        else:
+            decomposed_filter = backend.decompose_filters_from_string(
+                self.condition
+            )
+            built_filters = backend.build_filters(
                 decomposed_filter,
                 space_characters=False
             )
-        )
+            self.field_name = decomposed_filter[0]
+            list_of_filters.extend(built_filters)
+
+        condition = backend.simple_join(list_of_filters)
         sql = backend.WHEN.format_map({
             'condition': condition,
             'value': backend.quote_value(self.then_case)
@@ -41,7 +47,12 @@ class When(BaseExpression):
 class Case(BaseExpression):
     """Represents a conditional expression in an SQL query. 
     It evaluates multiple conditions and returns a value 
-    based on the first condition that is met."""
+    based on the first condition that is met
+
+    >>> logic = When('firstname=Kendall', 'Kylie')
+    ... case = Case(condition1)
+    ... db.objects.annotate('celebrities', case)
+    """
 
     CASE = 'case {conditions}'
     CASE_ELSE = 'else {value}'
@@ -60,6 +71,7 @@ class Case(BaseExpression):
     def as_sql(self, backend):
         fields = set()
         statements_to_join = []
+
         for case in self.cases:
             fields.add(case.field_name)
             statements_to_join.append(case.as_sql(backend))
@@ -214,7 +226,7 @@ class Q(BaseExpression):
     """Represents a filter expression within SQL queries, 
     employed within the `WHERE` clause for example
     to define complex filter conditions.
-    
+
     >>> Q(firstname="Kendall") & Q(lastname="Jenner")
 
     The expression above expression results in a logical AND operation

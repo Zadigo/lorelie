@@ -1,13 +1,14 @@
 import dataclasses
 import pathlib
+from dataclasses import field
+from functools import wraps
 from typing import OrderedDict, Union
-
-from asgiref.sync import sync_to_async
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database.manager import DatabaseManager
-from lorelie.fields.relationships import ForeignKeyField
 from lorelie.database.migrations import Migrations
+from lorelie.exceptions import TableExistsError
+from lorelie.fields.relationships import ForeignKeyField
 from lorelie.queries import Query
 from lorelie.tables import Table
 
@@ -186,16 +187,12 @@ class Database:
 
         self.table_instances = list(tables)
         self.relationships = OrderedDict()
+        self.triggers_map = TriggersMap()
 
-        if path is None:
-            # Use the immediate parent path if not
-            # path is provided by the user
-            self.path = pathlib.Path(__file__).parent.absolute()
         databases.register(self)
 
     def __repr__(self):
-        tables = list(self.table_map.values())
-        return f'<{self.__class__.__name__} {tables}>'
+        return f'<{self.__class__.__name__} [tables: {len(self.table_names)}]>'
 
     def __getitem__(self, table_name):
         return self.table_map[table_name]
@@ -257,6 +254,16 @@ class Database:
         table parameters specified by on the table"""
         self.migrations.check(self.table_map)
 
+    def simple_load(self):
+        """Loads an existing sqlite and checks that the
+        columns of the existing tables match those of the
+        local table instances. Does not create or attempt
+        to modify the elements in sqlite database contrarily
+        to migrate. Use this method when you simply want to use
+        an existing database without modifiying the existing
+        data sqlite
+        """
+
     def register_trigger(self, table=None, trigger=None):
         def wrapper(func):
             @wraps(func)
@@ -290,14 +297,14 @@ class Database:
                 "Both tables should be an instance of "
                 f"Table: {left_table}, {right_table}"
             )
-        
+
         if (left_table not in self.table_instances and
                 right_table not in self.table_instances):
             raise ValueError(
                 "Both tables need to be registered in the database "
                 "namespace in order to create a relationship"
             )
-        
+
         right_table.is_foreign_key_table = True
         relationship_map = RelationshipMap(left_table, right_table)
 

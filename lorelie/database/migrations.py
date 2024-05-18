@@ -10,6 +10,21 @@ from lorelie.fields.base import CharField, DateTimeField, Field, JSONField
 from lorelie.queries import Query
 
 
+@dataclass
+class Schema:
+    table: type = None
+    database: type = None
+    fields: list = field(default_factory=list)
+    field_params: list = field(default_factory=list)
+
+    def __hash__(self):
+        return hash((self.table.name, self.database.database_name))
+
+    def prepare(self):
+        self.fields = self.table.field_names
+        self.field_params = self.table.build_field_parameters()
+
+
 def migration_validator(value):
     pass
 
@@ -48,6 +63,7 @@ class Migrations:
         # the underlying database can be
         # fully functionnal
         self.migrated = False
+        self.schemas = defaultdict(Schema)
 
     def __repr__(self):
         return f'<{self.__class__.__name__} {self.file_id}>'
@@ -115,6 +131,9 @@ class Migrations:
                     f"Value should be instance "
                     f"of Table. Got: {table_instance}"
                 )
+            schema = self.schemas[name]
+            schema.table = table_instance
+            schema.database = self.database
 
         if errors:
             raise ValueError(*errors)
@@ -244,6 +263,7 @@ class Migrations:
 
         # TODO: Drop columns that were dropped in the database
 
+        self.schemas[table.name].fields = list(map(lambda x: x['name'], database_table_columns))
         backend.create_table_fields(table, columns_to_create)
 
     def blank_migration(self):

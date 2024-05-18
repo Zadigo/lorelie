@@ -9,6 +9,8 @@ import datetime
 OutputFieldOptions = TypeVar(
     'OutputFieldOptions',
     CharField,
+    CommaSeparatedField,
+    BinaryField,
     DateTimeField,
     DateField,
     EmailField,
@@ -219,6 +221,14 @@ class UUIDField(Field):
 
 class URLField(CharField):
     ...
+
+
+class BinaryField(Field):
+    pass
+
+
+class CommaSeparatedField(CharField):
+    pass
 
 
 class Value:

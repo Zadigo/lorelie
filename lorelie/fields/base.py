@@ -1,7 +1,7 @@
 import datetime
 import json
-import string
 import re
+import string
 from urllib.parse import unquote, urlparse
 
 from lorelie.constraints import MaxLengthConstraint
@@ -48,7 +48,7 @@ class Field:
     def __eq__(self, value):
         if not isinstance(value, Field):
             return NotImplemented
-        
+
         return any([
             self.name == value.name,
             self.field_type == value.field_type
@@ -68,7 +68,7 @@ class Field:
         if not result:
             raise ValueError(
                 "Field name is not a valid name and contains "
-                f"invalid carachters: {name}"
+                f"invalid spaces or caracters: {name}"
             )
 
         result = re.search(r'\s+', name)
@@ -151,6 +151,10 @@ class Field:
         self.base_field_parameters['unique'] = self.unique
 
         if self.default is not None:
+            default_value = self.default
+            if callable(self.default):
+                default_value = self.default()
+
             database_value = self.to_database(default_value)
 
             try:
@@ -195,7 +199,7 @@ class Field:
         # on the field at the table level
         for instance in self.constraints:
             table.field_constraints[self.name] = instance
-        
+
         self.table = table
 
     def deconstruct(self):
@@ -206,7 +210,6 @@ class CharField(Field):
     def to_python(self, data):
         if data is None:
             return data
-
         return self.python_type(data)
 
     def to_database(self, data):
@@ -355,8 +358,8 @@ class AutoField(IntegerField):
 
 
 class DateFieldMixin:
-    date_format = '%Y-%m-%d'
     python_type = str
+    date_format = '%Y-%m-%d'
 
     def __init__(self, name, *, auto_update=False, auto_add=False, **kwargs):
         self.auto_update = auto_update
@@ -422,11 +425,11 @@ class TimeField(DateTimeField):
 
 
 class EmailField(CharField):
-    pass
+    base_validators = []
 
 
 class FilePathField(CharField):
-    pass
+    base_validators = []
 
 
 class SlugField(CharField):
@@ -444,6 +447,24 @@ class URLField(CharField):
         if data is None or data == '':
             return data
         return super().to_database(unquote(data))
+
+
+class BinaryField(Field):
+    pass
+
+
+class CommaSeparatedField(CharField):
+    base_validators = []
+
+    def to_python(self, data):
+        return data.split(',')
+
+    def to_dabase(self, data):
+        if not data is None or data == '':
+            return data
+
+        if isinstance(data, (list, set, tuple)):
+            return ', '.join(data)
 
 
 class Value:

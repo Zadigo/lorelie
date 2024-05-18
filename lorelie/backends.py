@@ -723,7 +723,7 @@ class SQLiteBackend(SQL):
         # sqlite3.register_converter()
         # sqlite3.register_adapter()
 
-        connection = sqlite3.connect(database_name)
+        connection = sqlite3.connect(database_name, check_same_thread=False)
         MD5Hash.create_function(connection)
         SHA256Hash.create_function(connection)
         MeanAbsoluteDifference.create_function(connection)

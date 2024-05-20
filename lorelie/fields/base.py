@@ -477,24 +477,6 @@ class CommaSeparatedField(CharField):
             return ', '.join(data)
 
 
-class Value:
-    def __init__(self, value, output_field=None):
-        self.value = value
-
-        if output_field is None:
-            output_field = CharField('value_field')
-        self.output_field = output_field
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}({self.to_database()})'
-
-    def to_database(self):
-        return self.output_field.to_database(self.value)
-
-    def as_sql(self, backend):
-        return [backend.quote_value(self.to_database())]
-
-
 class AliasField(Field):
     """A special field that guesses the type
     of the data and returns the correct database

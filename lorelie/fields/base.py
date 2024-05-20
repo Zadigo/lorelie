@@ -56,6 +56,11 @@ class Field:
 
     @property
     def field_type(self):
+        """The field type is the type for
+        the field that will be registered
+        in the database. SQLite has converters
+        that allows us then convert the data
+        back to its Python representation"""
         return 'text'
 
     @property
@@ -372,11 +377,6 @@ class DateFieldMixin:
 
         super().__init__(name, **kwargs)
 
-    def parse_date(self, d):
-        if isinstance(d, datetime.date):
-            d = str(d)
-        return datetime.datetime.strptime(d, self.date_format)
-
 
 class DateField(DateFieldMixin, Field):
     """
@@ -413,7 +413,7 @@ class DateTimeField(DateFieldMixin, Field):
     `auto_update` will update the field with the
     current date every time a value is updated
     """
-    date_format = '%Y-%m-%d %H:%M:%S.%f'
+    date_format = '%Y-%m-%d %H:%M:%S.%f%z'
 
     @property
     def field_type(self):

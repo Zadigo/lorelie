@@ -5,6 +5,7 @@ from sqlite3 import Cursor, Row
 from typing import Any, Callable, DefaultDict, List, Literal, Tuple, Union
 
 from lorelie.database.manager import ForeignTablesManager
+from lorelie.expressions import BaseExpression, CombinedExpression
 from lorelie.functions import Functions
 from lorelie.queries import Query, QuerySet
 from lorelie.tables import Table
@@ -182,7 +183,8 @@ class SQL:
 
     def build_annotation(
         self,
-        **conditions: Functions
+        conditions: dict[str, Union[Functions,
+                                    BaseExpression, CombinedExpression]]
     ) -> AnnotationMap: ...
 
     def decompose_sql_statement(

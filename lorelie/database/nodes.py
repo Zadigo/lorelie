@@ -317,3 +317,64 @@ class OrderByNode(BaseNode):
         fields = backend.comma_join(conditions)
         ordering_sql = backend.ORDER_BY.format_map({'conditions': fields})
         return [ordering_sql]
+
+
+class UpdateNode(BaseNode):
+    """To update existing data in a table, 
+    you use SQLite UPDATE statement. The following illustrates 
+    the syntax of the UPDATE statement:
+    """
+
+    # https://www.sqlitetutorial.net/sqlite-update/
+    template_sql = 'update {table} set {fields}'
+
+    def __init__(self, table, update_defaults, *where_args, **where_expressions):
+        super().__init__(table=table)
+        self.where_args = where_args
+        self.where_expressions = where_expressions
+        self.update_defaults = update_defaults
+
+    @property
+    def node_name(self):
+        return 'update'
+
+    def as_sql(self, backend):
+        where_node = WhereNode(*self.where_args, **self.where_expressions)
+        fields_to_set = backend.parameter_join(self.update_defaults)
+
+        update_sql = self.template_sql.format_map({
+            'table': self.table.name,
+            'fields': fields_to_set
+        })
+        return [update_sql, *where_node.as_sql(backend)]
+
+
+class InsertNode(BaseNode):
+    """
+    """
+
+    # https://www.sqlitetutorial.net/sqlite-insert/
+    template_sql = 'insert into {table} ({columns}) values({values})'
+
+    def __init__(self, table, returning=False, **insert_values):
+        super().__init__(table=table)
+        self.insert_values = insert_values
+        self.returning = returning
+
+    @property
+    def node_name(self):
+        return 'insert'
+
+    def as_sql(self, backend):
+        columns, values = backend.dict_to_sql(self.insert_values)
+        joined_values = backend.comma_join(backend.quote_values(values))
+
+        insert_sql = self.template_sql.format_map({
+            'table': self.table.name,
+            'columns': backend.comma_join(columns),
+            'values': joined_values
+        })
+        sql = [insert_sql]
+        if self.returning:
+            sql.append('returning id')
+        return sql

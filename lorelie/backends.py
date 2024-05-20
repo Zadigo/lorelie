@@ -78,12 +78,12 @@ class BaseRow:
     ... row.save()
     """
 
-    def __init__(self, cursor, fields, data):
+    def __init__(self, fields, data, cursor=None):
         # Indicate that this specific row
         # values have been changed and could
         # eligible for saving
         self.mark_for_update = False
-        self._cursor = cursor
+        self.cursor = cursor
         self._fields = fields
         self._cached_data = data
         self._backend = connections.get_last_connection()

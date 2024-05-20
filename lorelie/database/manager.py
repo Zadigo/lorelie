@@ -512,93 +512,102 @@ class DatabaseManager:
 
     # def extra()
     # def only()
-    # def get_or_create(self, table, defaults={}, **kwargs):
-    #     selected_table = self.before_action(table)
 
-    #     columns, values = selected_table.backend.dict_to_sql(defaults)
-    #     joined_columns = selected_table.backend.comma_join(columns)
-    #     joined_values = selected_table.backend.comma_join(values)
+    def get_or_create(self, table, defaults={}, **kwargs):
+        """Tries to get a row in the database using the coditions
+        passed in kwargs. It then uses the `defaults`
+        parameter to create the values that do not exist.
 
-    #     replace_sql = selected_table.backend.REPLACE.format_map({
-    #         'table': selected_table.name,
-    #         'fields': joined_columns,
-    #         'values': joined_values
-    #     })
-    #     print(replace_sql)
+        If `defaults` is not specified, the values passed in kwargs
+        will become the default `defaults`.
+
+        >>> defaults = {'age': 24}
+        ... db.objects.get_or_create('celebrities', defaults=defaults, firstname='Margot')
+
+        If the queryset returns multiple elements, an error is raised.
+        """
+        selected_table = self.before_action(table)
+
+        select_node = SelectNode(selected_table)
+        where_node = WhereNode(**kwargs)
+        sql = [select_node, where_node]
+
+        query = selected_table.query_class(table=selected_table)
+        query.add_sql_nodes(sql)
+        queryset = QuerySet(query)
+
+        if queryset.exists():
+            if len(queryset) > 1:
+                raise ValueError('Returned more than one values')
+            return queryset[-0]
+        else:
+            if not defaults:
+                defaults.update(**kwargs)
+
+            insert_node = InsertNode(
+                selected_table, returning=True, **defaults)
+            new_query = query.create(table=selected_table)
+            new_query.add_sql_node(insert_node)
+            queryset = QuerySet(new_query)
+            return queryset[-0]
+
     # def select_for_update()
     # def select_related()
     # def fetch_related()
 
-    def update_or_create(self, table, update_defaults={}, create_defaults={}, conflict_field=None, **kwargs):
+    def update_or_create(self, table, create_defaults={}, **kwargs):
         """Updates a set of rows in the database selected on the
-        filters determined by kwargs and then uses the `update_defaults`
-        parameter to update existing values or the `create_defaults`
-        dictionnary to create the values that do not exist. If `create_defaults`
-        is not specified, this function will do nothing on the conflictual fields
+        filters determined by kwargs. It then uses the `create_defaults`
+        parameter to create the values that do not exist.
 
-        >>> update_defaults = {'age': 24}
-        ... create_defaults = {'firstname': 'Margot', 'lastname': 'Robbie', 'age': 24}
-        ... db.objects.update_or_create('celebrities', update_defaults=update_defaults, create_defaults=create_defaults, firstname='Margot')
+        If `create_defaults` is not specified, the values passed in kwargs
+        will become the default `create_defaults`.
+
+        >>> create_defaults = {'age': 24}
+        ... db.objects.update_or_create('celebrities', create_defaults=create_defaults, firstname='Margot')
+
+        If the queryset returns multiple elements (from the get conditions specified
+        via kwargs), an error is raised.
         """
         selected_table = self.before_action(table)
 
-        update_fields, update_values = selected_table.backend.dict_to_sql(
-            update_defaults
-        )
-        quoted_update_values = selected_table.backend.quote_values(
-            update_values
-        )
-
-        upsert_sql = selected_table.backend.UPSERT.format_map({
-            'table': selected_table.name,
-            'fields': selected_table.backend.comma_join(update_fields),
-            'values': selected_table.backend.comma_join(quoted_update_values)
-        })
-
+        select_node = SelectNode(selected_table)
         query = selected_table.query_class(table=selected_table)
-        query.add_sql_nodes([upsert_sql])
+        query.add_sql_node(select_node)
 
-        if create_defaults:
-            create_fields, create_values = selected_table.backend.dict_to_sql(
-                create_defaults
-            )
-            quoted_update_values = selected_table.backend.quote_values(
-                create_values
-            )
+        if kwargs:
+            # The kwargs allows us to get one item
+            # in the database that we can update.
+            # If no kwargs are provided then we assume
+            # all products want to be updated at once
+            # which will force us to raise an error
+            # (ValueError) below
+            where_node = WhereNode(**kwargs)
+            query.add_sql_node(where_node)
 
-            set_params = []
-            for i, field in enumerate(create_fields):
-                set_params.append(selected_table.backend.EQUALITY.format_map({
-                    'field': field,
-                    'value': create_values[i]
-                }))
+        queryset = QuerySet(query)
 
-            update_set_params = selected_table.backend.comma_join(set_params)
+        if queryset.exists():
+            ids = list(map(lambda x: x['id'], queryset))
 
-            lookup_params = selected_table.backend.decompose_filters(**kwargs)
-            built_lookup_params = selected_table.backend.build_filters(
-                lookup_params,
-                space_characters=False
-            )
+            if len(ids) > 1:
+                # TODO: Check for cases where kwargs is not provided
+                # but there's only one element in the database
+                raise ValueError('Get returned more than one value')
 
-            if conflict_field is None:
-                if update_fields:
-                    conflict_field = update_fields[0]
+            if not create_defaults:
+                # We do not care if the user passes
+                # Q functions in the kwargs since we
+                # should not be able to use these
+                # in the get_or_create or update_or_create.
+                # We'll just let the error raise itself.
+                create_defaults.update(**kwargs)
 
-                if create_fields:
-                    conflict_field = create_fields[0]
-                raise ValueError('No conflict field was specified')
-
-            upsert_condition_sql = selected_table.backend.UPSERT_CONDITION.format_map({
-                'conflict_field': conflict_field,
-                'create_values': update_set_params,
-                'conditions': selected_table.backend.operator_join(built_lookup_params)
-            })
-            query.add_sql_node(upsert_condition_sql)
-        else:
-            query.add_sql_node('do nothing')
-
-        return QuerySet(query)
+            update_node = UpdateNode(
+                selected_table, create_defaults, id__in=ids)
+            new_query = query.create(table=selected_table)
+            new_query.add_sql_node(update_node)
+            return QuerySet(new_query)
 
     async def aall(self, table):
         return await sync_to_async(self.all)(table)

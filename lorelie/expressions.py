@@ -5,6 +5,41 @@ class BaseExpression:
         return NotImplemented
 
 
+class Value(BaseExpression):
+    def __init__(self, value, output_field=None):
+        self.value = value
+        self.internal_name = 'value'
+        self.output_field = output_field
+        self.get_output_field()
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.to_database()})'
+
+    def get_output_field(self):
+        from lorelie.fields.base import CharField, FloatField, IntegerField, JSONField
+        if self.output_field is None:
+            if isinstance(self.value, int):
+                self.output_field = IntegerField(self.internal_name)
+            elif isinstance(self.value, float):
+                self.output_field = FloatField(self.internal_name)
+            elif isinstance(self.value, str):
+                if self.value.isdigit() or self.value.isnumeric():
+                    self.output_field = IntegerField(self.internal_name)
+                else:
+                    self.output_field = CharField(self.internal_name)
+            elif isinstance(self.value, dict):
+                self.output_field = JSONField(self.internal_name)
+
+    def to_python(self, value):
+        pass
+
+    def to_database(self):
+        return self.output_field.to_database(self.value)
+
+    def as_sql(self, backend):
+        return [backend.quote_value(self.value)]
+
+
 class NegatedExpression(BaseExpression):
     template_sql = 'not {expression}'
 
@@ -100,63 +135,28 @@ class Case(BaseExpression):
         return backend.simple_join([case_sql, case_else_sql, case_end_sql])
 
 
-class OrderBy(BaseExpression):
-    """Represents an ORDER BY SQL clause 
-    to specify the sorting of query results."""
-
-    template_sql = 'order by {conditions}'
-
-    def __init__(self, fields):
-        self.ascending = set()
-        self.descending = set()
-
-        if not isinstance(fields, (list, tuple)):
-            raise ValueError(
-                "Ordering fields should be a list "
-                "of field names on your table"
-            )
-        self.fields = list(fields)
-        self.map_fields()
-
-    def __bool__(self):
-        return len(self.fields) > 0
-
-    @classmethod
-    def new(cls, fields):
-        return cls(fields)
-
-    def map_fields(self):
-        for field in self.fields:
-            if field.startswith('-'):
-                field = field.removeprefix('-')
-                self.descending.add(field)
-            else:
-                self.ascending.add(field)
-
-    def as_sql(self, backend):
-        conditions = []
-
-        for field in self.ascending:
-            conditions.append(
-                backend.ASCENDING.format_map({'field': field})
-            )
-
-        for field in self.descending:
-            conditions.append(
-                backend.DESCENDING.format_map({'field': field})
-            )
-
-        fields = backend.comma_join(conditions)
-        ordering_sql = backend.ORDER_BY.format_map({'conditions': fields})
-        return [ordering_sql]
-
-
 class CombinedExpression:
-    EXPRESSION = '({inner}) {outer}'
+    """A combined expression is a combination
+    of multiple expressions in order to create
+    an combined expression sql statement
+
+    >>> CombinedExpression(Q(age=21), Q(age=34))
+    ... CombinedExpression(F('age'))
+    """
+
+    template_sql = '({inner}) {outer}'
 
     def __init__(self, *funcs):
         self.others = list(funcs)
         self.children = []
+        # Indicates that the expression
+        # will be a mathematical one
+        # e.g. F('age') + 1
+        self.is_math = False
+        # These expressions require an alias
+        # field name in order to be rendered
+        # correctly in sqlite
+        self.alias_field_name = None
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.children}>'
@@ -171,20 +171,51 @@ class CombinedExpression:
         self.children.append(other)
         return self
 
+    def __add__(self, other):
+        self.children.append('+')
+        self.children.append(Value(other))
+        return self
+
+    def __sub__(self, other):
+        self.children.append('-')
+        self.children.append(Value(other))
+        return self
+
+    def __div__(self, other):
+        self.children.append('/')
+        self.children.append(Value(other))
+        return self
+
+    def __mul__(self, other):
+        self.children.append('*')
+        self.children.append(Value(other))
+        return self
+
     def build_children(self, operator='and'):
-        for other in self.others:
+        for i in range(len(self.others)):
+            other = self.others[i]
             self.children.append(other)
-            self.children.append(operator)
 
-        if self.children[-1] == 'and' or self.children[-1] == 'or':
-            self.children[-1] = ''
+            if i + 1 != len(self.others):
+                self.children.append(operator)
 
-        self.children = list(filter(lambda x: x != '', self.children))
+        # for other in self.others:
+        #     self.children.append(other)
+        #     self.children.append(operator)
+
+        #     if self.children[-1] == 'and' or self.children[-1] == 'or':
+        #         self.children[-1] = ''
+
+        #     self.children = list(filter(lambda x: x != '', self.children))
 
     def as_sql(self, backend):
+        # if self.is_math:
+        #     for child in self.children:
+        #         print(child)
+        # else:
         sql_statement = []
         for child in self.children:
-            if isinstance(child, str):
+            if isinstance(child, (str, int, float)):
                 sql_statement.append(child)
                 continue
             child_sql = child.as_sql(backend)
@@ -196,7 +227,7 @@ class CombinedExpression:
         is_inner = True
 
         for item in sql_statement:
-            if item == 'and' or item == 'or':
+            if item == 'and' or item == 'or' or item in ['+', '-', '/', '*']:
                 if seen_operator is None:
                     is_inner = True
                 elif seen_operator != item:
@@ -204,19 +235,19 @@ class CombinedExpression:
                 seen_operator = item
 
             if is_inner:
-                if isinstance(item, str):
+                if isinstance(item, (str, int, float)):
                     item = [item]
                 inner_items.extend(item)
                 continue
             else:
-                if isinstance(item, str):
+                if isinstance(item, (str, int, float)):
                     item = [item]
                 outer_items.extend(item)
                 continue
 
         inner = backend.simple_join(inner_items)
         outer = backend.simple_join(outer_items)
-        sql = self.EXPRESSION.format(inner=inner, outer=outer).strip()
+        sql = self.template_sql.format(inner=inner, outer=outer).strip()
         # TODO: Ensure that the SQL returned from these types
         # of expressions all return a list of strings
         return [sql]
@@ -259,28 +290,72 @@ class Q(BaseExpression):
         return [backend.operator_join(built_filters)]
 
 
-# class F:
-#     ADD = '+'
+class F(BaseExpression):
+    """The F function allows us to make operations
+    directly on the value of the database
 
-#     def __init__(self, field):
-#         self.field = field
-#         self.children = [self]
-#         self.sql = None
+    >>> F('age') + 1
+    ... F('price') * 1.2
 
-#     def __repr__(self):
-#         return f'{self.__class__.__name__}({self.field})'
+    These operations will translate directly to database
+    operations in such as `price * 1.2` where the value
+    in the price column will be multiplied by 1.2
+    """
 
-#     def __add__(self, obj):
-#         if isinstance(obj, F):
-#             true_represention = obj.field
-#         elif isinstance(obj, (float, int, str)):
-#             true_represention = Value(obj)
-#         self.children.append(true_represention)
-#         sql_tokens = [self.field, self.ADD, true_represention]
-#         self.sql = backend.simple_join(sql_tokens)
-#         return CombinedExpression(*self.children, operator=self.ADD)
+    ADD = '+'
+    SUBSRACT = '-'
+    MULTIPLY = 'x'
+    DIVIDE = '/'
 
+    def __init__(self, field):
+        self.field = field
 
-# result = F('age') + F('age')
-# print(result)
-# print(result.as_sql())
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.field})'
+
+    def __add__(self, other):
+        if not isinstance(other, (F, str, int)):
+            return NotImplemented
+
+        if isinstance(other, (int, str, float)):
+            other = Value(other)
+
+        combined = CombinedExpression(self, other)
+        combined.build_children(operator=self.ADD)
+        return combined
+
+    def __mul__(self, other):
+        if not isinstance(other, (F, str, int)):
+            return NotImplemented
+
+        if isinstance(other, (int, str, float)):
+            other = Value(other)
+
+        combined = CombinedExpression(self, other)
+        combined.build_children(operator=self.MULTIPLY)
+        return combined
+
+    def __div__(self, other):
+        if not isinstance(other, (F, str, int)):
+            return NotImplemented
+
+        if isinstance(other, (int, str, float)):
+            other = Value(other)
+
+        combined = CombinedExpression(self, other)
+        combined.build_children(operator=self.DIVIDE)
+        return combined
+
+    def __sub__(self, other):
+        if not isinstance(other, (F, str, int)):
+            return NotImplemented
+
+        if isinstance(other, (int, str, float)):
+            other = Value(other)
+
+        combined = CombinedExpression(self, other)
+        combined.build_children(operator=self.SUBSRACT)
+        return combined
+
+    def as_sql(self, backend):
+        return [self.field]

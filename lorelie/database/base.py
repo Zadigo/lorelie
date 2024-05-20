@@ -206,20 +206,21 @@ class Database:
     def __contains__(self, value):
         return value in self.table_names
 
-    def __getattr__(self, name):
-        # TODO: Continue to improve this
-        # section so that we can call the
-        # tables directly from the database
-        if name in self.table_names:
-            try:
-                current_table = self.table_map[name]
-            except:
-                raise TableExistsError(name)
-            else:
-                manager = self.objects
-                setattr(manager, '_test_current_table_on_manager', current_table)
-                return self.objects
-        return name
+    # def __getattr__(self, name):
+    #     # TODO: Continue to improve this
+    #     # section so that we can call the
+    #     # tables directly from the database
+    #     table_names = getattr(self.__dict__['database'], 'table_names')
+    #     if name in table_names:
+    #         try:
+    #             current_table = self.table_map[name]
+    #         except:
+    #             raise TableExistsError(name)
+    #         else:
+    #             manager = self.objects
+    #             setattr(manager, '_test_current_table_on_manager', current_table)
+    #             return self.objects
+    #     return name
 
     def __hash__(self):
         return hash((self.database_name, *self.table_names))

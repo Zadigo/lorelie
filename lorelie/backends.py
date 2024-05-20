@@ -732,10 +732,16 @@ class SQLiteBackend(SQL):
             database_name = f'{database_name}.sqlite'
         self.database_name = database_name
 
-        # sqlite3.register_converter()
-        # sqlite3.register_adapter()
+        # sqlite3.register_adapter(datetime.datetime.now, str)
+        sqlite3.register_converter('date', converters.convert_date)
+        sqlite3.register_converter('datetime', converters.convert_datetime)
 
-        connection = sqlite3.connect(database_name, check_same_thread=False)
+        connection = sqlite3.connect(
+            database_name, 
+            check_same_thread=False,
+            autocommit=True,
+            detect_types=sqlite3.PARSE_DECLTYPES
+        )
         MD5Hash.create_function(connection)
         SHA256Hash.create_function(connection)
         MeanAbsoluteDifference.create_function(connection)

@@ -183,9 +183,18 @@ class BaseRow:
         ... row['name'] = 'Kylie'
         ... row.save()
         """
-        self._backend.save_row_object(self)
-        self.updated_fields.clear()
-        return self
+        try:
+            self._backend.save_row_object(self)
+        except AttributeError:
+            raise ExceptionGroup(
+                'Row does not seem to be affiliated to a table',
+                [
+                    Exception('Could not save row object')
+                ]
+            )
+        else:
+            self.updated_fields.clear()
+            return self
 
     def delete(self):
         """Deletes the row from the database

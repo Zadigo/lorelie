@@ -168,9 +168,11 @@ class DatabaseManager:
             values=joined_values
         )
 
-        query.add_sql_nodes([insert_sql])
-        query.run(commit=True)
-        return self.last(table)
+        query.add_sql_nodes([insert_sql, 'returning id'])
+        # query.run(commit=True)
+        # return self.last(table)
+        queryset = QuerySet(query)
+        return list(queryset)[-0]
 
     def filter(self, table, *args, **kwargs):
         """Filter the data in the database based on

@@ -266,9 +266,9 @@ class DatabaseManager:
         annotated_sql_fields = selected_table.backend.comma_join(
             annotation_map.joined_final_sql_fields
         )
-        base_return_fields.append(annotated_sql_fields)
+        return_fields = ['*', annotated_sql_fields]
 
-        select_node = SelectNode(selected_table, *base_return_fields)
+        select_node = SelectNode(selected_table, *return_fields)
 
         query = self.database.query_class(table=selected_table)
         query.add_sql_nodes([select_node])

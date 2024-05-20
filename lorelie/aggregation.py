@@ -2,8 +2,11 @@ import math
 
 from lorelie.functions import Functions
 
+# TODO: Simplify this section
 
 class MathMixin:
+    allow_aggregation = True
+    
     @property
     def aggregate_name(self):
         function_name = self.__class__.__name__.lower()

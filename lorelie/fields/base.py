@@ -417,6 +417,11 @@ class DateTimeField(DateFieldMixin, Field):
     def field_type(self):
         return 'datetime'
 
+    def to_database(self, data):
+        if isinstance(data, str):
+            d = datetime.datetime.strptime(data, self.date_format)
+            return self.python_type(d)
+        return self.python_type(data)
 
 
 class TimeField(DateTimeField):

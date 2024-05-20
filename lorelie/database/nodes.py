@@ -135,11 +135,6 @@ class ComplexNode:
 
 
 class BaseNode:
-    """Class that represents a base SQL node.
-    A node can be defined as an SQL bit that can
-    be concatenated to other bits in order to
-    create the full SQL statement text"""
-
     template_sql = None
 
     def __init__(self, table=None, fields=[]):
@@ -180,9 +175,10 @@ class BaseNode:
 class SelectNode(BaseNode):
     template_sql = 'select {fields} from {table}'
 
-    def __init__(self, table, *fields, distinct=False):
-        self.distinct = distinct
+    def __init__(self, table, *fields, distinct=False, limit=None):
         super().__init__(table=table, fields=fields)
+        self.distinct = distinct
+        self.limit = limit
 
     @property
     def node_name(self):
@@ -193,14 +189,14 @@ class SelectNode(BaseNode):
         return self.__class__(self.table, *new_fields, distinct=self.distinct)
 
     def as_sql(self, backend):
-        sql = self.template_sql.format_map({
+        select_sql = self.template_sql.format_map({
             'fields': backend.comma_join(self.fields),
             'table': self.table.name
         })
 
         if self.distinct:
-            return [sql.replace('select', 'select distinct')]
-        return [sql]
+            return [select_sql.replace('select', 'select distinct')]
+        return [select_sql]
 
 
 class WhereNode(BaseNode):
@@ -212,8 +208,8 @@ class WhereNode(BaseNode):
         self.invert = False
         super().__init__()
 
-    def __call__(self, *args, **kwargs):
-        self.expressions.update(kwargs)
+    def __call__(self, *args, **expressions):
+        self.expressions.update(expressions)
         self.func_expressions.extend(args)
         return self
 
@@ -243,6 +239,7 @@ class WhereNode(BaseNode):
         joined_resolved = backend.operator_join(resolved)
         if self.invert:
             joined_resolved = f'not {joined_resolved}'
+            
         where_clause = self.template_sql.format(params=joined_resolved)
         return [where_clause]
 

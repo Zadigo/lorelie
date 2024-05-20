@@ -242,6 +242,10 @@ class QuerySet:
     def __contains__(self, value):
         return value in self.result_cache
 
+    def __eq__(self, value):
+        self.load_cache()
+        return  value == self
+
     def __len__(self):
         self.load_cache()
         return len(self.result_cache)

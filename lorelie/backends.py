@@ -853,15 +853,22 @@ class SQLiteBackend(SQL):
         """
         if self.current_table.auto_update_fields:
             value = str(datetime.datetime.now(tz=pytz.UTC))
-            for field in self._backend.current_table.auto_update_fields:
-                row[field] = value
+            for field in self.current_table.auto_update_fields:
+                row.updated_fields.update({field: value})
 
         fields_to_set = []
-        for _, values in row.updated_fields.items():
-            lhv, rhv = values
+        for field, value in row.updated_fields.items():
+            # Simply just invalidate the fields that are
+            # no present on the table
+            if not self.current_table.has_field(field):
+                continue
+
+            field_instance = self.current_table.get_field(field)
+            true_value = field_instance.to_database(value)
+            
             equality_statement = self.EQUALITY.format_map({
-                'field': lhv,
-                'value': self.quote_value(rhv)
+                'field': field,
+                'value': self.quote_value(true_value)
             })
             fields_to_set.append(equality_statement)
 

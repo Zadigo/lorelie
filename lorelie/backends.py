@@ -202,8 +202,17 @@ class BaseRow:
         >>> row = database.objects.last('my_table')
         ... row.delete()
         """
-        self._backend.delete_row_object(self)
-        return self
+        try:
+            self._backend.delete_row_object(self)
+        except AttributeError:
+            raise ExceptionGroup(
+                'Row does not seem to be affiliated to a table',
+                [
+                    Exception('Could not delete row object')
+                ]
+            )
+        else:
+            return self
 
 
 def row_factory(backend):

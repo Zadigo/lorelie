@@ -91,7 +91,7 @@ class BaseRow:
         table = getattr(self._backend, 'current_table', None)
         self.linked_to_table = getattr(table, 'name', None)
         self.updated_fields = {}
-        self.pk = getattr(self, 'rowid', getattr(self, 'id', None))
+        self.pk = data.get('rowid', data.get('id', None))
 
         for key, value in self._cached_data.items():
             setattr(self, key, value)

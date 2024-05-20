@@ -128,8 +128,7 @@ class BaseRow:
         # is specified as primary key, the
         # RowOD
         if name == 'rowid':
-            if 'rowid' not in self._cached_data:
-                return None
+            return self.pk
 
         value = getattr(self, name)
         # Before returning the value,

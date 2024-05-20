@@ -20,6 +20,9 @@ class Functions:
     @staticmethod
     def create_function(connection: sqlite3.Connection) -> None: ...
 
+    @property
+    def internal_type(self) -> Literal['function']: ...
+
     def as_sql(self, backend: SQLiteBackend) -> list[str]: ...
 
 

@@ -1,4 +1,4 @@
-from typing import Any, Self, TypeVar, Union, override
+from typing import Any, Literal, Self, TypeVar, Union, override
 
 from lorelie.backends import SQLiteBackend
 from lorelie.fields.base import (BinaryField, CharField, CommaSeparatedField,
@@ -26,6 +26,9 @@ OutputFieldOptions = TypeVar(
 
 class BaseExpression:
     template_sql: str = ...
+
+    @property
+    def internal_type(self) -> Literal['expression']: ...
 
     def as_sql(self, backend: SQLiteBackend) -> str: ...
 

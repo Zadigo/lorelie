@@ -421,6 +421,21 @@ class SQL:
         statement like in `count(name) as top_names`"""
         return f'{condition} as {alias}'
 
+    def parameter_join(self, data):
+        """Takes a list of fields and values
+        and returns string of key/value parameters
+        ready to be used in an sql statement
+
+        >>> self.parameter_join(['firstname', 'lastname'], ['Kendall', 'Jenner'])
+        ... "firstname='Kendall', lastname='Jenner'"
+        """
+        fields, values = self.dict_to_sql(data)
+        result = []
+        for i, field in enumerate(fields):
+            equality = self.EQUALITY.format(field=field, value=values[i])
+            result.append(equality)
+        return self.comma_join(result)
+
     def quote_values(self, values):
         """Quotes multiple values at once"""
         return list(map(lambda x: self.quote_value(x), values))

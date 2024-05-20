@@ -662,6 +662,15 @@ class SQL:
                     self
                 )
 
+            if isinstance(function, CombinedExpression):
+                if function.alias_field_name is None:
+                    raise ValueError('CombinedExpression requires an alias field name')
+                
+                annotation_map.field_names.append(function.alias_field_name)
+                annotation_map.sql_statements_dict[function.alias_field_name] = function.as_sql(
+                    self
+                )[-0]
+
             if Functions in inspect.getmro(function.__class__):
                 annotation_map.field_names.append(
                     function.field_name

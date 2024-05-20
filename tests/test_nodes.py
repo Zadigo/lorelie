@@ -2,7 +2,7 @@ from types import NotImplementedType
 import unittest
 
 from lorelie.backends import SQLiteBackend
-from lorelie.database.nodes import BaseNode, ComplexNode, OrderByNode, SelectNode, WhereNode
+from lorelie.database.nodes import BaseNode, ComplexNode, InsertNode, OrderByNode, SelectNode, UpdateNode, WhereNode
 from lorelie.expressions import Q
 from lorelie.tables import Table
 
@@ -130,6 +130,46 @@ class TestOrderNode(unittest.TestCase):
         a = OrderByNode(table, 'name')
         b = OrderByNode(table, '-name')
         c = a & b
+
+
+class TestUpdateNode(unittest.TestCase):
+    def test_structure(self):
+        defaults = {'firstname': 'Kandy'}
+        update_node = UpdateNode(table, defaults, firstname='Kendall')
+        result = update_node.as_sql(table.backend)
+
+        self.assertListEqual(
+            result[:1],
+            ["update test_table set firstname='Kandy'"]
+        )
+
+        self.assertListEqual(
+            result[1:][0].as_sql(table.backend),
+            ["where firstname='Kendall'"]
+        )
+
+
+class TestInsertNode(unittest.TestCase):
+    def test_simple_update(self):
+        insert_defaults = {'firstname': 'Kendall'}
+        insert_node = InsertNode(
+            table,
+            insert_defaults
+        )
+        self.assertListEqual(
+            insert_node.as_sql(table.backend),
+            ["insert into test_table (firstname) values('Kendall')"]
+        )
+
+    def test_insert_mode(self):
+        insert_node = InsertNode(
+            table,
+            firstname='Kendall'
+        )
+        self.assertListEqual(
+            insert_node.as_sql(table.backend),
+            ["insert into test_table (firstname) values('Kendall')"]
+        )
 
 
 if __name__ == '__main__':

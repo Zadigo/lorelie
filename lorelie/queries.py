@@ -10,7 +10,7 @@ class Query:
     """This class represents an SQL statement query and is responsible for executing 
     the query on the database. It handles the retrieval of data, which is then stored 
     in the `result_cache` attribute for subsequent use. 
-    
+
     The class offers methods for executing multiple queries against the database, running scripts, 
     and preparing statements before sending them to the database. It also includes functionality 
     to transform the retrieved data into Python objects.
@@ -30,7 +30,7 @@ class Query:
                 "Backend connection should be an "
                 "instance SQLiteBackend"
             )
-        
+
         self.backend.set_current_table(table)
         self.sql = None
         self.result_cache = []
@@ -85,7 +85,7 @@ class Query:
             if node.node_name == 'order_by':
                 if self.select_map.order_by is not None:
                     node = self.select_map.order_by & node
-            self.select_map[node.node_name] = node
+            self.select_map[node.node_name] = node # ERROR: Other nodes are added to the select map?
 
         self.statements.append(node)
 
@@ -204,7 +204,7 @@ class QuerySet:
     """Represents a set of results obtained from executing an SQL query. 
     It provides methods for manipulating and retrieving data from the database
     """
-    
+
     def __init__(self, query, skip_transform=False):
         if not isinstance(query, Query):
             raise ValueError(f"{query} should be an instance of Query")
@@ -387,3 +387,6 @@ class QuerySet:
         query.add_sql_nodes(update_sql_tokens)
         query.run(commit=True)
         return query.result_cache
+
+    def exists(self):
+        return len(self) > 0

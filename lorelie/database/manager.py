@@ -97,8 +97,7 @@ class DatabaseManager:
 
         query = self.database.query_class(table=selected_table)
         query.add_sql_nodes([select_node, orderby_node])
-        queryset = QuerySet(query)
-        return queryset[-0]
+        return QuerySet(query)[-0]
 
     def last(self, table):
         """Returns the last row from

@@ -274,9 +274,12 @@ class DatabaseManager:
         query.add_sql_nodes([select_node])
 
         if annotation_map.requires_grouping:
-            grouping_fields = set(annotation_map.field_names)
+            # grouping_fields = set(annotation_map.field_names)
+            # groupby_sql = selected_table.backend.GROUP_BY.format_map({
+            #     'conditions': selected_table.backend.comma_join(grouping_fields)
+            # })
             groupby_sql = selected_table.backend.GROUP_BY.format_map({
-                'conditions': selected_table.backend.comma_join(grouping_fields)
+                'conditions': 'id'
             })
             query.select_map.groupby = groupby_sql
 

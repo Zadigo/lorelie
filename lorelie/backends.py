@@ -338,6 +338,9 @@ class SQL:
 
     @staticmethod
     def quote_value(value):
+        if value is None:
+            return "''"
+        
         if isinstance(value, int):
             return value
 

@@ -164,20 +164,6 @@ class BaseRow:
             truth_array.append(value in str(item))
         return any(truth_array)
 
-    def __eq__(self, value):
-        return any((self[field] == value for field in self._fields))
-
-    # def __getattribute__(self, key):
-    #     # Check the relationship map and if we're
-    #     # trying to run an action on a related
-    #     # table, the sqls will be different
-    #     # current_table = self.__dict__['current_table']
-    #     # if current_table.is_foreign_key_table:
-    #     #     if current_table.has_field('key', raise_exception=True):
-    #     #         return ForeignTablesManager(None, current_table, None)
-    #     print(key)
-    #     return super().__getattribute__(key)
-
     def __getattr__(self, key):
         if key.endswith('_rel'):
             backend = self.__dict__['_backend']

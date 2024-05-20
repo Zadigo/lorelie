@@ -12,7 +12,7 @@ from asgiref.sync import sync_to_async
 from lorelie.aggregation import (Avg, CoefficientOfVariation, Count, Max,
                                  MeanAbsoluteDifference, Min, StDev, Sum,
                                  Variance)
-from lorelie.database.nodes import OrderByNode, SelectNode, WhereNode
+from lorelie.database.nodes import InsertNode, OrderByNode, SelectNode, UpdateNode, WhereNode
 from lorelie.exceptions import (FieldExistsError, MigrationsExistsError,
                                 TableExistsError)
 from lorelie.expressions import OrderBy
@@ -109,8 +109,7 @@ class DatabaseManager:
 
         query = self.database.query_class(table=selected_table)
         query.add_sql_nodes([select_node, orderby_node])
-        queryset = QuerySet(query)
-        return queryset[-0]
+        return QuerySet(query)[-0]
 
     def all(self, table):
         selected_table = self.before_action(table)
@@ -198,7 +197,7 @@ class DatabaseManager:
 
         if selected_table.ordering:
             orderby_node = OrderByNode(
-                selected_table, 
+                selected_table,
                 *selected_table.ordering
             )
             query.add_sql_node(orderby_node)
@@ -222,7 +221,10 @@ class DatabaseManager:
         queryset = QuerySet(query)
 
         if len(queryset) > 1:
-            raise ValueError("Get returnd more than one value")
+            raise ValueError(
+                "Get returnd more than one value. "
+                f"It returned {len(queryset)} items"
+            )
 
         if not queryset:
             return None
@@ -261,7 +263,6 @@ class DatabaseManager:
             return self.all(table)
 
         alias_fields = list(kwargs.keys())
-        base_return_fields = ['rowid', '*']
         annotation_map = selected_table.backend.build_annotation(**kwargs)
         annotated_sql_fields = selected_table.backend.comma_join(
             annotation_map.joined_final_sql_fields
@@ -474,6 +475,7 @@ class DatabaseManager:
 
     def datetimes(self, table, field, field_to_sort='year', ascending=True):
         selected_table = self.before_action(table)
+
         select_node = SelectNode(selected_table, field)
         query = selected_table.query_class(table=selected_table)
         query.add_sql_node(select_node)

@@ -184,7 +184,8 @@ class BaseRow:
             )
         else:
             self.updated_fields.clear()
-            return self
+        finally:
+            self.mark_for_update = False
 
     def delete(self):
         """Deletes the row from the database

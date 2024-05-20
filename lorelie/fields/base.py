@@ -399,8 +399,10 @@ class DateField(DateFieldMixin, Field):
         return d.date()
 
     def to_database(self, data):
-        d = self.parse_date(data)
-        return self.python_type(d.date())
+        if isinstance(data, str):
+            d = datetime.datetime.strptime(data, self.date_format)
+            return self.python_type(d)
+        return self.python_type(data.date())
 
 
 class DateTimeField(DateFieldMixin, Field):

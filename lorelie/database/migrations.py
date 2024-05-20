@@ -1,11 +1,10 @@
-from dataclasses import dataclass, field
 import datetime
 import json
 import secrets
 from collections import defaultdict
+from dataclasses import dataclass, field
 from functools import cached_property
 
-from lorelie import PROJECT_PATH
 from lorelie.backends import SQLiteBackend, connections
 from lorelie.fields.base import CharField, DateTimeField, Field, JSONField
 from lorelie.queries import Query
@@ -41,7 +40,8 @@ class Migrations:
     backend_class = SQLiteBackend
 
     def __init__(self, database):
-        self.file = PROJECT_PATH / 'migrations.json'
+        # self.file = PROJECT_PATH / 'migrations.json'
+        self.file = database.path / 'migrations.json'
         self.database = database
         self.database_name = database.database_name or 'memory'
         self.CACHE = self.read_content
@@ -170,7 +170,7 @@ class Migrations:
                 self.tables_for_deletion.add(database_row)
 
         if ('lorelie_migrations' not in database_tables or
-             'lorelie_migrations' not in self.migration_table_map):
+                'lorelie_migrations' not in self.migration_table_map):
             self.create_migration_table()
             self.tables_for_creation.add('lorelie_migrations')
 
@@ -270,14 +270,16 @@ class Migrations:
 
         # TODO: Drop columns that were dropped in the database
 
-        self.schemas[table.name].fields = list(map(lambda x: x['name'], database_table_columns))
+        self.schemas[table.name].fields = list(
+            map(lambda x: x['name'], database_table_columns))
         backend.create_table_fields(table, columns_to_create)
 
     def blank_migration(self):
         """Creates a blank initial migration file"""
         migration_content = {}
 
-        file_path = PROJECT_PATH / 'migrations.json'
+        # file_path = PROJECT_PATH / 'migrations.json'
+        file_path = self.database.path / 'migrations.json'
         if not file_path.exists():
             file_path.touch()
 
@@ -295,7 +297,8 @@ class Migrations:
         # necessary e.g. dropped tables, changed fields
         if self.has_migrations:
             cache_copy = self.CACHE.copy()
-            with open(PROJECT_PATH / 'migrations.json', mode='w+') as f:
+            # with open(PROJECT_PATH / 'migrations.json', mode='w+') as f:
+            with open(self.database.path / 'migrations.json', mode='w+') as f:
                 cache_copy['id'] = secrets.token_hex(5)
                 cache_copy['date'] = str(datetime.datetime.now())
                 cache_copy['number'] = self.CACHE['number'] + 1

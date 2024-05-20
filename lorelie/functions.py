@@ -7,7 +7,7 @@ class Functions:
 
     def __init__(self, field_name):
         self.field_name = field_name
-        self.backend = None
+        # self.backend = None
 
     def __str__(self):
         return f'<{self.__class__.__name__}({self.field_name})>'
@@ -26,6 +26,10 @@ class Functions:
         function space in other to use none
         conventional functions"""
         return NotImplemented
+
+    @property
+    def internal_type(self):
+        return 'function'
 
     def as_sql(self, backend):
         return NotImplemented

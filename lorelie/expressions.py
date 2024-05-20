@@ -1,6 +1,10 @@
 class BaseExpression:
     template_sql = None
 
+    @property
+    def internal_type(self):
+        return 'expression'
+
     def as_sql(self, backend):
         return NotImplemented
 

@@ -218,6 +218,11 @@ class QuerySet:
         # table indexes. This allows to skip the
         # python transform of the data
         self.skip_transform = skip_transform
+        # Methods that require a commit to return
+        # objects (get_or_create etc.) can indicate
+        # to the QuerySet that commits needs to be
+        # set to True
+        self.use_commit = False
 
     def __repr__(self):
         self.load_cache()
@@ -240,6 +245,7 @@ class QuerySet:
             yield item
 
     def __contains__(self, value):
+        self.load_cache()
         return value in self.result_cache
 
     def __eq__(self, value):
@@ -249,7 +255,7 @@ class QuerySet:
     def __len__(self):
         self.load_cache()
         return len(self.result_cache)
-
+    
     @property
     def dataframe(self):
         import pandas
@@ -261,7 +267,7 @@ class QuerySet:
 
     def load_cache(self):
         if not self.result_cache:
-            self.query.run()
+            self.query.run(commit=self.use_commit)
             if not self.skip_transform:
                 self.query.transform_to_python()
             self.result_cache = self.query.result_cache

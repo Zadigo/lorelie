@@ -1,22 +1,18 @@
 import collections
 import dataclasses
 import datetime
-import inspect
-import re
 from dataclasses import is_dataclass
-from functools import partial
 
 import pytz
 from asgiref.sync import sync_to_async
-
 from lorelie.aggregation import (Avg, CoefficientOfVariation, Count, Max,
                                  MeanAbsoluteDifference, Min, StDev, Sum,
                                  Variance)
-from lorelie.database.nodes import InsertNode, OrderByNode, SelectNode, UpdateNode, WhereNode
+from lorelie.database.nodes import (InsertNode, OrderByNode, SelectNode,
+                                    UpdateNode, WhereNode)
 from lorelie.exceptions import (FieldExistsError, MigrationsExistsError,
                                 TableExistsError)
-from lorelie.expressions import OrderBy
-from lorelie.fields.base import Value
+from lorelie.expressions import BaseExpression, CombinedExpression, Value
 from lorelie.functions import Functions
 from lorelie.queries import Query, QuerySet, ValuesIterable
 
@@ -168,10 +164,12 @@ class DatabaseManager:
         )
 
         query.add_sql_nodes([insert_sql, 'returning id'])
-        # query.run(commit=True)
-        # return self.last(table)
-        queryset = QuerySet(query)
-        return list(queryset)[-0]
+        query.run(commit=True)
+        # TODO: This raises a sqlite3.OperationalError: cannot
+        # commit transaction - SQL statements in progress
+        # queryset = QuerySet(query)
+        # queryset.use_commit = True
+        # return list(queryset)[-0]
 
     def filter(self, table, *args, **kwargs):
         """Filter the data in the database based on
@@ -229,7 +227,7 @@ class DatabaseManager:
         if not queryset:
             return None
 
-        return queryset[-0]
+        return list(queryset)[-0]
 
     def annotate(self, table, *args, **kwargs):
         """Annotations implements the usage of
@@ -560,11 +558,19 @@ class DatabaseManager:
                 defaults.update(**kwargs)
 
             insert_node = InsertNode(
-                selected_table, returning=True, **defaults)
+                selected_table,
+                returning=True,
+                **defaults
+            )
             new_query = query.create(table=selected_table)
             new_query.add_sql_node(insert_node)
+
+            # new_query.run(commit=True)
+            # TODO: This raises a sqlite3.OperationalError: cannot commit
+            # transaction - SQL statements in progress
             queryset = QuerySet(new_query)
-            return queryset[-0]
+            # queryset.use_commit = True
+            return list(queryset)[-0]
 
     # def select_for_update()
     # def select_related()

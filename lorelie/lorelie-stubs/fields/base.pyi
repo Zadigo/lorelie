@@ -1,27 +1,9 @@
-from typing import (Any, Callable, Literal, Tuple, Type, TypedDict, Union, Unpack,
-                    override, TypeVar)
+import datetime
+from typing import (Any, Callable, Literal, Tuple, Type,
+                    TypedDict, Union, Unpack, override)
 
-from lorelie.backends import SQLiteBackend
 from lorelie.constraints import MaxLengthConstraint
 from lorelie.tables import Table
-import datetime
-
-OutputFieldOptions = TypeVar(
-    'OutputFieldOptions',
-    CharField,
-    CommaSeparatedField,
-    BinaryField,
-    DateTimeField,
-    DateField,
-    EmailField,
-    FilePathField,
-    FloatField,
-    IntegerField,
-    JSONField,
-    SlugField,
-    UUIDField,
-    URLField
-)
 
 
 class FieldOptions(TypedDict):
@@ -229,34 +211,6 @@ class BinaryField(Field):
 
 class CommaSeparatedField(CharField):
     pass
-
-
-class Value:
-    output_field: Union[
-        CharField,
-        DateTimeField,
-        DateField,
-        EmailField,
-        FilePathField,
-        FloatField,
-        IntegerField,
-        JSONField,
-        SlugField,
-        UUIDField,
-        URLField
-    ]
-    value: Any = ...
-
-    def __init__(
-        self,
-        value: Any,
-        output_field: OutputFieldOptions = ...
-    ) -> None: ...
-
-    def __repr__(self) -> str: ...
-
-    def to_database(self) -> Union[str, list, dict, int, float]: ...
-    def as_sql(self, backend: SQLiteBackend) -> list[str]: ...
 
 
 class AliasField(Field):

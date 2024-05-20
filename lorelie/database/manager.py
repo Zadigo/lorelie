@@ -255,14 +255,27 @@ class DatabaseManager:
         selected_table = self.before_action(table)
 
         for func in args:
-            if not isinstance(func, Functions):
-                raise ValueError('Func should be an instnae of Functions')
+            if not isinstance(func, (Functions, BaseExpression)):
+                raise ValueError(
+                    'Func should be an instnae of Functions or BaseExpression')
+
+            if isinstance(func, CombinedExpression):
+                raise ValueError('CombinedExpressions require an alias name')
+
             kwargs.update({func.alias_field_name: func})
 
         if not kwargs:
             return self.all(table)
 
         alias_fields = list(kwargs.keys())
+
+        for field in alias_fields:
+            # Combined expressions alias field names
+            # are added afterwards once the user sets
+            # the name for the expression
+            if isinstance(kwargs[field], CombinedExpression):
+                kwargs[field].alias_field_name = field
+
         annotation_map = selected_table.backend.build_annotation(**kwargs)
         annotated_sql_fields = selected_table.backend.comma_join(
             annotation_map.joined_final_sql_fields

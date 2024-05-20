@@ -77,7 +77,8 @@ class ValuesIterable:
 class QuerySet:
     query: Query = ...
     result_cache: list[BaseRow] = ...
-    skip_transform: bool = Literal[False]
+    skip_transform: Literal[False] = False 
+    use_commit: Literal[False] = False
 
     def __init__(
         self, query: Query,

@@ -164,12 +164,12 @@ class Database:
 
     def __init__(self, *tables, name=None, path=None):
         self.database_name = name
-        self.migrations = self.migrations_class(self)
+        # Use the immediate parent path if not
+        # path is provided by the user
+        self.path = pathlib.Path(__name__).parent.absolute()
 
-        if path is None:
-            # Use the immediate parent path if not
-            # path is provided by the user
-            self.path = pathlib.Path(__name__).parent.absolute()
+        if path is not None:
+            self.path = path
 
         # Create a connection to populate the
         # connection pool for the rest of the

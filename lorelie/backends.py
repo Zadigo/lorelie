@@ -149,7 +149,8 @@ class BaseRow:
         super().__setattr__(name, value)
 
     def __hash__(self):
-        return hash((self.pk))
+        values = list(map(lambda x: getattr(self, x, None), self._fields))
+        return hash((self.pk, *values))
 
     def __contains__(self, value):
         # Check that a value exists in

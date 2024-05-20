@@ -120,7 +120,7 @@ class BaseRow:
         # sets a field that does not actually
         # exist on the database. We'll simply
         # invalidate the field in the final SQL
-        self.updated_fields[name] = [name, value]
+        self.updated_fields[name] = value
         self.__dict__[name] = value
 
     def __getitem__(self, name):

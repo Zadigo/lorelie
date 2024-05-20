@@ -2,7 +2,8 @@ import re
 import unittest
 
 from lorelie.backends import SQLiteBackend
-from lorelie.expressions import Case, CombinedExpression, Q, When
+from lorelie.expressions import Case, CombinedExpression, F, Q, When
+from lorelie.fields.base import Value
 
 backend = SQLiteBackend()
 
@@ -52,7 +53,7 @@ class TestQ(unittest.TestCase):
         result = logic.as_sql(backend)
         self.assertListEqual(
             result,
-            ["firstname='Kendall'", 'age>20', 'age<=50']
+            ["firstname='Kendall' and age>20 and age<=50"]
         )
 
     def test_multioperators(self):
@@ -116,6 +117,32 @@ class TestCase(unittest.TestCase):
         self.assertRegex(
             sql,
             r"^when\sfirstname\=\'Kendall\'\sthen\s\'kendall\'$"
+        )
+
+
+class TestF(unittest.TestCase):
+    def test_structure(self):
+        result = F('age') + F('age')
+        self.assertIsInstance(result, CombinedExpression)
+
+        sql = result.as_sql(backend)
+        self.assertEqual(
+            sql,
+            ['(age + age)']
+        )
+
+        result = F('age') + F('age') - 1
+        sql = result.as_sql(backend)
+        self.assertEqual(
+            sql,
+            ['(age + age) - 1']
+        )
+
+        result = F('age') - F('age')
+        sql = result.as_sql(backend)
+        self.assertEqual(
+            sql,
+            ['(age - age)']
         )
 
 

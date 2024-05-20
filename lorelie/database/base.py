@@ -190,6 +190,12 @@ class Database:
         self.triggers_map = TriggersMap()
 
         databases.register(self)
+        # FIXME: Seems like if this class is not called
+        # after all the elements have been set, this
+        # raises an error. Maybe create a special prepare
+        # function to setup the different elements of the
+        # class later on
+        self.migrations = self.migrations_class(self)
 
     def __repr__(self):
         return f'<{self.__class__.__name__} [tables: {len(self.table_names)}]>'

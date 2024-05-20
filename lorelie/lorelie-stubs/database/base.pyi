@@ -1,16 +1,17 @@
-from collections.abc import Callable
 import dataclasses
 import pathlib
+from collections.abc import Callable
 from dataclasses import field
-from typing import Any, List, Literal, Optional, OrderedDict, Protocol, Type, TypeVar, Union
-
+from typing import (Any, List, Literal, Optional, OrderedDict, Protocol, Type,
+                    TypeVar, Union)
 
 from lorelie.backends import BaseRow, SQLiteBackend
 from lorelie.database.manager import DatabaseManager
-from lorelie.fields.relationships import ForeignKeyField
 from lorelie.database.migrations import Migrations
+from lorelie.fields.relationships import ForeignKeyField
 from lorelie.tables import Table
 
+TableType = TypeVar('TableType', bound=Table)
 
 class Databases:
     database_map: OrderedDict[str, Database] = ...
@@ -113,8 +114,8 @@ class Database:
 
     def foreign_key(
         self,
-        left_table: Table,
-        right_table: Table,
+        left_table: TableType,
+        right_table: TableType,
         on_delete,
         related_name: str = ...
     ) -> None: ...

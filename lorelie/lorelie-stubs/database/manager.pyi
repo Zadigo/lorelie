@@ -89,19 +89,17 @@ class DatabaseManager:
     def get_or_create(
         self, table: str,
         defaults: dict = ...,
-        conflict_field: str = ...,
         **kwargs
-    ) -> Union[BaseRow, QuerySet]: ...
+    ) -> BaseRow: ...
 
     def select_for_update(self, table: str) -> QuerySet[BaseRow]: ...
     def select_related(self, table: str) -> QuerySet[BaseRow]: ...
     def fetch_related(self, table: str) -> QuerySet[BaseRow]: ...
 
     def update_or_create(
-        self, table: str,
-        update_defaults: dict = ...,
-        create_defaults: dict = ...,
-        conflict_field: str = ...,
+        self, 
+        table: str,
+        create_defaults: dict[str, Any] = ...,
         **kwargs
     ) -> QuerySet: ...
 

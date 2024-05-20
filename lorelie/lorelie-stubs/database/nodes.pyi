@@ -1,6 +1,7 @@
 import dataclasses
-from typing import Any, Literal, Union, overload, override
+from typing import Any, Dict, Literal, Tuple, Union, override
 
+from expressions import Q
 from tables import Table
 
 from lorelie.backends import SQLiteBackend
@@ -96,7 +97,7 @@ class WhereNode(BaseNode):
 
     def __init__(self, *args: Functions, **expressions) -> None: ...
     @override
-    def __call__(self, *args, **kwargs) -> WhereNode: ...
+    def __call__(self, *args: Functions, **expressions) -> WhereNode: ...
 
 
 class OrderByNode(BaseNode):
@@ -114,3 +115,29 @@ class OrderByNode(BaseNode):
         field: str,
         ascending: bool = Literal[True]
     ) -> Union[str, None]: ...
+
+
+class UpdateNode(BaseNode):
+    args: Tuple[Union[str, Q]] = ...
+    kwargs: Dict[str, Union[Q, Any]] = ...
+    defaults: Dict[str, Any] = ...
+
+    def __init__(
+        self,
+        table: Table,
+        update_defaults: Dict[str, Any],
+        *where_args: Q,
+        **where_expressions: Union[Any, Q]
+    ) -> None: ...
+
+
+class InsertNode(BaseNode):
+    template_sql: str = ...
+    insert_values: Any
+
+    def __init__(
+        self,
+        table: Table,
+        returning: bool = ...,
+        **insert_values
+    ) -> None: ...

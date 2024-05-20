@@ -387,9 +387,9 @@ class DateField(DateFieldMixin, Field):
     current date every time a value is updated
     """
 
-    # @property
-    # def field_type(self):
-    #     return 'datetime.date'
+    @property
+    def field_type(self):
+        return 'date'
 
     def to_python(self, data):
         if data is None or data == '':
@@ -413,9 +413,10 @@ class DateTimeField(DateFieldMixin, Field):
     """
     date_format = '%Y-%m-%d %H:%M:%S.%f'
 
-    # @property
-    # def field_type(self):
-    #     return 'datetime.datetime'
+    @property
+    def field_type(self):
+        return 'datetime'
+
 
 
 class TimeField(DateTimeField):

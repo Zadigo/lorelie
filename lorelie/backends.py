@@ -126,7 +126,7 @@ class BaseRow:
     def __getitem__(self, name):
         # It seems like when an ID field
         # is specified as primary key, the
-        # RowOD
+        # RowID
         if name == 'rowid':
             return self.pk
 
@@ -136,17 +136,6 @@ class BaseRow:
         # converting said value to a Python
         # usable object
         return value
-
-    # FIXME: When trying to set this up
-    # we get a recursion error for
-    # whatever reasons
-    def __setattr__(self, name, value):
-        # fields = self.__dict__['_fields']
-        # if name in fields:
-        #     self.__dict__['mark_for_update'] = True
-        #     self.__dict__['updated_fields'][name] = [name, value]
-        #     self.__dict__[name] = value
-        super().__setattr__(name, value)
 
     def __hash__(self):
         values = list(map(lambda x: getattr(self, x, None), self._fields))
@@ -168,7 +157,8 @@ class BaseRow:
         if key.endswith('_rel'):
             backend = self.__dict__['_backend']
             right_table_name, _ = key.split('_')
-            manager = ForeignTablesManager(right_table_name, backend.current_table)
+            manager = ForeignTablesManager(
+                right_table_name, backend.current_table)
             setattr(manager, 'current_row', self)
             return manager
         return key
@@ -223,7 +213,7 @@ def row_factory(backend):
     def inner_factory(cursor, row):
         fields = [column[0] for column in cursor.description]
         data = {key: value for key, value in zip(fields, row)}
-        return BaseRow(cursor, fields, data)
+        return BaseRow(fields, data, cursor=cursor)
     return inner_factory
 
 

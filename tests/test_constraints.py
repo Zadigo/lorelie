@@ -1,5 +1,6 @@
 import unittest
-from tests.testcases import LorelieTestCase
+
+from lorelie.test.testcases import LorelieTestCase
 
 
 class TestConstraints(LorelieTestCase):

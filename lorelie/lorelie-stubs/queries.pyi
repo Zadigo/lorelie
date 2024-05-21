@@ -19,20 +19,19 @@ class Query:
 
     def __init__(
         self,
-        sql_tokens: list[str],
-        backend: SQLiteBackend = ...,
-        table: Table = ...
+        table: Table = ...,
+        backend: SQLiteBackend = ...
     ) -> None: ...
 
     def __repr__(self) -> str: ...
 
-    @classmethod
-    def run_multiple(
-        cls: Type[Query],
-        backend: SQLiteBackend,
-        *sqls: str,
-        **kwargs
-    ) -> Generator[Query]: ...
+    # @classmethod
+    # def run_multiple(
+    #     cls: Type[Query],
+    #     backend: SQLiteBackend,
+    #     *sqls: str,
+    #     **kwargs
+    # ) -> Generator[Query]: ...
 
     @classmethod
     def create(
@@ -77,7 +76,7 @@ class ValuesIterable:
 class QuerySet:
     query: Query = ...
     result_cache: list[BaseRow] = ...
-    skip_transform: Literal[False] = False 
+    skip_transform: Literal[False] = False
     use_commit: Literal[False] = False
 
     def __init__(

@@ -42,13 +42,13 @@ class Query:
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self.sql}]>'
 
-    @classmethod
-    def run_multiple(cls, backend, *sqls, **kwargs):
-        """Runs multiple queries against the database"""
-        for sql in sqls:
-            instance = cls(backend, sql, **kwargs)
-            instance.run(commit=True)
-            yield instance
+    # @classmethod
+    # def run_multiple(cls, backend, *sqls, **kwargs):
+    #     """Runs multiple queries against the database"""
+    #     for sql in sqls:
+    #         instance = cls(backend, sql, **kwargs)
+    #         instance.run(commit=True)
+    #         yield instance
 
     @classmethod
     def create(cls, table=None, backend=None):
@@ -67,10 +67,12 @@ class Query:
 
         joined_statements = instance.backend.simple_join(statements)
         script = template.format(statements=joined_statements)
+        instance.sql = script
 
         result = instance.backend.connection.executescript(script)
         instance.backend.connection.commit()
         instance.result_cache = list(result)
+        instance.is_evaluated = True
         return instance
 
     @property
@@ -131,6 +133,7 @@ class Query:
         try:
             result = self.backend.connection.execute(self.sql)
         except OperationalError as e:
+            print(e)
             raise
         except Exception as e:
             print(e)
@@ -138,6 +141,7 @@ class Query:
             if commit:
                 self.backend.connection.commit()
             self.result_cache = list(result)
+            self.is_evaluated = True
 
     def transform_to_python(self):
         """Transforms the values returned by the

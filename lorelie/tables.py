@@ -243,6 +243,7 @@ class Table(AbstractTable):
             raise ValueError("Field is already present on the database")
 
         self.fields_map[field_name] = field
+        self.field_names = list(self.fields_map.keys())
 
         field_params = self.build_field_parameters()
         field_params = [

@@ -2,10 +2,36 @@ import re
 import unittest
 
 from lorelie.backends import SQLiteBackend
-from lorelie.expressions import Case, CombinedExpression, F, Q, When
-from lorelie.fields.base import Value
+from lorelie.expressions import Case, CombinedExpression, F, Q, Value, When
 
 backend = SQLiteBackend()
+
+# Invalid usage
+# db.objects.annotate('products', F('price'))
+# db.objects.annotate('products', F('price') + F('price'))
+# db.objects.annotate('products', Value(1))
+# db.objects.annotate('products', Value(F('unit_price')))
+# db.objects.annotate('products', Q(price__gt=1))
+# db.objects.filter('products', price=F('name') + 'a')
+# a = Value(Q(firstname='Kendall'))
+
+# Valid usage
+# db.objects.filter('products', price=Value('price'))
+# db.objects.annotate('products', my_price=F('price'))
+# db.objects.annotate('products', my_price=F('price'))
+# db.objects.annotate('products', my_price=F('price') + F('price'))
+# db.objects.annotate('products', my_price=F('price') + F('price') - 1)
+# db.objects.annotate('products', my_price=F('price') + 1)
+# db.objects.annotate('products', my_price=Value(1))
+# db.objects.annotate('products', my_price=Q(price__gt=1))
+# db.objects.annotate(nameb=Value(F('name') + 'a', output_field=CharField()))
+
+# case = Case(When('price__eq=10', then_case=1), default=30)
+# db.objects.annotate('products', my_price=case)
+
+# db.objects.annotate('products', Count('price'))
+# db.objects.annotate('products', count_price=Count('price'))
+# db.objects.annotate('products', Count('price'), Count('unit_price'))
 
 
 class TestQ(unittest.TestCase):
@@ -144,6 +170,15 @@ class TestF(unittest.TestCase):
             sql,
             ['(age - age)']
         )
+
+
+class TestValue(unittest.TestCase):
+    def test_structure(self):
+        a = Value(1)
+        print(a.as_sql(backend))
+
+        # a = Value(Q(firstname='Kendall'))
+        # print(a.as_sql(backend))
 
 
 if __name__ == '__main__':

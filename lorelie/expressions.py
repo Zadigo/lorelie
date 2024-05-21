@@ -59,6 +59,9 @@ class When(BaseExpression):
         self.then_case = then_case
         self.field_name = None
 
+    def __repr__(self):
+        return f'When({self.field_name} -> {self.then_case})'
+
     def as_sql(self, backend):
         list_of_filters = []
         if isinstance(self.condition, (Q, CombinedExpression)):
@@ -99,13 +102,17 @@ class Case(BaseExpression):
 
     def __init__(self, *cases, default=None):
         self.field_name = None
-        self.alias_name = None
+        self.alias_field_name = None
         self.default = default
 
         for case in cases:
             if not isinstance(case, When):
                 raise ValueError('Value should be an instance of When')
         self.cases = list(cases)
+
+    def __repr__(self):
+        cases_repr = ', '.join(repr(case) for case in self.cases)
+        return f'{self.__class__.__name__}({cases_repr})'
 
     def as_sql(self, backend):
         fields = set()

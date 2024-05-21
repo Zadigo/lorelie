@@ -1,3 +1,6 @@
+from lorelie.database.nodes import InsertNode
+from lorelie.test.testcases import LorelieTestCase
+
 # from types import NotImplementedType
 # import unittest
 
@@ -9,6 +12,40 @@
 # table = Table('test_table')
 # table.backend = SQLiteBackend()
 
+
+class TestBaseNode(LorelieTestCase):
+    pass
+
+
+class TestInsertNode(LorelieTestCase):
+    def test_structure(self):
+        table = self.create_table()
+        insert_values = {'firstname': 'Kendall'}
+        node = InsertNode(table, insert_values=insert_values)
+        sql = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            sql,
+            ["insert into celebrities (firstname) values('Kendall')"]
+        )
+
+        batch_values = [{'firstname': 'Kendall'}, {'firstname': 'Jaime'}]
+        node = InsertNode(table, batch_values=batch_values)
+        sql = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            sql,
+            ["insert into celebrities (firstname) values ('Kendall'), ('Jaime')"]
+        )
+
+    def test_different_value_types(self):
+        data = {
+            'name': 'Kendall',
+            'age': 22,
+            'height': lambda: 154,
+            'city': ('LA'),
+            'country': ['USA']
+        }
+        node = InsertNode(self.create_table(), insert_values=data)
+        print(node.as_sql(self.create_connection()))
 
 # class TestBaseNode(unittest.TestCase):
 #     def test_structure(self):

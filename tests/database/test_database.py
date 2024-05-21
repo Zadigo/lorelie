@@ -1,42 +1,27 @@
-# import unittest
+import unittest
 
-# from lorelie.backends import BaseRow
-# from lorelie.database.base import Database
-# from lorelie.expressions import Q
-# from lorelie.fields.base import CharField, IntegerField, JSONField
-# from lorelie.queries import QuerySet
-# from lorelie.tables import Table
+from lorelie.backends import BaseRow
+from lorelie.database.base import Database
+from lorelie.expressions import Q
+from lorelie.fields.base import CharField, IntegerField, JSONField
+from lorelie.queries import QuerySet
+from lorelie.tables import Table
+from lorelie.test.testcases import LorelieTestCase
 
-# celebrities = [
-#     {
-#         'firstname': 'Kendall',
-#         'lastname': 'Jenner',
-#         'followers': 1000
-#     },
-#     {
-#         'firstname': 'Kylie',
-#         'lastname': 'Jenner',
-#         'followers': 100,
-#         'metadata': {
-#             'age': 56
-#         }
-#     },
-#     {
-#         'firstname': 'Margot',
-#         'lastname': 'Robbie',
-#         'followers': 156600
-#     },
-#     {
-#         'firstname': 'Lena',
-#         'lastname': 'Situation',
-#         'followers': 4454
-#     },
-#     {
-#         'firstname': 'Aya',
-#         'lastname': 'Nakamura',
-#         'followers': 334345
-#     }
-# ]
+
+class TestDatabase(LorelieTestCase):
+    def test_structure(self):
+        db = self.create_empty_database
+        self.assertTrue(db.in_memory)
+
+        with self.assertRaises(KeyError):
+            db.get_table('celebrities')
+
+        self.assertFalse(db.migrations.migrated)
+        self.assertFalse(db.has_relationships)
+
+        db.migrate()
+
 
 # table = Table(
 #     'celebrities',
@@ -59,17 +44,6 @@
 #     def setUp(self):
 #         for celebrity in celebrities:
 #             db.objects.create('celebrities', **celebrity)
-
-#     def test_general_structure(self):
-#         self.assertTrue(db.in_memory)
-
-#         table = db.get_table('celebrities')
-
-#         self.assertIsInstance(table, Table)
-#         self.assertTrue(len(db.table_instances) > 0)
-
-#     def test_is_migrated(self):
-#         self.assertTrue(db.migrations.migrated)
 
 #     def test_all_query(self):
 #         qs = db.objects.all('celebrities')

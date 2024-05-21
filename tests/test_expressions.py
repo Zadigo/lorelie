@@ -1,35 +1,8 @@
-# import unittest
+import unittest
 
-# from lorelie.backends import SQLiteBackend
-# from lorelie.expressions import Case, CombinedExpression, F, Q, Value, When
-
-# # Invalid usage
-# # db.objects.annotate('products', F('price'))
-# # db.objects.annotate('products', F('price') + F('price'))
-# # db.objects.annotate('products', Value(1))
-# # db.objects.annotate('products', Value(F('unit_price')))
-# # db.objects.annotate('products', Q(price__gt=1))
-# # db.objects.filter('products', price=F('name') + 'a')
-# # a = Value(Q(firstname='Kendall'))
-
-# # Valid usage
-# # db.objects.filter('products', price=Value('price'))
-# # db.objects.annotate('products', my_price=F('price'))
-# # db.objects.annotate('products', my_price=F('price'))
-# # db.objects.annotate('products', my_price=F('price') + F('price'))
-# # db.objects.annotate('products', my_price=F('price') + F('price') - 1)
-# # db.objects.annotate('products', my_price=F('price') + 1)
-# # db.objects.annotate('products', my_price=Value(1))
-# # db.objects.annotate('products', my_price=Q(price__gt=1))
-# # db.objects.annotate(nameb=Value(F('name') + 'a', output_field=CharField()))
-
-# # case = Case(When('price__eq=10', then_case=1), default=30)
-# # db.objects.annotate('products', my_price=case)
-
-# # db.objects.annotate('products', Count('price'))
-# # db.objects.annotate('products', count_price=Count('price'))
-# # db.objects.annotate('products', Count('price'), Count('unit_price'))
-
+from lorelie.backends import SQLiteBackend
+from lorelie.expressions import Case, CombinedExpression, F, Q, Value, When
+from lorelie.test.testcases import LorelieTestCase
 
 # class TestQ(unittest.TestCase):
 #     def create_backend(self):
@@ -181,16 +154,28 @@
 #         )
 
 
-# class TestValue(unittest.TestCase):
-#     def create_backend(self):
-#         return SQLiteBackend()
+class TestValue(LorelieTestCase):
+    def test_structure(self):
+        instance = Value(1)
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(sql, [1])
 
-#     def test_structure(self):
-#         a = Value(1)
-#         print(a.as_sql(self.create_backend()))
+        instance = Value('a')
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(sql, ["'a'"])
 
-#         # a = Value(Q(firstname='Kendall'))
-#         # print(a.as_sql(backend))
+        instance = Value(1.2)
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(sql, [1.2])
+
+        # Callables are transformed to strings
+        instance = Value(lambda: 'Kendall')
+        sql = instance.as_sql(self.create_connection())
+        self.assertIsInstance(sql[0], str)
+        
+        instance = Value(Q(age__gt=25))
+        sql = instance.as_sql(self.create_connection())
+        self.assertIsInstance(sql[0], str)
 
 
 # if __name__ == '__main__':

@@ -2,7 +2,6 @@ import unittest
 
 from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
                                 ImproperlyConfiguredError)
-from lorelie.expressions import Value
 from lorelie.fields.base import CharField, Field, IntegerField
 from lorelie.test.testcases import LorelieTestCase
 

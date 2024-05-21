@@ -85,7 +85,8 @@ class Query:
             if node.node_name == 'order_by':
                 if self.select_map.order_by is not None:
                     node = self.select_map.order_by & node
-            self.select_map[node.node_name] = node # ERROR: Other nodes are added to the select map?
+            # ERROR: Other nodes are added to the select map?
+            self.select_map[node.node_name] = node
 
         self.statements.append(node)
 
@@ -250,12 +251,12 @@ class QuerySet:
 
     def __eq__(self, value):
         self.load_cache()
-        return  value == self
+        return value == self
 
     def __len__(self):
         self.load_cache()
         return len(self.result_cache)
-    
+
     @property
     def dataframe(self):
         import pandas

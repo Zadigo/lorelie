@@ -1,23 +1,20 @@
 import dataclasses
 import datetime
-import inspect
 import itertools
 import re
 import sqlite3
 from collections import defaultdict
 from dataclasses import field
-from typing import final
 
 import pytz
 
 from lorelie import converters
-from lorelie.aggregation import (Avg, CoefficientOfVariation, Count,
-                                 MeanAbsoluteDifference, StDev, Variance)
+from lorelie.database.functions.aggregation import (CoefficientOfVariation,
+                                                    MeanAbsoluteDifference,
+                                                    StDev, Variance)
+from lorelie.database.functions.text import MD5Hash, SHA256Hash
 from lorelie.database.manager import ForeignTablesManager
 from lorelie.exceptions import ConnectionExistsError
-from lorelie.expressions import BaseExpression, Case, CombinedExpression
-from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear,
-                               Functions, Length, Lower, Upper)
 from lorelie.queries import Query, QuerySet
 
 
@@ -758,8 +755,6 @@ class SQLiteBackend(SQL):
     new connection to the database"""
 
     def __init__(self, database_name=None):
-        from lorelie.functions import MD5Hash, SHA256Hash
-
         if database_name is None:
             database_name = ':memory:'
         else:

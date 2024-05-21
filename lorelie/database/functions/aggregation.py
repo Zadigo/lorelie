@@ -1,12 +1,13 @@
 import math
 
-from lorelie.functions import Functions
+from lorelie.database.functions.base import Functions
 
 # TODO: Simplify this section
 
+
 class MathMixin:
     allow_aggregation = True
-    
+
     @property
     def aggregate_name(self):
         function_name = self.__class__.__name__.lower()
@@ -91,7 +92,7 @@ class MathVariance:
 
 class MathStDev(MathVariance):
     def finalize(self):
-        result= super().finalize()
+        result = super().finalize()
         return math.sqrt(result)
 
 
@@ -116,7 +117,7 @@ class Sum(MathMixin, Functions):
 
     def python_aggregation(self, values):
         return sum(values)
-    
+
 
 class MathMeanAbsoluteDifference:
     """Math function that calculates
@@ -144,7 +145,8 @@ class MeanAbsoluteDifference(MathMixin, Functions):
 
     @staticmethod
     def create_function(connection):
-        connection.create_aggregate('meanabsdifference', 1, MathMeanAbsoluteDifference)
+        connection.create_aggregate(
+            'meanabsdifference', 1, MathMeanAbsoluteDifference)
 
     def python_aggregation(self, values):
         instance = MathMeanAbsoluteDifference()
@@ -163,7 +165,8 @@ class CoefficientOfVariation(MathMixin, Functions):
 
     @staticmethod
     def create_function(connection):
-        connection.create_aggregate('coeffofvariation', 1, MathCoefficientOfVariation)
+        connection.create_aggregate(
+            'coeffofvariation', 1, MathCoefficientOfVariation)
 
 
 class Max(MathMixin, Functions):

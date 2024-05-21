@@ -5,15 +5,16 @@ from dataclasses import is_dataclass
 
 import pytz
 from asgiref.sync import sync_to_async
-from lorelie.aggregation import (Avg, CoefficientOfVariation, Count, Max,
-                                 MeanAbsoluteDifference, Min, StDev, Sum,
-                                 Variance)
+
+from lorelie.database.functions.aggregation import (Avg,
+                                                    CoefficientOfVariation,
+                                                    Count, Max,
+                                                    MeanAbsoluteDifference,
+                                                    Min, StDev, Sum, Variance)
 from lorelie.database.nodes import (InsertNode, OrderByNode, SelectNode,
                                     UpdateNode, WhereNode)
 from lorelie.exceptions import (FieldExistsError, MigrationsExistsError,
                                 TableExistsError)
-from lorelie.expressions import BaseExpression, CombinedExpression, Value
-from lorelie.functions import Functions
 from lorelie.queries import Query, QuerySet, ValuesIterable
 
 

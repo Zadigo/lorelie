@@ -1,10 +1,7 @@
-import pathlib
 import unittest
 
-from lorelie import PROJECT_PATH
 from lorelie.database.base import Database
 from lorelie.database.migrations import Migrations
-from lorelie.fields import Field
 from lorelie.fields.base import CharField
 from lorelie.tables import Table
 

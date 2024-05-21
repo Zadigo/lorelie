@@ -2,7 +2,7 @@ import sqlite3
 from functools import total_ordering
 from sqlite3 import OperationalError
 
-from lorelie.aggregation import Count
+from lorelie.database.functions.aggregation import Count
 from lorelie.database.nodes import BaseNode, OrderByNode, SelectMap, WhereNode
 
 

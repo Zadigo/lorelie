@@ -1,3 +1,7 @@
+from lorelie.database.functions.text import Concat
+
+Concat('something', 'another')
+
 # from lorelie.aggregation import Count
 # from lorelie.database.base import Database
 # from lorelie.expressions import F, Q, Case, Value, When

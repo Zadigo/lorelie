@@ -1,4 +1,16 @@
-from lorelie.functions import Functions
+from lorelie.database.functions.base import Functions
+
+# CumeDist,
+# DenseRank,
+# FirstValue,
+# Lag,
+# LastValue,
+# Lead,
+# NthValue,
+# Ntile,
+# PercentRank,
+# Rank,
+# RowNumber
 
 
 class Window(Functions):

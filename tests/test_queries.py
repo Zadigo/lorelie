@@ -1,8 +1,7 @@
 import unittest
 from sqlite3 import OperationalError
 
-from lorelie import fields
-from lorelie.backends import BaseRow, SQLiteBackend
+from lorelie.backends import SQLiteBackend
 from lorelie.database.base import Database
 from lorelie.fields.base import CharField
 from lorelie.queries import Query

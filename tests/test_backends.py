@@ -1,12 +1,13 @@
-from collections import defaultdict
 import dataclasses
 import sqlite3
 import unittest
-from lorelie.backends import BaseRow, SQLiteBackend
-from lorelie.aggregation import Count
+from collections import defaultdict
+
+from lorelie.backends import SQLiteBackend
+from lorelie.database.base import Database
+from lorelie.database.functions.aggregation import Count
 from lorelie.fields.base import CharField
 from lorelie.tables import Table
-from lorelie.database.base import Database
 
 
 class TestSQLiteBackend(unittest.TestCase):

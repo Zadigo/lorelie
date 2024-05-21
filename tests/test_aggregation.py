@@ -1,11 +1,13 @@
 import unittest
 
-from lorelie.aggregation import (Avg, CoefficientOfVariation, Count, Max,
-                                 MeanAbsoluteDifference, Min, StDev, Sum,
-                                 Variance)
 from lorelie.backends import SQLiteBackend
+from lorelie.database.functions import Length
+from lorelie.database.functions.aggregation import (Avg,
+                                                    CoefficientOfVariation,
+                                                    Count, Max,
+                                                    MeanAbsoluteDifference,
+                                                    Min, StDev, Sum, Variance)
 from lorelie.fields.base import IntegerField
-from lorelie.functions import Length
 from lorelie.tables import Table
 
 backend = SQLiteBackend()

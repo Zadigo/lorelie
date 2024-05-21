@@ -126,16 +126,16 @@ class Case(BaseExpression):
             value=backend.quote_value(self.default)
         )
 
-        if self.alias_name is None:
+        if self.alias_field_name is None:
             raise ValueError(
                 "Case annotation does not have an "
-                f"alias name. Got: {self.alias_name}"
+                f"alias name. Got: {self.alias_field_name}"
             )
 
         # TODO: We should check that the alias name does not
         # conflict with a field in the original table
 
-        case_end_sql = self.CASE_END.format(alias=self.alias_name)
+        case_end_sql = self.CASE_END.format(alias=self.alias_field_name)
         return backend.simple_join([case_sql, case_else_sql, case_end_sql])
 
 

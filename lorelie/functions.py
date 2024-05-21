@@ -9,8 +9,8 @@ class Functions:
         self.field_name = field_name
         # self.backend = None
 
-    def __str__(self):
-        return f'<{self.__class__.__name__}({self.field_name})>'
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.field_name})'
 
     @property
     def alias_field_name(self):

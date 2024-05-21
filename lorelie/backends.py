@@ -640,54 +640,70 @@ class SQL:
             )
         return built_filters
 
-    def build_annotation(self, **conditions):
+    def build_annotation(self, conditions):
         """For each database function, creates a special
         statement as in `count(column_name) as my_special_name`.
         If we have Count function in our conditions, we have to
         identify it since it requires a special """
         annotation_map = AnnotationMap()
 
+        for alias, func in conditions.items():
+            annotation_map.alias_fields.append(alias)
+            annotation_map.annotation_type_map[alias] = func.__class__.__name__
+            sql_resolution = func.as_sql(self.current_table.backend)
+
+            # Expressions return an array. Maybe in
+            # future iterations we should normalize
+            # returning a string or ensure that functions
+            # return a list
+            if isinstance(sql_resolution, list):
+                sql_resolution = self.comma_join(sql_resolution)
+
+            annotation_map.sql_statements_dict[alias] = sql_resolution
+
+        return annotation_map
+
         # TODO: Refactor the for-loop and the annotation
         # map so that it is less messed up.
-        # TODO: Functions returns strings and expressions 
-        # returns arrays - We need to normalize that. 
+        # TODO: Functions returns strings and expressions
+        # returns arrays - We need to normalize that.
         # TODO: Also CombinedExpressions vs Functions
         # TODO: Put resolve_expression to detect expressions
         # and resolve_functions to detect functions
-        for alias_name, function in conditions.items():
-            annotation_map.alias_fields.append(alias_name)
-            annotation_map.annotation_type_map[alias_name] = function.__class__.__name__
-            if isinstance(function, Case):
-                function.alias_name = alias_name
-                case_sql = function.as_sql(self.current_table.backend)
-                annotation_map.sql_statements_dict[alias_name] = case_sql
+        # for alias_name, function in conditions.items():
+        #     annotation_map.alias_fields.append(alias_name)
+        #     annotation_map.annotation_type_map[alias_name] = function.__class__.__name__
+        #     if isinstance(function, Case):
+        #         function.alias_name = alias_name
+        #         case_sql = function.as_sql(self.current_table.backend)
+        #         annotation_map.sql_statements_dict[alias_name] = case_sql
 
-            if isinstance(function, (Count, Avg, Length, Lower, Upper, ExtractYear, ExtractDay, ExtractMonth)):
-                annotation_map.field_names.append(
-                    function.field_name
-                )
-                annotation_map.sql_statements_dict[alias_name] = function.as_sql(
-                    self
-                )
+        #     if isinstance(function, (Count, Avg, Length, Lower, Upper, ExtractYear, ExtractDay, ExtractMonth)):
+        #         annotation_map.field_names.append(
+        #             function.field_name
+        #         )
+        #         annotation_map.sql_statements_dict[alias_name] = function.as_sql(
+        #             self
+        #         )
 
-            if isinstance(function, CombinedExpression):
-                if function.alias_field_name is None:
-                    raise ValueError('CombinedExpression requires an alias field name')
-                
-                annotation_map.field_names.append(function.alias_field_name)
-                annotation_map.sql_statements_dict[function.alias_field_name] = function.as_sql(
-                    self
-                )[-0]
+        #     if isinstance(function, CombinedExpression):
+        #         if function.alias_field_name is None:
+        #             raise ValueError('CombinedExpression requires an alias field name')
 
-            if Functions in inspect.getmro(function.__class__):
-                annotation_map.field_names.append(
-                    function.field_name
-                )
-                annotation_map.sql_statements_dict[alias_name] = function.as_sql(
-                    self
-                )
+        #         annotation_map.field_names.append(function.alias_field_name)
+        #         annotation_map.sql_statements_dict[function.alias_field_name] = function.as_sql(
+        #             self
+        #         )[-0]
 
-        return annotation_map
+        #     if Functions in inspect.getmro(function.__class__):
+        #         annotation_map.field_names.append(
+        #             function.field_name
+        #         )
+        #         annotation_map.sql_statements_dict[alias_name] = function.as_sql(
+        #             self
+        #         )
+
+        # return annotation_map
 
     def decompose_sql_statement(self, sql):
         regexes = {

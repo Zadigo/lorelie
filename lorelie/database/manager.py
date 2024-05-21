@@ -230,73 +230,154 @@ class DatabaseManager:
         return list(queryset)[-0]
 
     def annotate(self, table, *args, **kwargs):
-        """Annotations implements the usage of
-        functions in the query
+        """method allows the usage of advanced functions or expressions in a query to 
+        add additional fields to your querysets based on the values of existing fields
 
-        For example, if we want the iteration of each
-        value in the database to be returned in lowercase
-        or in uppercase
+        Returning each values of the name in lower or uppercase:
 
-        >>> instance.objects.annotate('celebrities', lowered_name=Lower('name'))
-        ... instance.objects.annotate('celebrities', uppered_name=Upper('name'))
+        >>> db.objects.annotate('celebrities', lowered_name=Lower('name'))
+        ... db.objects.annotate('celebrities', uppered_name=Upper('name'))
 
-        If we want to return only the year section of a date
+        Returning only the year for a given column:
 
         >>> database.objects.annotate(year=ExtractYear('created_on'))
 
-        We can also run cases:
+        We can also run cases. For example, when a price is equals to 1,
+        then create temporary column named custom price with either 2 or 3:
 
-        >>> condition = When('firstname=Kendall', 'Kylie')
-        ... case = Case(condition, default='Custom name', output_field=CharField())
-        ... instance.objects.annotate('celebrities', alt_name=case)
+        >>> condition = When('price=1', 2)
+        ... case = Case(condition, default=3, output_field=CharField())
+        ... db.objects.annotate('celebrities', custom_price=case)
+
+        Suppose you have two columns `price` and `tax` we can return a new
+        column with `price + tax`:
+
+        >>> db.objects.annotate('products', new_price=F('price') + F('tax'))
+
+        You can also add a constant value to a column:
+
+        >>> db.objects.annotate('products', new_price=F('price') + 10)
+
+        The `Value` expression can be used to return a specific value in a column:        
+
+        >>> db.objects.annotate('products', new_price=Value(1))
+
+        Finally, `Q` objects are used to encapsulate a collection 
+        of keyword arguments and can be used to evaluate conditions. 
+        For instance, to annotate a result indicating whether the price 
+        is greater than 1:
+
+        >>> db.objects.annotate('products', result=Q(price__gt=1))
+
+        Using expressions without an alias field name will raise an error.
+
+        Aggregate functions can also be used in annotations, but they will return 
+        the result for each element grouped by a specified field. For example, to 
+        count the number of occurrences of each `price`:
+
+        >>> db.objects.annotate('products', Count('price'))
+
+        The above will return the price count for each products. If there are
+        two products with a price of 1 we will then get `[{'price': 1, 'count_price': 2}]`
         """
         selected_table = self.before_action(table)
 
         for func in args:
-            if not isinstance(func, (Functions, BaseExpression)):
+            internal_type = getattr(func, 'internal_type', None)
+            if internal_type is None:
                 raise ValueError(
-                    'Func should be an instnae of Functions or BaseExpression')
+                    f"{func} should be an instance of Functions, "
+                    "BaseExpression or CombinedExpression"
+                )
 
-            if isinstance(func, CombinedExpression):
-                raise ValueError('CombinedExpressions require an alias name')
+            if internal_type == 'expression':
+                raise ValueError(
+                    f'"{func}" requires an alias field name '
+                    'in order to be used with annotate'
+                )
 
-            kwargs.update({func.alias_field_name: func})
+            if internal_type == 'function':
+                kwargs.update({func.alias_field_name: func})
 
         if not kwargs:
             return self.all(table)
 
         alias_fields = list(kwargs.keys())
 
-        for field in alias_fields:
-            # Combined expressions alias field names
-            # are added afterwards once the user sets
-            # the name for the expression
-            if isinstance(kwargs[field], CombinedExpression):
-                kwargs[field].alias_field_name = field
+        for alias, func in kwargs.items():
+            internal_type = getattr(func, 'internal_type')
+            if internal_type == 'expression':
+                func.alias_field_name = alias
 
-        annotation_map = selected_table.backend.build_annotation(**kwargs)
+        annotation_map = selected_table.backend.build_annotation(kwargs)
         annotated_sql_fields = selected_table.backend.comma_join(
             annotation_map.joined_final_sql_fields
         )
-        return_fields = ['*', annotated_sql_fields]
 
+        return_fields = ['*', annotated_sql_fields]
         select_node = SelectNode(selected_table, *return_fields)
 
         query = self.database.query_class(table=selected_table)
-        query.add_sql_nodes([select_node])
+        query.alias_fields = list(alias_fields)
+        query.add_sql_node(select_node)
 
         if annotation_map.requires_grouping:
-            # grouping_fields = set(annotation_map.field_names)
-            # groupby_sql = selected_table.backend.GROUP_BY.format_map({
-            #     'conditions': selected_table.backend.comma_join(grouping_fields)
-            # })
             groupby_sql = selected_table.backend.GROUP_BY.format_map({
                 'conditions': 'id'
             })
             query.select_map.groupby = groupby_sql
 
-        query.alias_fields = list(alias_fields)
+        if selected_table.ordering:
+            orderby_node = OrderByNode(
+                selected_table, *selected_table.ordering)
+            query.add_sql_node(orderby_node)
         return QuerySet(query)
+
+        # for func in args:
+        #     if not isinstance(func, (Functions, BaseExpression)):
+        #         raise ValueError(
+        #             'Func should be an instnae of Functions or BaseExpression')
+
+        #     if isinstance(func, CombinedExpression):
+        #         raise ValueError('CombinedExpressions require an alias name')
+
+        #     kwargs.update({func.alias_field_name: func})
+
+        # if not kwargs:
+        #     return self.all(table)
+
+        # alias_fields = list(kwargs.keys())
+
+        # for field in alias_fields:
+        #     # Combined expressions alias field names
+        #     # are added afterwards once the user sets
+        #     # the name for the expression
+        #     if isinstance(kwargs[field], CombinedExpression):
+        #         kwargs[field].alias_field_name = field
+
+        # annotation_map = selected_table.backend.build_annotation(**kwargs)
+        # annotated_sql_fields = selected_table.backend.comma_join(
+        #     annotation_map.joined_final_sql_fields
+        # )
+        # return_fields = ['*', annotated_sql_fields]
+
+        # select_node = SelectNode(selected_table, *return_fields)
+
+        # query = self.database.query_class(table=selected_table)
+        # query.add_sql_nodes([select_node])
+
+        # if annotation_map.requires_grouping:
+        #     # grouping_fields = set(annotation_map.field_names)
+        #     # groupby_sql = selected_table.backend.GROUP_BY.format_map({
+        #     #     'conditions': selected_table.backend.comma_join(grouping_fields)
+        #     # })
+        #     groupby_sql = selected_table.backend.GROUP_BY.format_map({
+        #         'conditions': 'id'
+        #     })
+        #     query.select_map.groupby = groupby_sql
+
+        # query.alias_fields = list(alias_fields)
+        # return QuerySet(query)
 
     def values(self, table, *fields):
         """Returns data from the database as a list
@@ -328,8 +409,10 @@ class DatabaseManager:
         return list(ValuesIterable(queryset, fields=columns))
 
     def dataframe(self, table, *fields):
-        """Returns data from the database as a
-        pandas DataFrame object
+        """This method returns data from the database as a pandas 
+        DataFrame object. This allows for easy manipulation and 
+        analysis of the data using pandas' powerful data handling 
+        capabilities
 
         >>> instance.objects.as_dataframe('celebrities', 'id')
         ... pandas.DataFrame
@@ -357,8 +440,11 @@ class DatabaseManager:
         return QuerySet(query)
 
     def aggregate(self, table, *args, **kwargs):
-        """Returns a dictionnary of aggregate values
-        calculated from the database
+        """Returns data ordered by the fields specified by the user. 
+        You can specify the sorting order by providing the field names. 
+        Prefixing a field with a hyphen (-) sorts the data in descending order, 
+        while providing the field name without a prefix sorts the data 
+        in ascending order
 
         >>> db.objects.aggregate('celebrities', Count('id'))
         ... {'age__count': 1}

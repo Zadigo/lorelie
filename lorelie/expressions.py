@@ -195,6 +195,10 @@ class CombinedExpression:
         self.children.append(Value(other))
         return self
 
+    @property
+    def internal_type(self):
+        return 'expression'
+
     def build_children(self, operator='and'):
         for i in range(len(self.others)):
             other = self.others[i]

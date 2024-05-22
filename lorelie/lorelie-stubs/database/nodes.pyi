@@ -1,12 +1,11 @@
 import dataclasses
-from typing import Any, Dict, Literal, Tuple, Union, override
+from typing import Any, Callable, Dict, Literal, Tuple, Union, override
 
 from expressions import Q
 from tables import Table
 
 from lorelie.backends import SQLiteBackend
-from lorelie.functions import Functions
-
+from lorelie.database.functions import Functions
 
 @dataclasses.dataclass
 class SelectMap:
@@ -133,11 +132,13 @@ class UpdateNode(BaseNode):
 
 class InsertNode(BaseNode):
     template_sql: str = ...
-    insert_values: Any
+    insert_values: dict[str, Union[int, float, Callable[..., Any]]] = ...
+    batch_values: list[dict[str, Union[int, float, Callable[..., Any]]]] = ...
 
     def __init__(
         self,
         table: Table,
-        returning: bool = ...,
-        **insert_values
+        batch_values: list[dict[str, Any]] = ...,
+        insert_values: dict[str, Any] = ...,
+        returning: bool = ...
     ) -> None: ...

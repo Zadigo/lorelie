@@ -19,6 +19,7 @@ import dataclasses
 import re
 from collections import defaultdict
 
+from expressions import Value
 from lorelie.expressions import CombinedExpression, Q
 
 
@@ -347,31 +348,61 @@ class UpdateNode(BaseNode):
 
 
 class InsertNode(BaseNode):
-    """
+    """This node allows the creation of the sql
+    for insert one or multiple values in the database.
+
+    Values can be inserted in batch using `batch_values` which
+    is a list of dictionnaries or inserted as a single element
+    using `insert_values`
+
+    Note: https://www.sqlitetutorial.net/sqlite-insert/
     """
 
-    # https://www.sqlitetutorial.net/sqlite-insert/
     template_sql = 'insert into {table} ({columns}) values({values})'
+    bactch_insert_sql = 'insert into {table} ({columns}) values {values}'
 
-    def __init__(self, table, returning=False, **insert_values):
+    def __init__(self, table, batch_values=[], insert_values={}, returning=False):
         super().__init__(table=table)
         self.insert_values = insert_values
         self.returning = returning
+
+        for item in batch_values:
+            if not isinstance(item, dict):
+                raise ValueError(
+                    f"{item} should be a dictionnary"
+                )
+        self.batch_values = batch_values
 
     @property
     def node_name(self):
         return 'insert'
 
     def as_sql(self, backend):
-        columns, values = backend.dict_to_sql(self.insert_values)
-        joined_values = backend.comma_join(backend.quote_values(values))
+        template = self.template_sql
 
-        insert_sql = self.template_sql.format_map({
+        if self.batch_values:
+            columns = self.batch_values[0].keys()
+        
+            values = []
+            for item in self.batch_values:
+                quoted_values = backend.quote_values(item.values())
+                joined = backend.comma_join(quoted_values)
+                values.append(f"({joined})")
+        
+            joined_values = backend.comma_join(values)
+            template = self.bactch_insert_sql
+        else:
+            columns, values = backend.dict_to_sql(self.insert_values)
+            joined_values = backend.comma_join(backend.quote_values(values))
+
+        insert_sql = template.format_map({
             'table': self.table.name,
             'columns': backend.comma_join(columns),
             'values': joined_values
         })
         sql = [insert_sql]
+
         if self.returning:
             sql.append('returning id')
+
         return sql

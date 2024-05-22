@@ -1,13 +1,12 @@
 import datetime
 import json
 import re
-import string
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote
 
-from lorelie.constraints import MaxLengthConstraint
+from lorelie.constraints import (MaxLengthConstraint, MaxValueConstraint,
+                                 MinValueConstraint)
 from lorelie.exceptions import ValidationError
-from lorelie.validators import (MaxValueValidator, MinValueValidator,
-                                url_validator)
+from lorelie.validators import url_validator
 
 
 class Field:
@@ -116,6 +115,7 @@ class Field:
                 f"{type(data)} for column '{self.name}' "
                 f"should be an instance of {self.python_type}"
             )
+        
         self.run_validators(data)
         try:
             # return self.to_python(data)
@@ -130,8 +130,8 @@ class Field:
             )
 
     def field_parameters(self):
-        """Adapt the python function parameters to the
-        database field creation ones. For example: 
+        """Adapts the python function parameters passed within
+        the fields to usable SQL text statements:
 
         >>> field = CharField('visited', default=False)
         ... field.field_parameters()
@@ -269,10 +269,6 @@ class IntegerField(Field):
 
 class FloatField(Field):
     python_type = float
-
-    # @property
-    # def field_type(self):
-    #     return 'float'
 
     def to_python(self, data):
         if data is None or data == '':

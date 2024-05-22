@@ -5,6 +5,7 @@ from lorelie.expressions import Q
 
 class BaseConstraint:
     template_sql: str = ...
+    prefix: str = ...
 
     def as_sql(self, backend: SQLiteBackend) -> str: ...
 
@@ -20,6 +21,8 @@ class CheckConstraint(BaseConstraint):
 
 
 class UniqueConstraint(BaseConstraint):
+    fields: list[str] = ...
+    
     def __init__(self, name: str, *, fields: list[str] = ...) -> None: ...
 
     @override

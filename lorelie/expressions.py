@@ -1,3 +1,6 @@
+from enum import unique
+
+
 class BaseExpression:
     template_sql = None
 
@@ -41,11 +44,64 @@ class Value(BaseExpression):
         return self.output_field.to_database(self.value)
 
     def as_sql(self, backend):
+        if callable(self.value):
+            self.value = str(self.value)
+
+        if hasattr(self.value, 'internal_type'):
+            self.value = str(self.value)
+
         return [backend.quote_value(self.value)]
 
 
 class NegatedExpression(BaseExpression):
     template_sql = 'not {expression}'
+    
+    def __init__(self, expression):
+        self.children = [expression]
+        self.seen_expressions = []
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__}: {self.expression}>'
+
+    def __and__(self, other):
+        self.children.append('and')
+        if isinstance(other, NegatedExpression):
+            self.children.extend(other.children)
+            return self
+
+        if isinstance(other, (F, Q)):
+            self.seen_expressions.append(other.__class__.__name__)
+
+        # We should not be able to combine certain
+        # types of expressions ex. F & Q, F | Q
+        # self.seen_expressions = [
+        #     child.__class__.__name__
+        #         for child in self.children 
+        #             if not isinstance(child, str)
+        # ]
+
+        # unique_children = set(self.seen_expressions)
+        # if len(unique_children) > 1:
+        #     pass
+
+        # print(self.seen_expressions)
+
+        self.children.append(other)
+        return self
+
+    def as_sql(self, backend):
+        seen_expressions = []
+
+        def map_children(node):
+            if isinstance(node, str):
+                return node
+            
+            return backend.simple_join(node.as_sql(backend))
+        sql = map(map_children, self.children)
+
+        return self.template_sql.format_map({
+            'expression': backend.simple_join(sql)
+        })
 
 
 class When(BaseExpression):
@@ -168,6 +224,15 @@ class CombinedExpression:
         # field name in order to be rendered
         # correctly in sqlite
         self.alias_field_name = None
+        # NOTE: Technically we will never be
+        # using the combined expression as a
+        # standalone class but we might need
+        # to build the existing children on
+        # init to avoid arrays like 
+        # a = CombinedExpression(Q(firstname='Kendall'))
+        # b = Q(age__gt=26)
+        # c = a & b -> ['(and age>26)']
+        # self.build_children()
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.children}>'
@@ -201,7 +266,7 @@ class CombinedExpression:
         self.children.append('*')
         self.children.append(Value(other))
         return self
-
+    
     @property
     def internal_type(self):
         return 'expression'
@@ -213,15 +278,6 @@ class CombinedExpression:
 
             if i + 1 != len(self.others):
                 self.children.append(operator)
-
-        # for other in self.others:
-        #     self.children.append(other)
-        #     self.children.append(operator)
-
-        #     if self.children[-1] == 'and' or self.children[-1] == 'or':
-        #         self.children[-1] = ''
-
-        #     self.children = list(filter(lambda x: x != '', self.children))
 
     def as_sql(self, backend):
         # if self.is_math:
@@ -299,6 +355,9 @@ class Q(BaseExpression):
         instance.build_children(operator='or')
         return instance
 
+    def __invert__(self):
+        return NegatedExpression(self)
+
     def as_sql(self, backend):
         filters = backend.decompose_filters(**self.expressions)
         built_filters = backend.build_filters(filters, space_characters=False)
@@ -311,6 +370,7 @@ class F(BaseExpression):
 
     >>> F('age') + 1
     ... F('price') * 1.2
+    ... F('price') + F('price')
 
     These operations will translate directly to database
     operations in such as `price * 1.2` where the value
@@ -371,6 +431,9 @@ class F(BaseExpression):
         combined = CombinedExpression(self, other)
         combined.build_children(operator=self.SUBSRACT)
         return combined
+
+    def __neg__(self):
+        return NegatedExpression(self)
 
     def as_sql(self, backend):
         return [self.field]

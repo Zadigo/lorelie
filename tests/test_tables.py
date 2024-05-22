@@ -1,9 +1,10 @@
+import sqlite3
 import unittest
 
 from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
 from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
-                                ImproperlyConfiguredError)
+                                ImproperlyConfiguredError, ValidationError)
 from lorelie.expressions import Q
 from lorelie.fields.base import CharField, Field, IntegerField
 from lorelie.tables import Table
@@ -139,6 +140,20 @@ class TestTable(LorelieTestCase):
         db = Database(table)
         table.prepare(db)
 
+    def test_database_field_creation_validation(self):
+        db = self.create_database(using=self.create_complex_table())
 
-if __name__ == '__main__':
-    unittest.main()
+        with self.assertRaises(sqlite3.IntegrityError):
+            db.objects.create('stars', height=145)
+
+        with self.assertRaises(sqlite3.IntegrityError):
+            db.objects.create('stars', name='Kendall Jenner', height=0)
+
+        with self.assertRaises(ValidationError):
+            db.objects.create('stars', name='Taylor Swift')
+        
+        # TODO: Should not_null be False if we have a field
+        # with a default value set
+        db.objects.create('stars', name='Lucie Safarova', height=165)
+        with self.assertRaises(sqlite3.IntegrityError):
+            db.objects.create('stars', name='Lucie Safarova', height=165)

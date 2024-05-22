@@ -1,20 +1,22 @@
-# from lorelie.database.functions.text import Concat
+# from lorelie.database.functions.aggregation import Count
+# from lorelie.database.base import Database
+# from lorelie.expressions import F, Q, Case, Value, When
+# from lorelie.fields.base import IntegerField, CharField
+# from lorelie.tables import Table
 
-# Concat('something', 'another')
+# table = Table('products', fields=[
+#     CharField('name', null=True),
+#     IntegerField('unit_price', default=0),
+#     IntegerField('price', default=0)
+# ])
 
-# # from lorelie.aggregation import Count
-# # from lorelie.database.base import Database
-# # from lorelie.expressions import F, Q, Case, Value, When
-# # from lorelie.fields.base import IntegerField
-# # from lorelie.tables import Table
+# db = Database(table)
+# db.migrate()
 
-# # table = Table('products', fields=[
-# #     IntegerField('unit_price', default=0),
-# #     IntegerField('price', default=0)
-# # ])
-
-# # db = Database(table)
-# # db.migrate()
+# db.objects.create('products', name='Jupe longue')
+# qs = db.objects.update_or_create('products', create_defaults={'price': 14}, name='Jupe longue')
+# print(qs)
+# print(qs.sql_statement)
 
 # # db.objects.create('products', unit_price=10, price=12)
 # # db.objects.create('products', unit_price=12, price=16)

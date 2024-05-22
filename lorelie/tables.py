@@ -298,10 +298,13 @@ class Table(AbstractTable):
         parameters e.g. null, autoincrement
         used to define the field in 
         the database"""
-        return [
-            field.field_parameters()
-            for field in self.fields_map.values()
-        ]
+        for field in self.fields_map.values():
+            yield field.field_parameters()
+
+        # return [
+        #     field.field_parameters()
+        #         for field in self.fields_map.values()
+        # ]
 
     def prepare(self, database):
         """Prepares the table with other parameters, 
@@ -311,7 +314,7 @@ class Table(AbstractTable):
         field_params = self.build_field_parameters()
         field_params = [
             self.backend.simple_join(params)
-            for params in field_params
+                for params in field_params
         ]
 
         if database.has_relationships:

@@ -240,12 +240,12 @@ class IntegerField(Field):
         super().__init__(name, **kwargs)
 
         if min_value is not None:
-            instance = MinValueValidator(min_value)
-            self.base_validators.append(instance)
+            instance = MinValueConstraint(min_value, self.name)
+            self.constraints.append(instance)
 
         if max_value is not None:
-            instance = MaxValueValidator(max_value)
-            self.base_validators.append(instance)
+            instance = MaxValueConstraint(max_value, self.name)
+            self.constraints.append(instance)
 
     @property
     def field_type(self):

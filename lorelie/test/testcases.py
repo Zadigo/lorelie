@@ -1,5 +1,5 @@
 import unittest
-from functools import lru_cache
+from functools import cached_property, lru_cache
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database.base import Database
@@ -15,6 +15,10 @@ class LorelieTestCase(unittest.TestCase):
     @lru_cache(maxsize=300)
     def create_connection(self):
         return SQLiteBackend()
+
+    @cached_property
+    def create_empty_database(self):
+        return Database()
 
     def create_database(self):
         table = Table('celebrities', fields=[

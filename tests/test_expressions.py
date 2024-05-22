@@ -1,94 +1,138 @@
 import unittest
 
 from lorelie.backends import SQLiteBackend
-from lorelie.expressions import Case, CombinedExpression, F, Q, Value, When
+from lorelie.expressions import Case, CombinedExpression, F, Q, NegatedExpression, Value, When
 from lorelie.test.testcases import LorelieTestCase
 
-# class TestQ(unittest.TestCase):
-#     def create_backend(self):
-#         return SQLiteBackend()
+class TestQ(LorelieTestCase):
+    def test_structure(self):
+        instance = Q(firstname='Kendall')
+        sql = instance.as_sql(self.create_connection())
+        self.assertIsInstance(sql, list)
+        self.assertListEqual(sql, ["firstname='Kendall'"])
 
-#     def test_structure(self):
-#         instance = Q(firstname='Kendall')
-#         sql = instance.as_sql(self.create_backend())
-#         self.assertIsInstance(sql, list)
-#         self.assertListEqual(sql, ["firstname='Kendall'"])
-#         self.assertRegex(
-#             sql[0],
-#             r"^firstname\=\'Kendall\'$"
-#         )
+        instance = Q(firstname='Kendall', lastname='Jenner')
+        sql = instance.as_sql(self.create_connection())
+        self.assertIsInstance(sql, list)
+        self.assertListEqual(sql, ["firstname='Kendall' and lastname='Jenner'"])
+ 
+    def test_and(self):
+        a = Q(firstname='Kendall')
+        b = Q(firstname='Kylie')
+        c = a & b
 
-#     def test_and(self):
-#         a = Q(firstname='Kendall')
-#         b = Q(firstname='Kylie')
-#         c = a & b
-#         self.assertIsInstance(c, CombinedExpression)
-#         sql = c.as_sql(self.create_backend())
-#         self.assertIsInstance(sql, list)
-#         self.assertListEqual(
-#             sql,
-#             ["(firstname='Kendall' and firstname='Kylie')"]
-#         )
+        self.assertIsInstance(c, CombinedExpression)
+        sql = c.as_sql(self.create_connection())
 
-#         self.assertRegex(
-#             sql[0],
-#             r"^\(firstname\=\'Kendall'\sand\sfirstname\=\'Kylie\'\)$"
-#         )
+        self.assertIsInstance(sql, list)
+        self.assertListEqual(sql, ["(firstname='Kendall' and firstname='Kylie')"])
 
-#     def test_or(self):
-#         a = Q(firstname='Kendall')
-#         b = Q(firstname='Kylie')
-#         c = a | b
-#         self.assertIsInstance(c, CombinedExpression)
-#         sql = c.as_sql(self.create_backend())
-#         self.assertIsInstance(sql, list)
-#         self.assertListEqual(
-#             sql,
-#             ["(firstname='Kendall' or firstname='Kylie')"]
-#         )
+    def test_or(self):
+        a = Q(firstname='Kendall')
+        b = Q(firstname='Kylie')
+        c = a | b
+        self.assertIsInstance(c, CombinedExpression)
+        sql = c.as_sql(self.create_connection())
+        self.assertIsInstance(sql, list)
+        self.assertListEqual(sql, ["(firstname='Kendall' or firstname='Kylie')"])
 
-#     def test_multiple_filters(self):
-#         logic = Q(firstname='Kendall', age__gt=20, age__lte=50)
-#         result = logic.as_sql(self.create_backend())
-#         self.assertListEqual(
-#             result,
-#             ["firstname='Kendall' and age>20 and age<=50"]
-#         )
+    def test_multiple_filters(self):
+        logic = Q(firstname='Kendall', age__gt=20, age__lte=50)
+        result = logic.as_sql(self.create_connection())
+        self.assertListEqual(result, ["firstname='Kendall' and age>20 and age<=50"])
 
-#     def test_multioperators(self):
-#         multi = (
-#             Q(firstname='Kendall') |
-#             Q(lastname='Jenner') &
-#             Q(age__gt=25, age__lte=56)
-#         )
-#         result = multi.as_sql(self.create_backend())
-#         self.assertListEqual(
-#             result,
-#             ["(firstname='Kendall' or (lastname='Jenner' and age>25 and age<=56))"]
-#         )
+    def test_multioperators(self):
+        multi = (
+            Q(firstname='Kendall') |
+            Q(lastname='Jenner') &
+            Q(age__gt=25, age__lte=56)
+        )
+        result = multi.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            ["(firstname='Kendall' or (lastname='Jenner' and age>25 and age<=56))"]
+        )
+
+    def test_negation(self):
+        # NegatedExpression
+        instance = ~Q(firstname='Kendall')
+        self.assertIsInstance(instance, NegatedExpression)
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(sql, "not firstname='Kendall'")
+
+        # Q & NegatedExpression
+        instance = ~Q(firstname='Kendall') & Q(lastname='Jenner')
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(sql, "not firstname='Kendall' and lastname='Jenner'")
+
+        # NegatedExpression & NegatedExpression
+        instance = ~Q(firstname='Kendall') & ~Q(lastname='Jenner')
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(sql, "not firstname='Kendall' and lastname='Jenner'")
+
+    def test_mixed_expressions(self):
+        # TODO: We should not be able to mix
+        # different types of expressions
+        instance = ~Q(name='Kendall') & F('name')
+        sql = instance.as_sql(self.create_connection())
+        print(sql)
 
 
-# class TestCombinedExpression(unittest.TestCase):
-#     def create_backend(self):
-#         return SQLiteBackend()
+class TestCombinedExpression(LorelieTestCase):
+    def test_structure(self):
+        a = Q(firstname='Kendall')
+        b = Q(firstname='Kylie')
 
-#     def test_structure(self):
-#         a = Q(firstname='Kendall')
-#         b = Q(firstname='Kylie')
+        instance = CombinedExpression(a, b)
+        instance.build_children()
 
-#         instance = CombinedExpression(a, b)
-#         instance.build_children()
+        self.assertTrue(len(instance.children) == 3)
+        self.assertIsInstance(instance.children[0], Q)
+        self.assertIsInstance(instance.children[1], str)
+        self.assertTrue(instance.children[1] == 'and')
+        self.assertIsInstance(instance.children[-1], Q)
 
-#         self.assertTrue(len(instance.children) == 3)
-#         self.assertIsInstance(instance.children[0], Q)
-#         self.assertIsInstance(instance.children[1], str)
-#         self.assertTrue(instance.children[1] == 'and')
-#         self.assertIsInstance(instance.children[-1], Q)
+        self.assertListEqual(
+            instance.as_sql(self.create_connection()),
+            ["(firstname='Kendall' and firstname='Kylie')"]
+        )
 
-#         self.assertListEqual(
-#             instance.as_sql(self.create_backend()),
-#             ["(firstname='Kendall' and firstname='Kylie')"]
-#         )
+    def test_mixed_expressions(self):
+        a = Q(name='Kendall')
+        b = F('age')
+
+        instance = CombinedExpression(a, b)
+        instance.build_children()
+        self.assertListEqual(
+            instance.as_sql(self.create_connection()),
+            ["(name='Kendall' and age)"]
+        )
+
+    def test_F_expressions(self):
+        a = F('age')
+        b = F('age')
+
+        instance = CombinedExpression(a, b)
+        instance.build_children()
+        self.assertListEqual(
+            instance.as_sql(self.create_connection()),
+            ['(age and age)']
+        )
+
+    def test_joining_combined_expressions(self):
+        a = CombinedExpression(F('name'))
+        b = CombinedExpression(F('age'))
+
+        c = a & b
+        # TODO: This returns  ['(and ())']
+        print(c.as_sql(self.create_connection()))
+
+    def test_joining_combined_expression_with_simple(self):
+        a = CombinedExpression(Q(firstname='Kendall'))
+        b = Q(age__gt=26)
+
+        c = a & b
+        print(c.as_sql(self.create_connection()))
 
 
 # class TestWhen(unittest.TestCase):

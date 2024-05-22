@@ -15,7 +15,7 @@ from lorelie.database.nodes import (InsertNode, OrderByNode, SelectNode,
                                     UpdateNode, WhereNode)
 from lorelie.exceptions import (FieldExistsError, MigrationsExistsError,
                                 TableExistsError)
-from lorelie.queries import Query, QuerySet, ValuesIterable
+from lorelie.queries import EmptyQuerySet, Query, QuerySet, ValuesIterable
 
 
 class DatabaseManager:
@@ -165,12 +165,12 @@ class DatabaseManager:
         )
 
         query.add_sql_nodes([insert_sql, 'returning id'])
-        query.run(commit=True)
+        # query.run(commit=True)
         # TODO: This raises a sqlite3.OperationalError: cannot
         # commit transaction - SQL statements in progress
-        # queryset = QuerySet(query)
-        # queryset.use_commit = True
-        # return list(queryset)[-0]
+        queryset = QuerySet(query)
+        queryset.use_commit = True
+        return list(queryset)[-0]
 
     def filter(self, table, *args, **kwargs):
         """Filter the data in the database based on
@@ -670,7 +670,7 @@ class DatabaseManager:
             # TODO: This raises a sqlite3.OperationalError: cannot commit
             # transaction - SQL statements in progress
             queryset = QuerySet(new_query)
-            # queryset.use_commit = True
+            queryset.use_commit = True
             return list(queryset)[-0]
 
     # def select_for_update()

@@ -1,8 +1,12 @@
 import unittest
 
+from lorelie.constraints import CheckConstraint
+from lorelie.database.base import Database
 from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
                                 ImproperlyConfiguredError)
+from lorelie.expressions import Q
 from lorelie.fields.base import CharField, Field, IntegerField
+from lorelie.tables import Table
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -124,6 +128,16 @@ class TestTable(LorelieTestCase):
             drop_table_sql,
             ['drop table if exists celebrities']
         )
+
+    def test_table_level_constraints(self):
+        constraint = CheckConstraint('my_constraint', Q(name__eq='Kendall'))
+        table = Table(
+            'my_table', 
+            fields=[CharField('name')], 
+            constraints=[constraint]
+        )
+        db = Database(table)
+        table.prepare(db)
 
 
 if __name__ == '__main__':

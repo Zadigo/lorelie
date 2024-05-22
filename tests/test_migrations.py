@@ -1,60 +1,37 @@
-# import unittest
+import unittest
 
-# from lorelie.database.base import Database
-# from lorelie.database.migrations import Migrations
-# from lorelie.fields.base import CharField
-# from lorelie.tables import Table
-
-# TEST_MIGRATION = {
-#     "id": "fe81zef5",
-#     "date": None,
-#     "number": 1,
-#     "tables": [
-#         {
-#             "name": "urls_seen",
-#             "fields": [
-#                 {
-#                     "name": "id",
-#                     "verbose_name": "id",
-#                     "params": [
-#                         "integer",
-#                         "primary key"
-#                     ]
-#                 },
-#                 {
-#                     "name": "url",
-#                     "verbose_name": None,
-#                     "params": [
-#                         "text",
-#                         "null"
-#                     ]
-#                 },
-#                 {
-#                     "name": "date",
-#                     "verbose_name": None,
-#                     "params": [
-#                         "text",
-#                         "not null"
-#                     ]
-#                 }
-#             ],
-#             "indexes": [
-#                 "url"
-#             ]
-#         }
-#     ]
-# }
+from lorelie.database.base import Database
+from lorelie.database.migrations import Migrations
+from lorelie.exceptions import ImproperlyConfiguredError
+from lorelie.fields.base import CharField
+from lorelie.tables import Table
+from lorelie.test.testcases import LorelieTestCase
 
 
-# # table = Table('movies', 'celebrities', )
+class TestMigrations(LorelieTestCase):
+    def test_structure(self):
+        db = Database()
+        migrations = Migrations(db)
+        self.assertFalse(migrations.migrated)
 
-# class TestMigrations(unittest.TestCase):
-#     def setUp(self):
-#         db = Database()
-#         self.instance = Migrations(db)
+        table = Table('products')
+        with self.assertRaises(ImproperlyConfiguredError):
+            migrations.check({'products': table})
 
-#     def test_is_migrated(self):
-#         self.assertFalse(self.instance.migrated)
+    def test_check_function(self):
+        # Check the migration class on
+        # its very own by destructuring the
+        # building process
+        table = self.create_table()
+        table.backend = self.create_connection()
+
+        db = Database(table)
+        migrations = Migrations(db)
+        migrations.check({'celebrities': table})
+        self.assertTrue(migrations.migrated)
+        self.assertTrue(db.get_table('celebrities').is_prepared)
+
+
 
 #     @unittest.expectedFailure
 #     def test_structure(self):

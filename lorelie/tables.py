@@ -2,6 +2,7 @@ import re
 from collections import OrderedDict
 
 from lorelie.backends import SQLiteBackend
+from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
 from lorelie.fields.base import (AutoField, DateField, DateTimeField, Field,
                                  IntegerField)
@@ -334,9 +335,9 @@ class Table(AbstractTable):
                         self.backend.simple_join(relationship_sql)
                     ])
 
-        create_sql = self.create_table_sql(
-            self.backend.comma_join(field_params)
-        )
+        joined_fields = self.backend.comma_join(field_params)
+        create_sql = self.create_table_sql(joined_fields)
+
         query = self.query_class(table=self)
         query.add_sql_nodes(create_sql)
         query.run(commit=True)

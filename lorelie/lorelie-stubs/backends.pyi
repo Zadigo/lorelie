@@ -4,12 +4,11 @@ import sqlite3
 from sqlite3 import Cursor, Row
 from typing import Any, Callable, DefaultDict, List, Literal, Tuple, Union
 
+from lorelie.database.functions.base import Functions
 from lorelie.database.manager import ForeignTablesManager
 from lorelie.expressions import BaseExpression, CombinedExpression
-from lorelie.functions import Functions
 from lorelie.queries import Query, QuerySet
 from lorelie.tables import Table
-
 
 class Connections:
     connections_map: dict[str, SQLiteBackend] = ...
@@ -205,7 +204,6 @@ class SQLiteBackend(SQL):
 
     def set_current_table(self, table: Table) -> None: ...
     def list_table_columns_sql(self, table: Table) -> QuerySet[BaseRow]: ...
-    def drop_indexes_sql(self, row: BaseRow) -> str: ...
 
     def create_table_fields(
         self,
@@ -213,7 +211,7 @@ class SQLiteBackend(SQL):
         columns_to_create: list[str]
     ) -> None: ...
 
-    def list_tables_sql(self) -> list[BaseRow]: ...
+    def list_all_tables(self) -> list[BaseRow]: ...
     def list_database_indexes(self) -> QuerySet[BaseRow]: ...
     def list_table_indexes(self) -> List[BaseRow]: ...
 

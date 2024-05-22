@@ -1,6 +1,6 @@
 import sqlite3
 from functools import total_ordering
-from sqlite3 import OperationalError
+from sqlite3 import IntegrityError, OperationalError
 
 from lorelie.database.functions.aggregation import Count
 from lorelie.database.nodes import BaseNode, OrderByNode, SelectMap, WhereNode
@@ -41,14 +41,6 @@ class Query:
 
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self.sql}]>'
-
-    # @classmethod
-    # def run_multiple(cls, backend, *sqls, **kwargs):
-    #     """Runs multiple queries against the database"""
-    #     for sql in sqls:
-    #         instance = cls(backend, sql, **kwargs)
-    #         instance.run(commit=True)
-    #         yield instance
 
     @classmethod
     def create(cls, table=None, backend=None):
@@ -135,8 +127,12 @@ class Query:
         except OperationalError as e:
             print(e, self.sql)
             raise
+        except IntegrityError as e:
+            print(e, self.sql)
+            raise
         except Exception as e:
-            print(e)
+            print(e, self.sql)
+            raise
         else:
             if commit:
                 self.backend.connection.commit()

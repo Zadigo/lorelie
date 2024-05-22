@@ -221,38 +221,30 @@ class Migrations:
 
             self.check_fields(table_instance, backend)
 
-        # The database might require another set of
-        # parameters (ex. indexes) that we run here
-        Query.run_script(sql_tokens=other_sqls_to_run, backend=backend)
-
-        # Create indexes for each table
         database_indexes = backend.list_database_indexes()
-        index_sqls = []
         for name, table in table_instances.items():
             for index in table.indexes:
-                index_sqls.append(index.as_sql(table))
+                other_sqls_to_run.append(index.as_sql(table))
 
         # Remove obsolete indexes
-        for database_index in database_indexes:
-            if database_index not in table.indexes:
+        for row in database_indexes:
+            if row not in table.indexes:
                 # We cannot and should not drop autoindexes
                 # which are created by sqlite. Anyways, it
                 # raises an error
-                if 'sqlite_autoindex' in database_index.name:
+                if 'sqlite_autoindex' in row.name:
                     continue
-                index_sqls.append(backend.drop_indexes_sql(database_index))
 
-        # Create table constraints
-        # table_constraints = []
-        # for _, table in table_instances.items():
-        #     for field in table.fields:
-        #         constraints = [constraint.as_sql() for constraint in field.base_constraints]
-        #         sql_clause = backend.CHECK_CONSTRAINT.format_map({
-        #             'conditions': backend.operator_join(constraints)
-        #         })
-        #         table_constraints.append(sql_clause)
+                other_sqls_to_run.append(
+                    backend.DROP_INDEX.format_map({
+                        'value': row['name']
+                    })
+                )
 
-        Query.run_script(sql_tokens=index_sqls, backend=backend)
+        # The database might require another set of
+        # parameters (ex. indexes, constraints) that we 
+        # are going to run here
+        Query.run_script(backend=backend, sql_tokens=other_sqls_to_run)
 
         self.tables_for_creation.clear()
         self.tables_for_deletion.clear()

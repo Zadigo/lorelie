@@ -278,6 +278,9 @@ class FloatField(Field):
         if data is None or data == '':
             return data
 
+        if isinstance(data, int):
+            return self.python_type(data)
+
         if isinstance(data, float):
             return data
 
@@ -288,6 +291,11 @@ class FloatField(Field):
                 "The value for {name} is not valid",
                 name=self.name
             )
+
+    def to_database(self, data):
+        if isinstance(data, (int, self.python_type)):
+            data = self.python_type(data)
+        return super().to_database(data)
 
 
 class JSONField(Field):

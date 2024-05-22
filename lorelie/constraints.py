@@ -6,6 +6,12 @@ from lorelie.expressions import CombinedExpression, Q
 class BaseConstraint:
     template_sql = None
     prefix = None
+    base_errors = {
+        'integer': (
+            "Limit for {klass} should "
+            "an integer field"
+        )
+    }
 
     def __init__(self, name):
         self.name = name
@@ -93,11 +99,38 @@ class MaxLengthConstraint(BaseConstraint):
 
     def as_sql(self, backend):
         condition = backend.CONDITION.format_map({
-            'field': self.field.name,
+            'field': self.length_sql.format(self.field.name),
             'operator': '>',
             'value': self.limit
         })
-        check_sql = self.CHECK.format_map({
-            'condition': condition
+        return self.template_sql.format(condition=condition)
+
+
+class MinValueConstraint(BaseConstraint):
+    template_sql = 'check({condition})'
+
+    def __init__(self, limit, field):
+        if not isinstance(limit, int):
+            error = self.base_errors['integer']
+            raise ValueError(error.format(klass=self.__class__.__name__))
+        
+        self.limit = limit
+        self.field = field
+
+    def as_sql(self, backend):
+        condition = backend.CONDITION.format_map({
+            'field': self.field,
+            'operator': '>',
+            'value': self.limit
         })
-        return check_sql
+        return self.template_sql.format(condition=condition)
+
+
+class MaxValueConstraint(MinValueConstraint):
+    def as_sql(self, backend):
+        condition = backend.CONDITION.format_map({
+            'field': self.field,
+            'operator': '<',
+            'value': self.limit
+        })
+        return self.template_sql.format(condition=condition)

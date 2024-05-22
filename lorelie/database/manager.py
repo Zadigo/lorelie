@@ -517,8 +517,19 @@ class DatabaseManager:
             query.add_sql_node(ordering_node)
         return QuerySet(query)
 
-    def bulk_create(self, table, *objs):
+    def bulk_create(self, table, objs):
+        """Creates multiple objects in the database at once
+        using a list of datasets or dictionnaries
+        
+        >>> @dataclasses.dataclass
+        ... class Celebrity:
+        ...     name: str
+
+        >>> db.objects.bulk_create('celebrities', [Celebrity('Taylor Swift')])
+        ... [<Celebrity: 1>]
+        """
         selected_table = self.before_action(table)
+
         invalid_objects_counter = 0
         for obj in objs:
             if not is_dataclass(obj):
@@ -526,7 +537,10 @@ class DatabaseManager:
                 continue
 
         if invalid_objects_counter > 0:
-            raise ValueError("Expected a set of dataclasses")
+            raise ValueError(
+                "Objects used in bulk create should be an "
+                "instance of dataclass"
+            )
 
         for obj in objs:
             fields = dataclasses.fields(obj)
@@ -536,29 +550,29 @@ class DatabaseManager:
 
         columns_to_use = set()
         values_to_create = []
+
         for obj in objs:
-            values = []
+            dataclass_values = []
             dataclass_fields = dataclasses.fields(obj)
+
+            dataclass_data = {}
             for dataclass_field in dataclass_fields:
-                if dataclass_field not in columns_to_use:
-                    columns_to_use.add(dataclass_field.name)
+                columns_to_use.add(dataclass_field.name)
 
-                field = selected_table.get_field(dataclass_field.name)
-                field_value = getattr(obj, dataclass_field.name)
-                field_value = field.to_database(field_value)
-                # field_value = selected_table.backend.quote_value(field_value)
-                values.append(field_value)
-            values_to_create.append(tuple(values))
+                value = getattr(obj, dataclass_field.name)
+                dataclass_data[dataclass_field.name] = value
 
-        values_to_create = list(map(lambda x: str(x), values_to_create))
+            dataclass_values.append(dataclass_data)
+            values_to_create.extend(dataclass_values)
 
-        create_sql = selected_table.backend.INSERT_BULK.format_map({
-            'table': selected_table.name,
-            'fields': selected_table.backend.comma_join(columns_to_use),
-            'values': selected_table.backend.comma_join(values_to_create)
-        })
+        insert_node = InsertNode(selected_table, batch_values=values_to_create)
+        
         query = selected_table.query_class(table=selected_table)
-        query.add_sql_node(create_sql)
+        query.add_sql_node(insert_node)
+
+        columns_to_use.add('id')
+        query.add_sql_node(f'returning {selected_table.backend.comma_join(columns_to_use)}')
+
         query.run(commit=True)
         return QuerySet(query)
 

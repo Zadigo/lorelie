@@ -833,7 +833,7 @@ class SQLiteBackend(SQL):
             query.add_sql_nodes([alter_sql])
             query.run(commit=True)
 
-    def list_tables_sql(self):
+    def list_all_tables(self):
         select_clause = self.SELECT.format(
             fields=self.comma_join(['rowid', 'name']),
             table='sqlite_schema'

@@ -154,7 +154,7 @@ class Migrations:
 
         backend = connections.get_last_connection()
         backend.linked_to_table = 'sqlite'
-        database_tables = backend.list_tables_sql()
+        database_tables = backend.list_all_tables()
         # When the table is in the migration file
         # and not in the database tables that we
         # listed above, it needs to be created

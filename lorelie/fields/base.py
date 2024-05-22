@@ -186,9 +186,15 @@ class Field:
             try:
                 constraint_sql = constraint.as_sql(self.table.backend)
             except:
-                raise AttributeError(
-                    "Field does not seem to be associated to a table "
-                    "and therefore cannot build the constraints"
+                raise ExceptionGroup(
+                    "An exception occured while trying to build "
+                    f"the field parameters for {self}",
+                    [
+                        AttributeError(
+                            "Field does not seem to be associated to a table "
+                            "and therefore cannot build its constraints"
+                        )
+                    ]
                 )
             else:
                 base_field_parameters.append(constraint_sql)

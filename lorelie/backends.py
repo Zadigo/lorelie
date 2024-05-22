@@ -332,7 +332,7 @@ class SQL:
         if value is None:
             return "''"
 
-        if isinstance(value, int):
+        if isinstance(value, (int, float)):
             return value
 
         if value.startswith("'"):
@@ -349,12 +349,15 @@ class SQL:
 
     @staticmethod
     def comma_join(values):
-        def check_integers(value):
-            if isinstance(value, (int, float)):
+        def check_value_type(value):
+            if callable(value):
+                return str(value())
+                    
+            if isinstance(value, (int, float, list, tuple)):
                 return str(value)
             return value
-        values = map(check_integers, values)
-        return ', '.join(values)
+        
+        return ', '.join(map(check_value_type, values))
 
     @staticmethod
     def operator_join(values, operator='and'):

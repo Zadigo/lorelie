@@ -869,8 +869,7 @@ class SQLiteBackend(SQL):
         # sql = f'PRAGMA index_list({self.quote_value(table.name)})'
         sql = f'PRAGMA index_list({table.name})'
         query = Query(table=table)
-        query.add_sql_node([[sql]])
-        query.run()
+        query.add_sql_node(sql)
         return QuerySet(query, skip_transform=True)
 
     def save_row_object(self, row):

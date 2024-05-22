@@ -74,10 +74,15 @@ class UniqueConstraint(BaseConstraint):
         return self.template_sql.format(fields=fields)
 
 
-class MaxLengthConstraint(CheckConstraint):
-    CHECK = 'check({condition})'
+class MaxLengthConstraint(BaseConstraint):
+    template_sql = 'check({condition})'
+    length_sql = 'length({column})'
 
     def __init__(self, limit, field):
+        if not isinstance(limit, int):
+            error = self.base_errors['integer']
+            raise ValueError(error.format(klass=self.__class__.__name__))
+
         self.limit = limit
         self.field = field
 

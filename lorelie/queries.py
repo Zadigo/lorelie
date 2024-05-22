@@ -133,7 +133,7 @@ class Query:
         try:
             result = self.backend.connection.execute(self.sql)
         except OperationalError as e:
-            print(e)
+            print(e, self.sql)
             raise
         except Exception as e:
             print(e)
@@ -197,11 +197,17 @@ class EmptyQuerySet:
 
     def __contains__(self):
         return False
+    
+    def __iter__(self):
+        return []
 
     def __eq__(self):
         return False
 
     def __gt__(self):
+        return False
+    
+    def __gte__(self):
         return False
 
 

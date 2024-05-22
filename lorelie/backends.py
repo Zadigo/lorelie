@@ -802,14 +802,7 @@ class SQLiteBackend(SQL):
         # query = Query([sql], table=table)
         query = Query(table=table)
         query.add_sql_node(sql)
-        query.run()
-        return query.result_cache
-
-    # TODO: Refactor this section
-    def drop_indexes_sql(self, row):
-        return self.DROP_INDEX.format_map({
-            'value': row['name']
-        })
+        return QuerySet(query, skip_transform=True)
 
     def create_table_fields(self, table, columns_to_create):
         field_params = []

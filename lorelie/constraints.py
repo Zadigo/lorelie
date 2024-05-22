@@ -1,16 +1,37 @@
 import secrets
 
-class CheckConstraint:
+from lorelie.expressions import Q, CombinedExpression
+
+
+class BaseConstraint:
+    template_sql = None
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__}>'
+
+    def as_sql(self, backend):
+        return NotImplemented
+    
+
+class CheckConstraint(BaseConstraint):
     template_sql = 'check({condition})'
 
-    def __init__(self, name, *, fields=[], expressions={}):
+    def __init__(self, name, condition):
         self.name = name
-        self.fields = fields
-        self.expressions= expressions
+        if not isinstance(condition, (Q, CombinedExpression)):
+            raise ValueError('Condition should be an instance of Q')
+        self.condition = condition
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__}: {self.condition}>'
+
+    def as_sql(self, backend):
+        condition_sql = backend.simple_join(self.condition.as_sql(backend))
+        return self.template_sql.format(condition=condition_sql)
 
 
-class UniqueConstraint:
-    UNIQUE = 'unique({fields})'
+class UniqueConstraint(BaseConstraint):
+    template_sql = 'unique({fields})'
 
     def __init__(self, name, *, fields=[]):
         self.name = name
@@ -18,7 +39,7 @@ class UniqueConstraint:
 
     def as_sql(self, backend):
         fields = backend.comma_join(self.fields)
-        return self.UNIQUE.format(fields=fields)
+        return self.template_sql.format(fields=fields)
 
 
 class MaxLengthConstraint(CheckConstraint):

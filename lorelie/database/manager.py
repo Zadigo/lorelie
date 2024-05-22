@@ -692,30 +692,44 @@ class DatabaseManager:
             # (ValueError) below
             where_node = WhereNode(**kwargs)
             query.add_sql_node(where_node)
+        else:
+            raise ValueError(
+                "You need to define parameters "
+                "to search and update a specific product "
+                "in the database"
+            )
 
         queryset = QuerySet(query)
 
+        if not create_defaults:
+            # We do not care if the user passes
+            # Q functions in the kwargs since we
+            # should not be able to use these
+            # in the get_or_create or update_or_create.
+            # We'll just let the error raise itself.
+            create_defaults.update(**kwargs)
+
+        ids = list(map(lambda x: x['id'], queryset))
+
+        if len(ids) > 1:
+            # TODO: Check for cases where kwargs is not provided
+            # but there's only one element in the database
+            raise ValueError('Get returned more than one value')
+        
         if queryset.exists():
-            ids = list(map(lambda x: x['id'], queryset))
-
-            if len(ids) > 1:
-                # TODO: Check for cases where kwargs is not provided
-                # but there's only one element in the database
-                raise ValueError('Get returned more than one value')
-
-            if not create_defaults:
-                # We do not care if the user passes
-                # Q functions in the kwargs since we
-                # should not be able to use these
-                # in the get_or_create or update_or_create.
-                # We'll just let the error raise itself.
-                create_defaults.update(**kwargs)
-
             update_node = UpdateNode(
-                selected_table, create_defaults, id__in=ids)
+                selected_table, 
+                create_defaults, 
+                id__in=ids
+            )
+
             new_query = query.create(table=selected_table)
             new_query.add_sql_node(update_node)
-            return QuerySet(new_query)
+        else:
+            insert_node = InsertNode(selected_table, insert_values=create_defaults)
+            new_query = query.create(table=selected_table)
+            new_query.add_sql_node(insert_node)
+        return QuerySet(new_query)
 
     async def aall(self, table):
         return await sync_to_async(self.all)(table)

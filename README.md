@@ -529,6 +529,76 @@ The main expressions are:
 * __Case:__ Represents conditional expressions in SQL queries, enabling users to perform conditional logic and transformations on data.
 * __Value:__ Represents literal values or constants in SQL queries, allowing users to include specific values directly in their queries.
 
+### Q
+
+The Q function empowers you to construct complex SQL expressions for filtering, querying, and creating conditions within database operations. Here's how users can utilize it:
+
+__Basic Filtering with Single Condition__
+
+```python
+db.objects.filter('celebrities', Q(age__gt=20))
+```
+
+In this example, the Q function is used to create a filter condition where the 'age' column should be greater than 20 in the 'celebrities' table.
+
+__Filtering with Multiple Conditions using Logical AND__
+
+```python
+db.objects.filter('celebrities', Q(age__gt=20) & Q(age__lt=30))
+```
+
+Here, the Q function constructs a filter condition with two criteria joined by a logical __AND__ operator. It filters rows from the 'celebrities' table where the 'age' column is greater than 20 and less than 30.
+
+__Filtering with Multiple Conditions using Logical OR__
+
+Similarly, the Q function is employed to create a filter condition with two criteria joined by a logical __OR__ operator. It retrieves rows from the 'celebrities' table where the 'age' column is either greater than 20 or less than 30.
+
+__Complex Filtering with Multiple Conditions and Field Matching__
+
+```python
+db.objects.get('celebrities', Q(firstname__contains='Kendall', lastname__contains='J') & Q(country='USA'))
+```
+
+In this case, the Q function is used to create a complex filter condition combining multiple criteria with both logical AND and OR operators. It retrieves a single row from the 'celebrities' table where the 'firstname' contains 'Kendall', the 'lastname' contains 'J', and the 'country' is 'USA'.
+
+__Inversion Operation__
+
+```python
+db.objects.filter('celebrities', ~Q(age__gt=20))
+```
+
+In this example, the tilde (~) operator is applied to the Q function, signifying an inversion operation. The inversion reverses the logical condition specified within the Q object. Here, the query retrieves rows from the 'celebrities' table where the 'age' column is not greater than 20.
+
+[indexes](#indexes)
+
+### F
+
+You can utilize the `F` expression to reference database columns within SQL queries and perform arithmetic operations or other manipulations on their values.
+
+__Single Column Reference and Arithmetic Operation__
+
+```python
+db.objects.annotate('celebrities', age_plus_one=F('age') + 1)
+```
+
+In this example, the `F` expression is used to reference the `age` column in the `celebrities` table. By adding 1 to the value of `age`, users can create a new alias column named `age_plus_one` in the query result, where each value is incremented by 1.
+
+__Multiple Column Reference and Arithmetic Operation__
+
+```python
+db.objects.annotate('celebrities', age_plus_age=F('age') + F('age'))
+```
+
+Here, the F expression is used to reference the `age` column twice in the `celebrities` table. By adding the values of `age` together, you can create a new alias column named `age_plus_age` in the query result, where each value is the sum of the corresponding `age` values.
+
+__Single Column Reference without Operation__
+
+```python
+db.objects.annotate('celebrities', age_alias=F('age'))
+```
+
+In this case, the F expression is used to reference the `age` column in the `celebrities` table without performing any arithmetic operation. This creates a new alias column named `age_plus_one` in the query result, where each value is the same as the original `age` column.
+
 ### Case
 
 It corresponds to the SQL __CASE__ statement, allowing you to perform conditional evaluations and transformations on data. With the Case expression, you can define multiple conditions and their corresponding outcomes. This enables conditional logic within queries, such as determining different values based on specific conditions or criteria.
@@ -555,30 +625,4 @@ In this example, we first define the condition using the When expression, specif
 
 It's important to note that the Case expression should only be used in conjunction with the `annotate` method, as it generates an alias column in the database with the result of the condition.
 
-### F
-
-You can utilize the `F` expression to reference database columns within SQL queries and perform arithmetic operations or other manipulations on their values.
-
-__Single Column Reference and Arithmetic Operation__
-
-```python
-db.objects.annotate('celebrities', age_plus_one=F('age') + 1)
-```
-
-In this example, the `F` expression is used to reference the `age` column in the `celebrities` table. By adding 1 to the value of `age`, users can create a new alias column named `age_plus_one` in the query result, where each value is incremented by 1.
-
-__Multiple Column Reference and Arithmetic Operation__
-
-```python
-db.objects.annotate('celebrities', age_plus_age=F('age') + F('age'))
-```
-
-Here, the F expression is used to reference the `age` column twice in the `celebrities` table. By adding the values of `age` together, you can create a new alias column named `age_plus_age` in the query result, where each value is the sum of the corresponding `age` values.
-
-__Single Column Reference without Operation__
-
-```python
-db.objects.annotate('celebrities', age_plus_one=F('age'))
-```
-
-In this case, the F expression is used to reference the `age` column in the `celebrities` table without performing any arithmetic operation. This creates a new alias column named `age_plus_one` in the query result, where each value is the same as the original `age` column.
+## Lookup Filters

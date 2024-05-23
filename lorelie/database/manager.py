@@ -134,7 +134,7 @@ class DatabaseManager:
             kwargs,
             quote_values=False
         )
-        values = selected_table.validate_values(fields, values)
+        values, _ = selected_table.validate_values(fields, values)
 
         pre_saved_values = self.pre_save(selected_table, fields, values)
 
@@ -565,6 +565,8 @@ class DatabaseManager:
             dataclass_values.append(dataclass_data)
             values_to_create.extend(dataclass_values)
 
+        # TODO: We have to call validate values
+
         insert_node = InsertNode(selected_table, batch_values=values_to_create)
         
         query = selected_table.query_class(table=selected_table)
@@ -627,7 +629,7 @@ class DatabaseManager:
     # def extra()
     # def only()
 
-    def get_or_create(self, table, defaults={}, **kwargs):
+    def get_or_create(self, table, create_defaults={}, **kwargs):
         """Tries to get a row in the database using the coditions
         passed in kwargs. It then uses the `defaults`
         parameter to create the values that do not exist.
@@ -636,7 +638,7 @@ class DatabaseManager:
         will become the default `defaults`.
 
         >>> defaults = {'age': 24}
-        ... db.objects.get_or_create('celebrities', defaults=defaults, firstname='Margot')
+        ... db.objects.get_or_create('celebrities', create_defaults=defaults, firstname='Margot')
 
         If the queryset returns multiple elements, an error is raised.
         """
@@ -655,13 +657,14 @@ class DatabaseManager:
                 raise ValueError('Returned more than one values')
             return queryset[-0]
         else:
-            if not defaults:
-                defaults.update(**kwargs)
+            if not create_defaults:
+                create_defaults.update(**kwargs)
+            _, create_defaults = selected_table.validate_values_from_dict(create_defaults)
 
             insert_node = InsertNode(
                 selected_table,
-                returning=True,
-                **defaults
+                insert_values=create_defaults,
+                returning=True
             )
             new_query = query.create(table=selected_table)
             new_query.add_sql_node(insert_node)
@@ -723,6 +726,7 @@ class DatabaseManager:
             # We'll just let the error raise itself.
             create_defaults.update(**kwargs)
 
+        _, create_defaults = selected_table.validate_values_from_dict(create_defaults)
         ids = list(map(lambda x: x['id'], queryset))
 
         if len(ids) > 1:
@@ -730,6 +734,8 @@ class DatabaseManager:
             # but there's only one element in the database
             raise ValueError('Get returned more than one value')
         
+        # TODO: We have to call validate values
+
         if queryset.exists():
             update_node = UpdateNode(
                 selected_table, 
@@ -743,6 +749,13 @@ class DatabaseManager:
             insert_node = InsertNode(selected_table, insert_values=create_defaults)
             new_query = query.create(table=selected_table)
             new_query.add_sql_node(insert_node)
+        # We have to execute the query before
+        # hand. The reason for this is the insert
+        # and update nodes need to be comitted
+        # immediately otherwise the QuerySet would
+        # delay their evaaluation which would not
+        # then modify the data in the database
+        new_query.run(commit=True)
         return QuerySet(new_query)
 
     async def aall(self, table):

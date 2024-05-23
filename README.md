@@ -211,9 +211,9 @@ The `URLField` is a subclass of `CharField` designed to handle url data.
 
 An index is a database object designed to improve the performance of queries by enabling faster retrieval of rows. It works similarly to an index in a book, which allows you to find information quickly without reading every page. By creating an index on specific columns of a database table, the database can locate and access the data more efficiently, particularly in large datasets.
 
-* Enhanced Query Performance: Indexes allow the database to find rows more quickly and efficiently, which can significantly speed up search operations, sorting, and filtering
-* Improved Data Retrieval: Indexes reduce the amount of data the database engine needs to scan, thus improving the speed of data retrieval operations
-* Optimized Sorting and Filtering: Indexes enable faster execution of queries that involve sorting (ORDER BY) and filtering (WHERE clauses)
+* __Enhanced Query Performance:__ Indexes allow the database to find rows more quickly and efficiently, which can significantly speed up search operations, sorting, and filtering
+* __Improved Data Retrieval:__ Indexes reduce the amount of data the database engine needs to scan, thus improving the speed of data retrieval operations
+* __Optimized Sorting and Filtering:__ Indexes enable faster execution of queries that involve sorting (ORDER BY) and filtering (WHERE clauses)
 
 In Lorelie, indexes can be created in two ways:
 

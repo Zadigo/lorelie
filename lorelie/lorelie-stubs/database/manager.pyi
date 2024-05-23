@@ -1,7 +1,7 @@
 import datetime
-from collections.abc import Awaitable, Coroutine
-from typing import (Any, ClassVar, Dict, Literal, NamedTuple, Protocol, Type,
-                    Union)
+from collections.abc import Awaitable
+from typing import (Any, ClassVar, Dict, Literal, NamedTuple, Optional,
+                    Protocol, Type, Union)
 
 import pandas
 
@@ -26,14 +26,14 @@ class DatabaseManager:
     def __get__(
         self,
         instance: Database,
-        cls: Type[Database] = ...
+        cls: Optional[Type[Database]] = ...
     ) -> DatabaseManager: ...
 
     @classmethod
     def as_manager(
         cls,
-        table_map: dict = ...,
-        database: Database = ...
+        table_map: Optional[dict] = ...,
+        database: Optional[Database] = ...
     ) -> DatabaseManager: ...
 
     def _get_select_sql(
@@ -44,7 +44,8 @@ class DatabaseManager:
 
     def _get_first_or_last_sql(
         self,
-        selected_table: Table, first: bool = Literal[True]
+        selected_table: Table, 
+        first: Optional[bool] = ...
     ) -> list[str]: ...
 
     def pre_save(
@@ -71,8 +72,8 @@ class DatabaseManager:
         self,
         table: str,
         field: str,
-        field_to_sort=Literal['year'],
-        ascending=Literal[True]
+        field_to_sort: Optional[str] = ...,
+        ascending: Optional[bool] = ...
     ) -> list[datetime.date]: ...
 
     def datetimes(

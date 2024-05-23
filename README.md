@@ -1,38 +1,37 @@
 # Lorelie
 
-A module that creates a simple interface ORM for SQLITE for any Python application.
+Welcome to Lorelie, a lightweight framework designed to simplify database interactions and queries using SQLite. Lorelie makes it easy to define tables, fields, and perform database migrations. This guide will walk you through the process of creating a database and performing queries using the Lorelie framework.
+
+## Database
+
+The `Database` class in Lorelie is the main wrapper responsible for creating and organizing tables, indexes, constraints, and other database structures. It serves as the central point for managing database schema and executing migrations, ensuring that your database stays in sync with your application models. By using the `Database` class, you can easily define and manipulate the core components of your database, facilitating efficient and structured data management.
+
+__Setting Up Your Database__
 
 ```python
-from krytpone.tables import Table
-from krytpone.fields import CharField
+from lorelie.database.base import Database
+from lorelie.fields.base import CharField
+from lorelie.tables import Table
 
-table = Table('my_table', database_name='my_database', inline_build=True, fields=[
-    CharField('name')
-])
-table.prepare()
-```
-
-The above will create a single table called `my_table` in the `my_database` sqlite database and with the a column called `name`.
-
-By default, when calling the `Table` instance, a connection will is not automatically established with sqlite. You need to set the `inline_build` to True and then call `prepare` to run the table creation sequence.
-
-In order to manage multiple tables in a database, using `Database` implements additional functionnalities such as migrations (or table state tracking).
-
-```python
-from krytpone.tables import Table
-from krytpone.fields import CharField
-
-table = Table('my_table', database_name='my_database', fields=[
+# Define a table with the required fields
+table = Table('celebrities', fields=[
     CharField('name')
 ])
 
-database = Database('my_database', tables=[table])
-database.makemigrations()
-dataase.migrate()
-table = database.get_table('my_table')
+# Initialize the database with the defined table
+db = Database(table)
+
+# Run the migration to create the table in the SQLite database
+db.migrate()
 ```
 
-## Migrations
+By default, when creating a `Table` instance, a connection to the SQLite database is not automatically established. The connection and table creation are handled by the `migrate` method of the Database class.
+
+The Database class is the main wrapper for creating and organizing tables, indexes, constraints, and other database objects. It manages multiple tables in a database and provides additional functionalities such as migrations, which ensure that your database schema is synchronized with your application models.
+
+The migrate method establishes the connection to the database, creates the tables, indexes, and applies any defined constraints.
+
+__Migrations__
 
 ```json
 {

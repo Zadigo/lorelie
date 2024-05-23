@@ -577,4 +577,8 @@ Here, the F expression is used to reference the `age` column twice in the `celeb
 
 __Single Column Reference without Operation__
 
+```python
+db.objects.annotate('celebrities', age_plus_one=F('age'))
+```
+
 In this case, the F expression is used to reference the `age` column in the `celebrities` table without performing any arithmetic operation. This creates a new alias column named `age_plus_one` in the query result, where each value is the same as the original `age` column.

@@ -58,8 +58,38 @@ __Migrations__
 }
 ```
 
+## Tables
 
-## Fields
+A database table is a structured collection of data organized in rows and columns, similar to a spreadsheet. Each table in a database is designed to store specific types of information, and it typically consists of one or more fields (or columns) that define the nature of the data stored.
+
+Here's an example breakdown:
+
+```python
+from lorelie.constraints import CheckConstraint, UniqueConstraint
+from lorelie.database.indexes import Index
+from lorelie.expressions import Q
+from lorelie.fields.base import CharField
+from lorelie.tables import Table
+
+table = Table(
+    'celebrities',
+    fields=[
+        CharField('name')
+    ],
+    constraints=[
+        UniqueConstraint('name', fields=['name']),
+        CheckConstraint('age', Q(age__gt=22))
+    ],
+    index=[
+        Index('idx_name', fields=['name'])
+    ],
+    str_field='name',
+    ordering=['name']
+)
+
+```
+
+### Fields
 
 The `Field` class defines a generic field in a database table. It serves as a base class for more specific field types like `CharField`. It includes various attributes and methods to manage the properties and behavior of database fields.
 
@@ -99,7 +129,7 @@ db = Database(table)
 db.migrate()
 ```
 
-### CharField
+#### CharField
 
 The `CharField` class is a subclass of Field designed to handle text data.
 
@@ -113,11 +143,11 @@ __parameters__
 * `unique` (bool, optional): Whether the field value must be unique. Defaults to False.
 * `validators` (list, optional): A list of validators to apply to the field value.
 
-### IntegerField
+#### IntegerField
 
 The `IntegerField` class is a subclass of `Field` designed to handle integer data.
 
-### FloatField
+#### FloatField
 
 The `FloatField` class is a subclass of `Field` designed to handle floating-point data.
 
@@ -127,19 +157,19 @@ __Parameters__
 * `min_value` (int, optional): The minimum value for the field.
 * `max_value` (int, optional): The maximum value for the field.
 
-### JSONField
+#### JSONField
 
 The `JSONField` class is a subclass of `Field` designed to handle JSON data.
 
-### BooleanField
+#### BooleanField
 
 The `BooleanField` class is a subclass of `Field` designed to handle boolean data.
 
-### AutoField
+#### AutoField
 
 The `AutoField` class is a subclass of `IntegerField` designed to handle auto-incrementing primary key fields.
 
-### DateField
+#### DateField
 
 The `DateField` class is a subclass of `Field` designed to handle date data.
 
@@ -149,33 +179,68 @@ __Parameters__
 * `auto_update` (bool, optional): Automatically update the field with the current date on each update. Defaults to False.
 * `auto_add` (bool, optional): Automatically set the field to the current date on creation. Defaults to False.
 
-### DateTimeField
+#### DateTimeField
 
 The `DateTimeField` class is a subclass of `DateField` designed to handle datetime data.
 
-### TimeField
+#### TimeField
 
 The `TimeField` is a subclass of `DateTimeField` designed to handle time data.
 
-### EmailField
+#### EmailField
 
 The `EmailField` is a subclass of `CharField` designed to handle email data.
 
-### FilePathField
+#### FilePathField
 
 The `FilePathField` is a subclass of `CharField` designed to handle file path data.
 
-### SlugField
+#### SlugField
 
 The `SlugField` is a subclass of `CharField` designed to handle slug data.
 
-### UUIDField
+#### UUIDField
 
 The `UUIDField` is a subclass of `CharField` designed to handle UUID data.
 
-### URLField
+#### URLField
 
 The `URLField` is a subclass of `CharField` designed to handle url data.
+
+### Indexes
+
+An index is a database object designed to improve the performance of queries by enabling faster retrieval of rows. It works similarly to an index in a book, which allows you to find information quickly without reading every page. By creating an index on specific columns of a database table, the database can locate and access the data more efficiently, particularly in large datasets.
+
+* Enhanced Query Performance: Indexes allow the database to find rows more quickly and efficiently, which can significantly speed up search operations, sorting, and filtering
+* Improved Data Retrieval: Indexes reduce the amount of data the database engine needs to scan, thus improving the speed of data retrieval operations
+* Optimized Sorting and Filtering: Indexes enable faster execution of queries that involve sorting (ORDER BY) and filtering (WHERE clauses)
+
+In Lorelie, indexes can be created in two ways:
+
+__Global Index on a Column__
+
+The first method involves creating a global index on a specific column. This index enhances the retrieval of rows by using pointers, allowing the database to find data more efficiently. For instance, consider the following code snippet:
+
+```python
+Index('idx_age', fields=['age'])
+```
+
+Here, an index named `idx_age` is created on the `age` column of a table. This index improves the performance of queries involving the 'age' column by enabling faster data retrieval operations.
+
+__Conditional Index__
+
+The second method involves creating a conditional index based on specific criteria. This type of index is tailored to optimize performance for queries that meet certain conditions. For example:
+
+```python
+Index('idx_age', fields=['age'], condition=Q(age__gt=25))
+```
+
+In this case, an index named `idx_age` is created on the `age` column of a table, but it's conditioned to include only rows where the age is greater than 25. This conditional index ensures that the database engine efficiently retrieves data matching the specified condition, enhancing query performance for relevant queries.
+
+### Constraints
+
+The second method involves creating a conditional index based on specific criteria. This type of index is tailored to optimize performance for queries that meet certain conditions. For example:
+
 
 ## Functions
 

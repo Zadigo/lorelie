@@ -239,8 +239,25 @@ In this case, an index named `idx_age` is created on the `age` column of a table
 
 ### Constraints
 
-The second method involves creating a conditional index based on specific criteria. This type of index is tailored to optimize performance for queries that meet certain conditions. For example:
+__Unique Constraints__
 
+You can enforce unique constraints in your database to ensure that the values within specific columns or combinations of columns are unique across the table. A unique constraint guarantees that no two rows in the table can have the same value(s) in the specified column(s).
+
+```python
+UniqueConstraint('name', fields=['name'])
+```
+
+In this example, a unique constraint named `name` is created on the `name` column of the table. This constraint ensures that no two rows in the table can have the same value in the 'name' column, thereby enforcing uniqueness for each name entry.
+
+__Check Constraints__
+
+You can apply check constraints to your database tables to enforce specific conditions or rules on the values within certain columns. A check constraint ensures that the values inserted or updated in the specified column(s) meet certain criteria defined by you.
+
+```python
+CheckConstraint('age', Q(age__gt=22))
+```
+
+In this example, a check constraint is applied to the `age` column of the table, specifying that the age value must be greater than 22. This constraint ensures that only records with an age greater than 22 can be inserted or updated in the database, enforcing the specified condition on the age column.
 
 ## Functions
 

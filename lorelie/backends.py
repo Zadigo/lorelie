@@ -717,7 +717,7 @@ class SQLiteBackend(SQL):
     """Class that initiates and encapsulates a
     new connection to the database"""
 
-    def __init__(self, database_name=None):
+    def __init__(self, database_name=None, log_queries=False):
         if database_name is None:
             database_name = ':memory:'
         else:
@@ -745,6 +745,7 @@ class SQLiteBackend(SQL):
 
         self.connection = connection
         self.current_table = None
+        self.log_queries= log_queries
 
         connections.register(self, name=database_name)
 

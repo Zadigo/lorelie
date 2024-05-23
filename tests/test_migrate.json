@@ -1,0 +1,39 @@
+{
+     "id": "fe81zef5",
+     "date": "null",
+     "number": 1,
+     "tables": [
+         {
+             "name": "urls_seen",
+             "fields": [
+                 {
+                     "name": "id",
+                     "verbose_name": "id",
+                     "params": [
+                         "integer",
+                         "primary key"
+                     ]
+                 },
+                 {
+                     "name": "url",
+                     "verbose_name": "null",
+                     "params": [
+                         "text",
+                         "null"
+                     ]
+                 },
+                 {
+                     "name": "date",
+                     "verbose_name": "null",
+                     "params": [
+                         "text",
+                         "not null"
+                     ]
+                 }
+             ],
+             "indexes": [
+                 "url"
+             ]
+         }
+     ]
+ }

@@ -17,7 +17,7 @@ class FieldExistsError(Exception):
         available_fields = ', '.join(table.field_names)
         message = (
             f'Field with name "{name}" '
-            f'does not exist on the table: {available_fields}'
+            f'does not exist on {table}: {available_fields}'
         )
         super().__init__(message)
 

@@ -8,10 +8,8 @@ class BaseRelationshipField(Field):
         self.name = None
         self.relationship_map = relationship_map
         name = relationship_map.relationship_field_name
+        self.database = None
         super().__init__(name, **kwargs)
-
-        # self.base_field_parameters['deferrable'] = True
-        # self.base_field_parameters['initially deferred'] = True
 
     # def __getattr__(self, name):
     #     pass
@@ -20,7 +18,7 @@ class BaseRelationshipField(Field):
         self.database = database
 
     def as_sql(self, backend):
-        pass
+        return NotImplemented
 
 
 class ForeignKeyField(BaseRelationshipField):

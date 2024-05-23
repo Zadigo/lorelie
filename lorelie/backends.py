@@ -1,18 +1,20 @@
 import dataclasses
 import datetime
-import inspect
 import itertools
 import re
 import sqlite3
+from collections import defaultdict
 from dataclasses import field
 
 import pytz
 
-from lorelie.aggregation import Avg, Count
+from lorelie import converters
+from lorelie.database.functions.aggregation import (CoefficientOfVariation,
+                                                    MeanAbsoluteDifference,
+                                                    StDev, Variance)
+from lorelie.database.functions.text import MD5Hash, SHA256Hash
+from lorelie.database.manager import ForeignTablesManager
 from lorelie.exceptions import ConnectionExistsError
-from lorelie.expressions import Case
-from lorelie.functions import (ExtractDay, ExtractMonth, ExtractYear,
-                               Functions, Length, Lower, Upper)
 from lorelie.queries import Query, QuerySet
 
 
@@ -76,12 +78,12 @@ class BaseRow:
     ... row.save()
     """
 
-    def __init__(self, cursor, fields, data):
+    def __init__(self, fields, data, cursor=None):
         # Indicate that this specific row
         # values have been changed and could
         # eligible for saving
         self.mark_for_update = False
-        self._cursor = cursor
+        self.cursor = cursor
         self._fields = fields
         self._cached_data = data
         self._backend = connections.get_last_connection()
@@ -89,6 +91,7 @@ class BaseRow:
         table = getattr(self._backend, 'current_table', None)
         self.linked_to_table = getattr(table, 'name', None)
         self.updated_fields = {}
+        self.pk = data.get('rowid', data.get('id', None))
 
         for key, value in self._cached_data.items():
             setattr(self, key, value)
@@ -98,10 +101,10 @@ class BaseRow:
         # of the value a given column e.g. <id: 1> which can
         # be changed for example to <id: Kendall Jenner> if the
         # user chooses to use that column to represent the column
-        str_field = self._backend.current_table.str_field or 'id'
+        str_field = self._backend.current_table.str_field or self.pk
         # The rowid is not necessarily implemented by default in the
-        # sqlite database. Hence why we test for the id field
-        name_to_show = getattr(self, 'rowid', getattr(self, str_field, None))
+        # created sqlite tables. Hence why we test for the id field
+        name_to_show = getattr(self, str_field, None) or self.pk
         if name_to_show is None:
             # There might be situations where the user
             # restricts the amount of fields to return
@@ -117,16 +120,15 @@ class BaseRow:
         # sets a field that does not actually
         # exist on the database. We'll simply
         # invalidate the field in the final SQL
-        self.updated_fields[name] = [name, value]
+        self.updated_fields[name] = value
         self.__dict__[name] = value
 
     def __getitem__(self, name):
         # It seems like when an ID field
         # is specified as primary key, the
-        # RowOD
+        # RowID
         if name == 'rowid':
-            if 'rowid' not in self._cached_data:
-                return None
+            return self.pk
 
         value = getattr(self, name)
         # Before returning the value,
@@ -135,19 +137,9 @@ class BaseRow:
         # usable object
         return value
 
-    # FIXME: When trying to set this up
-    # we get a recursion error for
-    # whatever reasons
-    def __setattr__(self, name, value):
-        # fields = self.__dict__['_fields']
-        # if name in fields:
-        #     self.__dict__['mark_for_update'] = True
-        #     self.__dict__['updated_fields'][name] = [name, value]
-        #     self.__dict__[name] = value
-        super().__setattr__(name, value)
-
     def __hash__(self):
-        return hash((self.id))
+        values = list(map(lambda x: getattr(self, x, None), self._fields))
+        return hash((self.pk, *values))
 
     def __contains__(self, value):
         # Check that a value exists in
@@ -158,14 +150,18 @@ class BaseRow:
                 truth_array.append(False)
                 continue
 
-            if isinstance(item, int):
-                item = str(item)
-
-            truth_array.append(value in item)
+            truth_array.append(value in str(item))
         return any(truth_array)
 
-    def __eq__(self, value):
-        return any((self[field] == value for field in self._fields))
+    def __getattr__(self, key):
+        if key.endswith('_rel'):
+            backend = self.__dict__['_backend']
+            right_table_name, _ = key.split('_')
+            manager = ForeignTablesManager(
+                right_table_name, backend.current_table)
+            setattr(manager, 'current_row', self)
+            return manager
+        return key
 
     def save(self):
         """Changes the data on the actual row
@@ -177,9 +173,19 @@ class BaseRow:
         ... row['name'] = 'Kylie'
         ... row.save()
         """
-        self._backend.save_row_object(self)
-        self.updated_fields.clear()
-        return self
+        try:
+            self._backend.save_row_object(self)
+        except AttributeError:
+            raise ExceptionGroup(
+                'Row does not seem to be affiliated to a table',
+                [
+                    Exception('Could not save row object')
+                ]
+            )
+        else:
+            self.updated_fields.clear()
+        finally:
+            self.mark_for_update = False
 
     def delete(self):
         """Deletes the row from the database
@@ -187,8 +193,17 @@ class BaseRow:
         >>> row = database.objects.last('my_table')
         ... row.delete()
         """
-        self._backend.delete_row_object(self)
-        return self
+        try:
+            self._backend.delete_row_object(self)
+        except AttributeError:
+            raise ExceptionGroup(
+                'Row does not seem to be affiliated to a table',
+                [
+                    Exception('Could not delete row object')
+                ]
+            )
+        else:
+            return self
 
 
 def row_factory(backend):
@@ -199,7 +214,7 @@ def row_factory(backend):
     def inner_factory(cursor, row):
         fields = [column[0] for column in cursor.description]
         data = {key: value for key, value in zip(fields, row)}
-        return BaseRow(cursor, fields, data)
+        return BaseRow(fields, data, cursor=cursor)
     return inner_factory
 
 
@@ -230,7 +245,7 @@ class AnnotationMap:
 
 
 class SQL:
-    """Base sql compiler"""
+    """Base SQL compiler"""
 
     ALTER_TABLE = 'alter table {table} add column {params}'
     CREATE_TABLE = 'create table if not exists {table} ({fields})'
@@ -260,7 +275,7 @@ class SQL:
     WILDCARD_SINGLE = '_'
 
     ASCENDING = '{field} asc'
-    DESCENDNIG = '{field} desc'
+    DESCENDING = '{field} desc'
 
     ORDER_BY = 'order by {conditions}'
     GROUP_BY = 'group by {conditions}'
@@ -274,7 +289,7 @@ class SQL:
     COUNT = 'count({field})'
     STRFTIME = 'strftime({format}, {value})'
 
-    CHECK_CONSTRAINT = 'check ({conditions})'
+    CHECK_CONSTRAINT = 'check({conditions})'
 
     CASE = 'case {field} {conditions} end {alias}'
     WHEN = 'when {condition} then {value}'
@@ -297,26 +312,49 @@ class SQL:
         'range': 'between',
         'ne': '!=',
         'in': 'in',
-        'isnull': 'isnull'
+        'isnull': 'isnull',
+        'regex': 'regexp',
+        'day': '',
+        'month': '',
+        'iso_year': '',
+        'year': '',
+        'minute': '',
+        'second': '',
+        'hour': '',
+        'time': ''
     }
 
     @staticmethod
     def quote_value(value):
-        if isinstance(value, int):
+        if value is None:
+            return "''"
+
+        if isinstance(value, (int, float)):
             return value
 
         if value.startswith("'"):
             return value
+
+        # To handle special characters like
+        # single quotes ('), we have to escape
+        # them by doubling them up for the final
+        # sql string
+        if "'" in value:
+            value = value.replace("'", "''")
+
         return f"'{value}'"
 
     @staticmethod
     def comma_join(values):
-        def check_integers(value):
-            if isinstance(value, (int, float)):
+        def check_value_type(value):
+            if callable(value):
+                return str(value())
+                    
+            if isinstance(value, (int, float, list, tuple)):
                 return str(value)
             return value
-        values = map(check_integers, values)
-        return ', '.join(values)
+        
+        return ', '.join(map(check_value_type, values))
 
     @staticmethod
     def operator_join(values, operator='and'):
@@ -374,6 +412,25 @@ class SQL:
         statement like in `count(name) as top_names`"""
         return f'{condition} as {alias}'
 
+    def parameter_join(self, data):
+        """Takes a list of fields and values
+        and returns string of key/value parameters
+        ready to be used in an sql statement
+
+        >>> self.parameter_join(['firstname', 'lastname'], ['Kendall', 'Jenner'])
+        ... "firstname='Kendall', lastname='Jenner'"
+        """
+        fields, values = self.dict_to_sql(data)
+        result = []
+        for i, field in enumerate(fields):
+            equality = self.EQUALITY.format(field=field, value=values[i])
+            result.append(equality)
+        return self.comma_join(result)
+
+    def quote_values(self, values):
+        """Quotes multiple values at once"""
+        return list(map(lambda x: self.quote_value(x), values))
+
     def quote_startswith(self, value):
         """Creates a startswith wildcard and returns
         the quoted condition
@@ -416,10 +473,10 @@ class SQL:
         fields = list(data.keys())
         if quote_values:
             quoted_value = list(
-                map(lambda x: self.quote_value(x), data.values()))
+                map(lambda x: self.quote_value(x), data.values())
+            )
             return fields, quoted_value
-        else:
-            return fields, data.values()
+        return fields, data.values()
 
     def build_script(self, *sqls):
         return '\n'.join(map(lambda x: self.finalize_sql(x), sqls))
@@ -580,65 +637,115 @@ class SQL:
             )
         return built_filters
 
-    def build_annotation(self, **conditions):
+    def build_annotation(self, conditions):
         """For each database function, creates a special
         statement as in `count(column_name) as my_special_name`.
         If we have Count function in our conditions, we have to
         identify it since it requires a special """
         annotation_map = AnnotationMap()
 
-        # TODO: Refactor the for-loop and the annotation
-        # map so that it is less messed up
-        for alias_name, function in conditions.items():
-            annotation_map.alias_fields.append(alias_name)
-            annotation_map.annotation_type_map[alias_name] = function.__class__.__name__
-            if isinstance(function, Case):
-                function.alias_name = alias_name
-                case_sql = function.as_sql(self.current_table.backend)
-                annotation_map.sql_statements_dict[alias_name] = case_sql
+        for alias, func in conditions.items():
+            annotation_map.alias_fields.append(alias)
+            annotation_map.annotation_type_map[alias] = func.__class__.__name__
+            sql_resolution = func.as_sql(self.current_table.backend)
 
-            if isinstance(function, (Count, Avg, Length, Lower, Upper, ExtractYear, ExtractDay, ExtractMonth)):
-                annotation_map.field_names.append(
-                    function.field_name
-                )
-                annotation_map.sql_statements_dict[alias_name] = function.as_sql(
-                    self
-                )
+            # Expressions return an array. Maybe in
+            # future iterations we should normalize
+            # returning a string or ensure that functions
+            # return a list
+            if isinstance(sql_resolution, list):
+                sql_resolution = self.comma_join(sql_resolution)
 
-            if Functions in inspect.getmro(function.__class__):
-                annotation_map.field_names.append(
-                    function.field_name
-                )
-                annotation_map.sql_statements_dict[alias_name] = function.as_sql(
-                    self
-                )
+            annotation_map.sql_statements_dict[alias] = sql_resolution
 
+        # TODO: Functions returns strings and expressions
+        # returns arrays - We need to normalize that.
+        # TODO: Also CombinedExpressions vs Functions
+        # TODO: Put resolve_expression to detect expressions
+        # and resolve_functions to detect functions
         return annotation_map
+
+    def decompose_sql_statement(self, sql):
+        regexes = {
+            'select': {
+                'columns': re.compile(r'^select\s(.*)\sfrom'),
+                'table': re.compile(r'from\s(\w+)'),
+                'where': re.compile(r'where\s(.*)\s?'),
+                'group_by': re.compile(r'group\sby\s(.*)\s?'),
+                'order_by': re.compile(r'order\sby\s(.*)\s?'),
+                'limit': re.compile(r'limit\s(\d+)\s?')
+            }
+        }
+
+        @dataclasses.dataclass
+        class StatementMap:
+            columns: list = dataclasses.field(default_factory=list)
+            table: str = None
+            where: list = dataclasses.field(default_factory=list)
+            group_by: list = dataclasses.field(default_factory=list)
+            order_by: list = dataclasses.field(default_factory=list)
+            limit: int = None
+
+            def __setitem__(self, key, value):
+                setattr(self, key, value)
+
+        sql_bits = defaultdict(list)
+        for name, values in regexes.items():
+            if not name in sql:
+                continue
+
+            bits = sql_bits[name]
+            for key, regex in values.items():
+                result = regex.match(sql)
+
+                if not result:
+                    result = regex.search(sql)
+
+                if not result:
+                    continue
+
+                statement_map = StatementMap()
+                tokens = result.group(1).split(',')
+                tokens = list(map(lambda x: x.strip(), tokens))
+
+                statement_map[key] = tokens
+                bits.append((key, tokens))
+        return sql_bits
 
 
 class SQLiteBackend(SQL):
     """Class that initiates and encapsulates a
     new connection to the database"""
 
-    def __init__(self, database_name=None):
-        from lorelie.functions import MD5Hash, SHA256Hash
-
+    def __init__(self, database_name=None, log_queries=False):
         if database_name is None:
             database_name = ':memory:'
         else:
             database_name = f'{database_name}.sqlite'
         self.database_name = database_name
 
-        # sqlite3.register_converter()
-        # sqlite3.register_adapter()
+        # sqlite3.register_adapter(datetime.datetime.now, str)
+        sqlite3.register_converter('date', converters.convert_date)
+        sqlite3.register_converter('datetime', converters.convert_datetime)
 
-        connection = sqlite3.connect(database_name)
-        connection.create_function('hash', 1, MD5Hash.create_function())
-        connection.create_function('sha256', 1, SHA256Hash.create_function())
+        connection = sqlite3.connect(
+            database_name,
+            check_same_thread=False,
+            autocommit=True,
+            detect_types=sqlite3.PARSE_DECLTYPES
+        )
+        MD5Hash.create_function(connection)
+        SHA256Hash.create_function(connection)
+        MeanAbsoluteDifference.create_function(connection)
+        Variance.create_function(connection)
+        StDev.create_function(connection)
+        CoefficientOfVariation.create_function(connection)
+
         connection.row_factory = row_factory(self)
 
         self.connection = connection
         self.current_table = None
+        self.log_queries= log_queries
 
         connections.register(self, name=database_name)
 
@@ -646,19 +753,17 @@ class SQLiteBackend(SQL):
         """Track the current table that is being updated
         or queried at the connection level for other parts
         of the project that require this knowledge"""
-        self.current_table = table
+        if self.current_table is None:
+            self.current_table = table
+        elif self.current_table != table:
+            self.current_table = table
 
     def list_table_columns_sql(self, table):
         sql = f'pragma table_info({table.name})'
-        query = Query([sql], table=table)
-        query.run()
-        return query.result_cache
-
-    # TODO: Refactor this section
-    def drop_indexes_sql(self, row):
-        return self.DROP_INDEX.format_map({
-            'value': row['name']
-        })
+        # query = Query([sql], table=table)
+        query = Query(table=table)
+        query.add_sql_node(sql)
+        return QuerySet(query, skip_transform=True)
 
     def create_table_fields(self, table, columns_to_create):
         field_params = []
@@ -678,11 +783,12 @@ class SQLiteBackend(SQL):
                 'table': table.name,
                 'params': self.simple_join(statements)
             })
-            query = Query([alter_sql], table=table)
+            query = Query(table=table)
+            query.add_sql_nodes([alter_sql])
             query.run(commit=True)
 
-    def list_tables_sql(self):
-        sql = self.SELECT.format(
+    def list_all_tables(self):
+        select_clause = self.SELECT.format(
             fields=self.comma_join(['rowid', 'name']),
             table='sqlite_schema'
         )
@@ -699,7 +805,8 @@ class SQLiteBackend(SQL):
                 self.AND.format(rhv=not_like_clause)
             ])
         )
-        query = Query([sql, where_clause], backend=self)
+        query = Query(backend=self)
+        query.add_sql_nodes([select_clause, where_clause])
         query.run()
         return query.result_cache
 
@@ -715,14 +822,15 @@ class SQLiteBackend(SQL):
                 'value': self.quote_value('index')
             })
         })
-        query = Query([select_sql, where_clause], backend=self)
+        query = Query(backend=self)
+        query.add_sql_nodes([select_sql, where_clause])
         return QuerySet(query, skip_transform=True)
 
     def list_table_indexes(self, table):
         # sql = f'PRAGMA index_list({self.quote_value(table.name)})'
         sql = f'PRAGMA index_list({table.name})'
-        query = Query([sql], table=table)
-        query.run()
+        query = Query(table=table)
+        query.add_sql_node(sql)
         return QuerySet(query, skip_transform=True)
 
     def save_row_object(self, row):
@@ -731,15 +839,22 @@ class SQLiteBackend(SQL):
         """
         if self.current_table.auto_update_fields:
             value = str(datetime.datetime.now(tz=pytz.UTC))
-            for field in self._backend.current_table.auto_update_fields:
-                row[field] = value
+            for field in self.current_table.auto_update_fields:
+                row.updated_fields.update({field: value})
 
         fields_to_set = []
-        for _, values in row.updated_fields.items():
-            lhv, rhv = values
+        for field, value in row.updated_fields.items():
+            # Simply just invalidate the fields that are
+            # no present on the table
+            if not self.current_table.has_field(field):
+                continue
+
+            field_instance = self.current_table.get_field(field)
+            true_value = field_instance.to_database(value)
+
             equality_statement = self.EQUALITY.format_map({
-                'field': lhv,
-                'value': self.quote_value(rhv)
+                'field': field,
+                'value': self.quote_value(true_value)
             })
             fields_to_set.append(equality_statement)
 
@@ -760,7 +875,8 @@ class SQLiteBackend(SQL):
             })
         })
 
-        query = Query([update_sql, update_set, where_sql], backend=self)
+        query = Query(backend=self)
+        query.add_sql_nodes([update_sql, update_set, where_sql])
         query.run(commit=True)
         return query
 
@@ -778,6 +894,7 @@ class SQLiteBackend(SQL):
             })
         })
 
-        query = Query([delete_sql, where_sql], backend=self)
+        query = Query(backend=self)
+        query.add_sql_nodes([delete_sql, where_sql])
         query.run(commit=True)
         return query

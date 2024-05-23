@@ -58,6 +58,35 @@ __Migrations__
 }
 ```
 
+### Database Manager
+
+The `Database` provides a `DatabaseManager` class which serves as an endpoint for interacting with the database. You can perform various operations such as creating, fetching, updating, and deleting data within the database tables using `db.objects`. Here's a breakdown of the functionalities provided by the DatabaseManager:
+
+* CRUD Operations
+    * Create: Adds new rows to the specified table
+    * Filter: Filters rows based on specified conditions
+    * Get: Retrieves a single row based on specified conditions
+    * Annotate: Adds annotations or computed fields to the queryset
+    * Values: Returns data from the database in the form of a list of dictionaries
+    * DataFrame: Converts queryset data into a pandas DataFrame
+    * Bulk Create: Inserts multiple rows into the database at once
+* Queryset Operations
+    * All: Retrieves all rows from the specified table
+    * Order By: Orders the queryset based on specified fields
+    * Count: Counts the total number of rows in the specified table
+* Data Retrieval:
+    * First: Retrieves the first row from the specified table
+    * Last: Retrieves the last row from the specified table
+    * Earliest: Retrieves the row with the earliest date or datetime
+    * Latest: Retrieves the row with the latest date or datetime
+* Additional Operations:
+    * Dates: Retrieves unique dates from a datetime field
+    * Difference: Finds the difference between two querysets
+    * Distinct: Removes duplicate rows from the queryset
+    * Only: Retrieves queryset with only specified fields
+    * Exclude: Excludes rows based on specified conditions
+    * Extra: Performs additional operations on the queryset
+
 ## Tables
 
 A database table is a structured collection of data organized in rows and columns, similar to a spreadsheet. Each table in a database is designed to store specific types of information, and it typically consists of one or more fields (or columns) that define the nature of the data stored.

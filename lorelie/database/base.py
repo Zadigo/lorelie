@@ -1,13 +1,14 @@
 import dataclasses
 import pathlib
+from dataclasses import field
+from functools import wraps
 from typing import OrderedDict, Union
-
-from asgiref.sync import sync_to_async
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database.manager import DatabaseManager
-from lorelie.fields.relationships import ForeignKeyField
 from lorelie.database.migrations import Migrations
+from lorelie.exceptions import TableExistsError
+from lorelie.fields.relationships import ForeignKeyField
 from lorelie.queries import Query
 from lorelie.tables import Table
 
@@ -45,6 +46,7 @@ databases = Databases()
 class RelationshipMap:
     left_table: Table
     right_table: Table
+    junction_table: Table = None
     relationship_type: str = dataclasses.field(default='foreign')
     field: Union[ForeignKeyField] = None
     can_be_validated: bool = False
@@ -105,6 +107,19 @@ class RelationshipMap:
         return table == self.right_table
 
 
+@dataclasses.dataclass
+class TriggersMap:
+    pre_save: list = field(default_factory=list)
+    post_save: list = field(default_factory=list)
+    pre_delete: list = field(default_factory=list)
+
+    def list_functions(self, table, trigger_name):
+        """Returns the list of functions for a given
+        specific trigger name"""
+        container = getattr(self, trigger_name, [])
+        return list(filter(lambda x: table in x, container))
+
+
 class Database:
     """This class links and unifies independent
     tables together for a unique database and allows 
@@ -147,9 +162,14 @@ class Database:
     backend_class = SQLiteBackend
     objects = DatabaseManager()
 
-    def __init__(self, *tables, name=None, path=None):
+    def __init__(self, *tables, name=None, path=None, log_queries=False):
         self.database_name = name
-        self.migrations = self.migrations_class(self)
+        # Use the immediate parent path if not
+        # path is provided by the user
+        self.path = pathlib.Path(__name__).parent.absolute()
+
+        if path is not None:
+            self.path = path
 
         # Create a connection to populate the
         # connection pool for the rest of the
@@ -162,20 +182,24 @@ class Database:
                 raise ValueError('Value should be an instance of Table')
 
             table.load_current_connection()
+            setattr(table, 'database', self)
             self.table_map[table.name] = table
 
         self.table_instances = list(tables)
         self.relationships = OrderedDict()
+        self.triggers_map = TriggersMap()
+        self.log_queries = log_queries
 
-        if path is None:
-            # Use the immediate parent path if not
-            # path is provided by the user
-            self.path = pathlib.Path(__file__).parent.absolute()
         databases.register(self)
+        # FIXME: Seems like if this class is not called
+        # after all the elements have been set, this
+        # raises an error. Maybe create a special prepare
+        # function to setup the different elements of the
+        # class later on
+        self.migrations = self.migrations_class(self)
 
     def __repr__(self):
-        tables = list(self.table_map.values())
-        return f'<{self.__class__.__name__} {tables}>'
+        return f'<{self.__class__.__name__} [tables: {len(self.table_names)}]>'
 
     def __getitem__(self, table_name):
         return self.table_map[table_name]
@@ -183,45 +207,21 @@ class Database:
     def __contains__(self, value):
         return value in self.table_names
 
-    # TODO: Implement this functionnality
-    # def __getattribute__(self, name):
-    #     if name.endswith('_tbl'):
-    #         # When the user calls db.celebrities_tbl
-    #         # for example, we have to reimplement the objects
-    #         # manager on the table so that we can get
-    #         # db.celebrities_tbl.objects which returns
-    #         # DatabaseManager
-    #         lhv, _ = name.split('_tbl')
-
+    # def __getattr__(self, name):
+    #     # TODO: Continue to improve this
+    #     # section so that we can call the
+    #     # tables directly from the database
+    #     table_names = getattr(self.__dict__['database'], 'table_names')
+    #     if name in table_names:
     #         try:
-    #             table = self.table_map[lhv]
-    #         except KeyError as e:
-    #             raise ExceptionGroup(
-    #                 "Missing table",
-    #                 [
-    #                     KeyError(e.args),
-    #                     TableExistsError(lhv)
-    #                 ]
-    #             )
-
-    #         manager = DatabaseManager.as_manager()
-    #         manager.database = self
-    #         manager.table_map = self.table_map
-
-    #         setattr(table, 'objects', manager)
-
-    #         # The tricky part is on all the manager
-    #         # database functions e.g. all, filter
-    #         # we have to normally pass the table's
-    #         # name. However, since we already know
-    #         # the table that is being called, we
-    #         # to alias these functions aka
-    #         # all() -> all('celebrities') which
-    #         # gives db.celebrities_tbl.objects.all()
-    #         # instead of
-    #         # db.celebrities_tbl.objects.all('celebrities')
-    #         return table
-    #     return super().__getattribute__(name)
+    #             current_table = self.table_map[name]
+    #         except:
+    #             raise TableExistsError(name)
+    #         else:
+    #             manager = self.objects
+    #             setattr(manager, '_test_current_table_on_manager', current_table)
+    #             return self.objects
+    #     return name
 
     def __hash__(self):
         return hash((self.database_name, *self.table_names))
@@ -262,6 +262,28 @@ class Database:
         table parameters specified by on the table"""
         self.migrations.check(self.table_map)
 
+    def simple_load(self):
+        """Loads an existing sqlite and checks that the
+        columns of the existing tables match those of the
+        local table instances. Does not create or attempt
+        to modify the elements in sqlite database contrarily
+        to migrate. Use this method when you simply want to use
+        an existing database without modifiying the existing
+        data sqlite
+        """
+
+    def register_trigger(self, table=None, trigger=None):
+        def wrapper(func):
+            @wraps(func)
+            def inner(**kwargs):
+                if trigger is not None:
+                    func(database=self, table=table, **kwargs)
+
+            if trigger == 'pre_save':
+                self.triggers_map.pre_save.append((table, inner))
+            return inner
+        return wrapper
+
     def foreign_key(self, left_table, right_table, on_delete=None, related_name=None):
         """Adds a foreign key between two databases by using the
         default primary ID field. The orientation for the foreign
@@ -277,6 +299,13 @@ class Database:
         ... db.objects.foreign_key('social_media').all()
         ... db.objects.foreign_key('social_media', reverse=True).all()
         """
+        if (not isinstance(left_table, Table) and
+                not isinstance(right_table, Table)):
+            raise ValueError(
+                "Both tables should be an instance of "
+                f"Table: {left_table}, {right_table}"
+            )
+
         if (left_table not in self.table_instances and
                 right_table not in self.table_instances):
             raise ValueError(
@@ -284,6 +313,7 @@ class Database:
                 "namespace in order to create a relationship"
             )
 
+        right_table.is_foreign_key_table = True
         relationship_map = RelationshipMap(left_table, right_table)
 
         field = ForeignKeyField(relationship_map=relationship_map)
@@ -293,6 +323,18 @@ class Database:
         self.relationships[relationship_map.relationship_field_name] = relationship_map
 
     def many_to_many(self, left_table, right_table, primary_key=True, related_name=None):
+        # Create an intermediate junction table that
+        # will serve to query many to many fields
+        # junction_name = f'{left_table.name}_{right_table.name}'
+        # table = Table(junction_name, fields=[
+        #     IntegerField(f'{left_table.name}_id'),
+        #     IntegerField(f'{right_table.name}_id'),
+        # ])
+        # self._add_table(table)
+
+        # relationship_map = RelationshipMap(left_table, right_table)
+        # relationship_map.junction_table = table
+        # self.relationships[relationship_map.relationship_field_name] = relationship_map
         pass
 
     def one_to_one_key(self, left_table, right_table, on_delete=None, related_name=None):

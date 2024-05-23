@@ -1,18 +1,25 @@
-import json
 import datetime
-import ast
-from lorelie.constraints import MaxLengthConstraint
+import json
+import re
+from urllib.parse import unquote
+
+
+from lorelie.constraints import (MaxLengthConstraint, MaxValueConstraint,
+                                 MinValueConstraint)
 from lorelie.exceptions import ValidationError
-from lorelie.validators import MaxValueValidator, MinValueValidator
+from lorelie.validators import url_validator
 
 
 class Field:
     python_type = str
     base_validators = []
+    default_field_errors = {}
 
-    def __init__(self, name, *, max_length=None, null=False, primary_key=False, default=None, unique=False, validators=[]):
+    def __init__(self, name, *, max_length=None, null=False, primary_key=False, default=None, unique=False, validators=[], verbose_name=None, editable=False):
         self.constraints = []
-        self.name = name
+        self.name = self.validate_field_name(name)
+        self.verbose_name = verbose_name
+        self.editable = editable
         self.null = null
         self.primary_key = primary_key
         self.default = default
@@ -20,6 +27,7 @@ class Field:
         self.table = None
         self.max_length = max_length
         self.base_validators = self.base_validators + validators
+        self.standard_field_types = ['text', 'integer', 'blob', 'real', 'null']
         self.base_field_parameters = {
             'primary key': False,
             'null': False,
@@ -35,16 +43,45 @@ class Field:
         return f'<{self.__class__.__name__}[{self.name}]>'
 
     def __hash__(self):
-        return hash((self.name))
+        return hash((self.name, self.field_type))
 
     def __eq__(self, value):
         if not isinstance(value, Field):
             return NotImplemented
-        return self.name == value.name
+
+        return any([
+            self.name == value.name,
+            self.field_type == value.field_type
+        ])
 
     @property
     def field_type(self):
+        """The field type is the type for
+        the field that will be registered
+        in the database. SQLite has converters
+        that allows us then convert the data
+        back to its Python representation"""
         return 'text'
+
+    @property
+    def is_standard_field_type(self):
+        return self.field_type in self.standard_field_types
+
+    @staticmethod
+    def validate_field_name(name):
+        result = re.match(r'^(\w+\_?)+$', name)
+        if not result:
+            raise ValueError(
+                "Field name is not a valid name and contains "
+                f"invalid spaces or caracters: {name}"
+            )
+
+        result = re.search(r'\s+', name)
+        if result:
+            raise ValueError(
+                f'Field name "{name}" contains invalid spaces'
+            )
+        return name.lower()
 
     @classmethod
     def create(cls, name, params):
@@ -68,25 +105,55 @@ class Field:
         return data
 
     def to_database(self, data):
+        """The `to_database` adapts certain types of values
+        e.g. dict to the sqlite database. Each subclass should
+        define their specific logic for normalizing the data
+        for the database after calling this method"""
         if callable(data):
-            return self.to_python(str(data()))
+            data = data()
 
-        if data is None:
+        if data is None or data == '':
             return ''
 
+        # 1. Check that the data matches the python
+        # type of the field we are trying to set
         if not isinstance(data, self.python_type):
-            raise ValueError(
-                f"{type(data)} should be an instance "
-                f"of {self.python_type}"
+            raise TypeError(
+                f"{data} for column '{self.name}' "
+                f"should be an instance of {self.python_type}"
             )
+
         self.run_validators(data)
-        # TODO: Why convert this to python
-        # value for the database?
-        return self.to_python(data)
+        return data
+
+        # if callable(data):
+        #     return self.to_python(str(data()))
+
+        # if data is None:
+        #     return ''
+
+        # if not isinstance(data, self.python_type):
+        #     raise ValueError(
+        #         f"{type(data)} for column '{self.name}' "
+        #         f"should be an instance of {self.python_type}"
+        #     )
+        
+        # self.run_validators(data)
+        # try:
+        #     # return self.to_python(data)
+
+        #     # TODO: Why convert this to python
+        #     # value for the database?
+        #     return self.to_python(data)
+        # except (TypeError, ValueError):
+        #     raise ValidationError(
+        #         "The value for {name} is not valid",
+        #         name=self.name
+        #     )
 
     def field_parameters(self):
-        """Adapt the python function parameters to the
-        database field creation ones. For example: 
+        """Adapts the python function parameters passed within
+        the fields to usable SQL text statements:
 
         >>> field = CharField('visited', default=False)
         ... field.field_parameters()
@@ -111,9 +178,21 @@ class Field:
         self.base_field_parameters['unique'] = self.unique
 
         if self.default is not None:
-            database_value = self.to_database(self.default)
-            value = self.table.backend.quote_value(database_value)
-            initial_parameters.extend(['default', value])
+            default_value = self.default
+            if callable(self.default):
+                default_value = self.default()
+
+            database_value = self.to_database(default_value)
+
+            try:
+                value = self.table.backend.quote_value(database_value)
+            except:
+                raise AttributeError(
+                    "Field does not seem to be associated to a table "
+                    "and therefore cannot its default value"
+                )
+            else:
+                initial_parameters.extend(['default', value])
 
         true_parameters = list(filter(
             lambda x: x[1] is True,
@@ -126,16 +205,35 @@ class Field:
             # FIXME: AutoField needs to be setup with
             # AutoField.table.backend which is None otherwise
             # it raises a NoneType error in this section
-            constraint_sql = constraint.as_sql(self.table.backend)
-            base_field_parameters.append(constraint_sql)
+            try:
+                constraint_sql = constraint.as_sql(self.table.backend)
+            except:
+                raise ExceptionGroup(
+                    "An exception occured while trying to build "
+                    f"the field parameters for {self}",
+                    [
+                        AttributeError(
+                            "Field does not seem to be associated to a table "
+                            "and therefore cannot build its constraints"
+                        )
+                    ]
+                )
+            else:
+                base_field_parameters.append(constraint_sql)
 
         return base_field_parameters
 
     def prepare(self, table):
         from lorelie.tables import Table
         if not isinstance(table, Table):
-            raise ValueError(f"{table} should be an instance of Table")
+            raise ValueError(
+                f"{table} should be an "
+                "instance of Table"
+            )
 
+        # Register the constraints present
+        # on the field at the table level
+        # TODO: Don't think this is necessary anymore
         for instance in self.constraints:
             table.field_constraints[self.name] = instance
 
@@ -146,42 +244,75 @@ class Field:
 
 
 class CharField(Field):
-    def to_python(self, data):
-        if data is None:
-            return data
-        return self.python_type(data)
+    # def to_python(self, data):
+    #     if data is None:
+    #         return ''
+    #     return self.python_type(data)
 
     def to_database(self, data):
-        if isinstance(data, (int, float, list, dict)):
-            data = str(data)
-        return super().to_database(data)
+        if callable(data):
+            data = data()
+        return super().to_database(str(data))
 
 
-class IntegerField(Field):
-    python_type = int
-
+class NumericFieldMixin:
     def __init__(self, name, *, min_value=None, max_value=None, **kwargs):
         self.min_value = min_value
         self.max_value = max_value
         super().__init__(name, **kwargs)
 
         if min_value is not None:
-            instance = MinValueValidator(min_value)
-            self.base_validators.append(instance)
+            instance = MinValueConstraint(min_value, self.name)
+            self.constraints.append(instance)
 
         if max_value is not None:
-            instance = MaxValueValidator(max_value)
-            self.base_validators.append(instance)
+            instance = MaxValueConstraint(max_value, self.name)
+            self.constraints.append(instance)
+
+
+
+class IntegerField(NumericFieldMixin, Field):
+    python_type = int
 
     @property
     def field_type(self):
         return 'integer'
+
+    # def to_python(self, data):
+    #     if data is None or data == '':
+    #         return data
+
+    #     if isinstance(data, int):
+    #         return data
+
+    #     try:
+    #         return self.python_type(data)
+    #     except (TypeError, ValueError):
+    #         raise ValidationError(
+    #             "The value for {name} is not valid",
+    #             name=self.name
+    #         )
+        
+    def to_database(self, data):
+        if isinstance(data, str):
+            if data.isnumeric() or data.isdigit():
+                return super().to_database(self.python_type(data))
+        elif isinstance(data, float):
+            return super().to_database(self.python_type(data))
+        return super().to_database(data)
+
+
+class FloatField(NumericFieldMixin, Field):
+    python_type = float
 
     def to_python(self, data):
         if data is None or data == '':
             return data
 
         if isinstance(data, int):
+            return self.python_type(data)
+
+        if isinstance(data, float):
             return data
 
         try:
@@ -193,15 +324,15 @@ class IntegerField(Field):
             )
 
 
-class FloatField(Field):
-    python_type = float
-
-
 class JSONField(Field):
-    python_type = dict
+    python_type = (dict, list)
+
+    @property
+    def field_type(self):
+        return 'dict'
 
     def to_python(self, data):
-        if data is None:
+        if data is None or data == '':
             return data
 
         try:
@@ -213,49 +344,33 @@ class JSONField(Field):
             )
 
     def to_database(self, data):
-        if not isinstance(data, (list, dict, str)):
-            raise ValidationError(
-                "The value passed to {name} should be a "
-                "list, dict or a string",
-                name=self.name
-            )
-        return json.dumps(data, ensure_ascii=False, sort_keys=True)
+        clean_data = super().to_database(data)
+        return json.dumps(clean_data, ensure_ascii=False, sort_keys=True)
 
 
 class BooleanField(Field):
+    python_type = (bool, int)
     truth_types = ['true', 't', 1, '1']
     false_types = ['false', 'f', 0, '0']
 
-    def to_python(self, data):
-        if data in self.truth_types:
-            return True
+    # @property
+    # def field_type(self):
+    #     return 'bool'
 
-        if data in self.false_types:
-            return False
+    # def to_python(self, data):
+    #     if data in self.truth_types:
+    #         return True
+
+    #     if data in self.false_types:
+    #         return False
 
     def to_database(self, data):
-        if isinstance(data, bool):
-            if data == True:
-                return 1
-            return 0
-
-        if isinstance(data, int):
-            if (data in self.truth_types or
-                    data in self.false_types):
-                return data
-
-        if isinstance(data, str):
-            if data in self.truth_types:
-                return 1
-
-            if data in self.false_types:
-                return 0
-
-        raise ValidationError(
-            "The value for {name} should be either one of "
-            "True, False, 0, 1, '0', '1', 't' or 'f'",
-            name=self.name
-        )
+        if data in self.truth_types:
+            return super().to_database(1)
+        
+        if data in self.false_types:
+            return super().to_database(0)
+        return super().to_database(data)
 
 
 class AutoField(IntegerField):
@@ -270,8 +385,8 @@ class AutoField(IntegerField):
 
 
 class DateFieldMixin:
-    date_format = '%Y-%m-%d'
     python_type = str
+    date_format = '%Y-%m-%d'
 
     def __init__(self, name, *, auto_update=False, auto_add=False, **kwargs):
         self.auto_update = auto_update
@@ -282,10 +397,17 @@ class DateFieldMixin:
 
         super().__init__(name, **kwargs)
 
-    def parse_date(self, d):
-        if isinstance(d, datetime.date):
-            d = str(d)
-        return datetime.datetime.strptime(d, self.date_format)
+    def parse_from_format(self, data, formats):
+        d = None
+        for f in formats:
+            try:
+                d = datetime.datetime.strptime(data, f)
+            except:
+                continue
+
+        if d is None:
+            raise ValueError("Date format could not be identified")
+        return d
 
 
 class DateField(DateFieldMixin, Field):
@@ -297,16 +419,42 @@ class DateField(DateFieldMixin, Field):
     current date every time a value is updated
     """
 
-    def to_python(self, data):
-        if data is None or data == '':
-            return data
+    @property
+    def field_type(self):
+        return 'date'
 
-        d = self.parse_date(data)
-        return d.date()
+    # def to_python(self, data):
+    #     if data is None or data == '':
+    #         return data
+
+    #     d = self.parse_date(data)
+    #     return d.date()
 
     def to_database(self, data):
-        d = self.parse_date(data)
-        return self.python_type(d.date())
+        clean_data = ''
+
+        if isinstance(data, str):
+            formats = (
+                '%Y-%m-%d',
+                '%Y-%m-%d %H:%M:%S.%f',
+                '%Y-%m-%d %H:%M:%S.%f%z'
+            )
+
+            d = self.parse_from_format(data, formats)
+            d = d.date()
+            self.run_validators(d)
+            clean_data =  self.python_type(d)
+
+        if hasattr(data, 'date'):
+            data = getattr(data, 'date')
+            d = data()
+            self.run_validators(d)
+            clean_data = self.python_type(d)
+
+        # TODO: Auto update the times at the field level
+        # if self.auto_add or self.auto_update:
+        #     clean_data = str(datetime.datetime.now())
+        return clean_data
 
 
 class DateTimeField(DateFieldMixin, Field):
@@ -317,49 +465,85 @@ class DateTimeField(DateFieldMixin, Field):
     `auto_update` will update the field with the
     current date every time a value is updated
     """
-    date_format = '%Y-%m-%d %H:%M:%S.%f'
+    date_format = '%Y-%m-%d %H:%M:%S.%f%z'
+
+    @property
+    def field_type(self):
+        return 'datetime'
+
+    def to_database(self, data):
+        clean_data = ''
+
+        if isinstance(data, str):
+            formats = (
+                '%Y-%m-%d %H:%M:%S.%f',
+                '%Y-%m-%d %H:%M:%S.%f%z'
+            )
+            clean_data = self.parse_from_format(data, formats)
+            self.run_validators(clean_data)
+            clean_data = str(clean_data)
+
+        if hasattr(data, 'date'):
+            self.run_validators(data)
+            clean_data = str(data)
+
+        # TODO: Auto update the times at the field level
+        # if self.auto_add or self.auto_update:
+        #     clean_data = str(datetime.datetime.now())
+
+        return clean_data
 
 
-class TimeField(Field):
-    pass
+class TimeField(DateTimeField):
+    date_format = '%H:%M:%S'
+
+    def to_database(self, data):
+        clean_data = super().to_database(data)
+        return clean_data
 
 
 class EmailField(CharField):
-    pass
+    base_validators = []
 
 
 class FilePathField(CharField):
-    pass
+    base_validators = []
 
 
 class SlugField(CharField):
     pass
 
 
-class UUIDField(Field):
+class UUIDField(CharField):
     pass
 
 
 class URLField(CharField):
+    base_validators = [url_validator]
+
+    def to_database(self, data):
+        if data is None or data == '':
+            return data
+        return super().to_database(unquote(data))
+
+
+class BinaryField(Field):
+    pass
+
+
+class CommaSeparatedField(CharField):
     base_validators = []
 
+    def to_python(self, data):
+        if data is None or data == '':
+            return data
+        return data.split(',')
 
-class Value:
-    def __init__(self, value, output_field=None):
-        self.value = value
-
-        if output_field is None:
-            output_field = CharField('value_field')
-        self.output_field = output_field
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}({self.to_database()})'
-
-    def to_database(self):
-        return self.output_field.to_database(self.value)
-
-    def as_sql(self, backend):
-        return [backend.quote_value(self.to_database())]
+    def to_database(self, data):
+        if isinstance(data, (list, set, tuple)):
+            data = ', '.join(data)
+        return super().to_database(data)
+        
 
 
 class AliasField(Field):

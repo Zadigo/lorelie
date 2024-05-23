@@ -1,10 +1,9 @@
-from typing import (Any, Callable, Literal, Tuple, Type, TypedDict, Union, Unpack,
-                    override)
+import datetime
+from typing import (Any, Callable, Literal, Tuple, Type,
+                    TypedDict, Union, Unpack, override)
 
-from lorelie.backends import SQLiteBackend
 from lorelie.constraints import MaxLengthConstraint
 from lorelie.tables import Table
-import datetime
 
 
 class FieldOptions(TypedDict):
@@ -18,8 +17,12 @@ class FieldOptions(TypedDict):
 class Field:
     python_type: Type[Union[str, bool, list, dict]] = ...
     base_validators: list[Callable[[Union[str, int]], None]]
+    default_field_errors: dict[str, str] = ...
+    standard_field_types: list[str] = ...
     base_constraints: list[MaxLengthConstraint] = ...
     name: str = ...
+    verbose_name: str = ...
+    editable: bool = ...
     null: bool = ...
     primary_key: bool = ...
     default: Any = ...
@@ -47,6 +50,12 @@ class Field:
     @property
     def field_type(self) -> str: ...
 
+    @property
+    def is_standard_field_type(self) -> bool: ...
+
+    @staticmethod
+    def validate_field_name(name: str) -> str: ...
+
     @classmethod
     def create(
         cls,
@@ -56,21 +65,19 @@ class Field:
 
     def run_validators(self, value: Any) -> None: ...
     def to_python(self, data: Any) -> Any: ...
-    def to_database(self, data: Any) -> Any: ...
+    def to_database(self, data: Any) -> Union[int, float, dict, list]: ...
     def field_parameters(self) -> list[str]: ...
     def prepare(self, table: Table) -> None: ...
     def deconstruct(self) -> Tuple[str, list[str]]: ...
 
 
 class CharField(Field):
-    ...
+    @override
+    @property
+    def field_type(self) -> Literal['text']: ...
 
-
-class IntegerField(Field):
-    python_type: Type[int] = ...
-    min_value: int = ...
-    max_value: int = ...
-
+class NumericFieldMixin:
+    @override
     def __init__(
         self,
         name: str,
@@ -81,12 +88,29 @@ class IntegerField(Field):
     ) -> None: ...
 
 
-class FloatField(Field):
-    pass
+class IntegerField(NumericFieldMixin, Field):
+    python_type: Type[int] = ...
+    min_value: int = ...
+    max_value: int = ...
+
+    @override
+    @property
+    def field_type(self) -> Literal['integer']: ...
+
+
+class FloatField(NumericFieldMixin, Field):
+    ...
+    # @override
+    # @property
+    # def field_type(self) -> Literal['float']: ...
 
 
 class JSONField(Field):
     python_type: Type[dict] = ...
+
+    @override
+    @property
+    def field_type(self) -> Literal['dict']: ...
 
     @override
     def to_python(self, data: str) -> dict: ...
@@ -100,19 +124,25 @@ class BooleanField(Field):
     false_types: list[Union[str, int]] = ...
 
     @override
+    @property
+    def field_type(self) -> Literal['bool']: ...
+
+    @override
     def to_python(self, data: Union[str, bool]) -> bool: ...
 
     @override
     def to_database(self, data: Union[str, bool]) -> int: ...
 
 
-class AutoField(Field):
+class AutoField(IntegerField):
     python_type: Type[int] = ...
 
 
 class DateFieldMixin:
     date_format: str = ...
     python_type: Type[str] = ...
+    auto_update: bool = Literal[False]
+    auto_add: bool = Literal[False]
 
     @override
     def __init__(
@@ -129,51 +159,60 @@ class DateFieldMixin:
 
 class DateField(DateFieldMixin, Field):
     @override
+    @property
+    def field_type(self) -> Literal['datetime.date']: ...
+
+    @override
     def to_python(self, data: str) -> datetime.date: ...
+
     @override
     def to_database(self, data: str) -> datetime.date: ...
 
 
-class DateTimeField(Field):
-    pass
+class DateTimeField(DateFieldMixin, Field):
+    @override
+    @property
+    def field_type(self) -> Literal['datetime.datetime']: ...
+
+    @override
+    def to_python(self, data: str) -> datetime.date: ...
+
+    @override
+    def to_database(self, data: str) -> datetime.date: ...
 
 
-class TimeField(Field):
-    pass
+class TimeField(DateTimeField):
+    @override
+    @property
+    def field_type(self) -> Literal['datetime.time']: ...
 
 
 class EmailField(CharField):
-    pass
+    ...
 
 
 class FilePathField(CharField):
-    pass
+    ...
 
 
 class SlugField(CharField):
-    pass
+    ...
 
 
 class UUIDField(Field):
+    ...
+
+
+class URLField(CharField):
+    ...
+
+
+class BinaryField(Field):
     pass
 
 
-class Value:
-    output_field: Union[CharField, IntegerField,
-                        DateTimeField, DateField, JSONField]
-    value: Any = ...
-
-    def __init__(
-        self,
-        value: Any,
-        output_field: Union[CharField, IntegerField,
-                            DateTimeField, DateField, JSONField] = ...
-    ) -> None: ...
-
-    def __repr__(self) -> str: ...
-
-    def to_database(self) -> Union[str, list, dict, int, float]: ...
-    def as_sql(self, backend: SQLiteBackend) -> list[str]: ...
+class CommaSeparatedField(CharField):
+    pass
 
 
 class AliasField(Field):

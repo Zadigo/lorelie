@@ -2,8 +2,8 @@ import re
 from collections import OrderedDict
 
 from lorelie.backends import SQLiteBackend
+from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
-from lorelie.expressions import OrderBy
 from lorelie.fields.base import (AutoField, DateField, DateTimeField, Field,
                                  IntegerField)
 from lorelie.queries import Query
@@ -12,14 +12,16 @@ from lorelie.queries import Query
 class BaseTable(type):
     def __new__(cls, name, bases, attrs):
         super_new = super().__new__
+
         if 'prepare' in attrs:
             new_class = super_new(cls, name, bases, attrs)
             cls.prepare(new_class)
             return new_class
+        
         return super_new(cls, name, bases, attrs)
 
     @classmethod
-    def prepare(cls, database):
+    def prepare(cls, table):
         pass
 
 
@@ -31,6 +33,8 @@ class AbstractTable(metaclass=BaseTable):
     def __init__(self):
         self.backend = None
         self.is_prepared = False
+        self.field_types = OrderedDict()
+        self.database = None
 
     def __hash__(self):
         return hash((self.name, self.verbose_name, *self.field_names))
@@ -41,12 +45,40 @@ class AbstractTable(metaclass=BaseTable):
     def __bool__(self):
         return self.is_prepared
 
-    # TODO: Rename this to validate_new_values
+    @staticmethod
+    def validate_table_name(name):
+        if name == 'objects':
+            raise ValueError(
+                "Table name uses a reserved "
+                "keyword: objects"
+            )
+        
+        result = re.search(r'^(\w+\_?)+$', name)
+        if not result:
+            raise ValueError(
+                "Table name is not a valid name and contains "
+                f"invalid carachters: {name}"
+            )
+
+        result = re.search(r'\s+', name)
+        if result:
+            raise ValueError(
+                "Table name contains invalid spaces"
+            )
+        return name.lower()
+
+    def validate_values_from_list(self, values):
+        for value in values:
+            yield self.validate_values_from_dict(value)
+
+    def validate_values_from_dict(self, values):
+        fields, values = self.backend.dict_to_sql(values, quote_values=False)
+        return self.validate_values(fields, values)
+
     def validate_values(self, fields, values):
-        """Validate an incoming value in regards
-        to the related field the user is trying
-        to set on the column. The returned values
-        are quoted by default"""
+        """Validate a set of values that the
+        user is trying to insert or update in
+        the database"""
         validated_values = []
         for i, field in enumerate(fields):
             # TODO: Allow creation with id field
@@ -58,11 +90,11 @@ class AbstractTable(metaclass=BaseTable):
             except KeyError:
                 raise FieldExistsError(field, self)
 
-            validated_value = self.backend.quote_value(
-                field.to_database(list(values)[i])
-            )
+            value = list(values)[i]
+            clean_value = field.to_database(value)
+            validated_value = self.backend.quote_value(clean_value)
             validated_values.append(validated_value)
-        return validated_values
+        return validated_values, dict(zip(fields, validated_values))
 
     def load_current_connection(self):
         from lorelie.backends import connections
@@ -92,17 +124,18 @@ class Table(AbstractTable):
     """
 
     def __init__(self, name, *, fields=[], index=[], constraints=[], ordering=[], str_field='id'):
-        self.name = name
+        self.name = self.validate_table_name(name)
         self.verbose_name = name.lower().title()
         self.indexes = index
         self.table_constraints = constraints
         self.field_constraints = {}
+        self.is_foreign_key_table = False
         # The str_field is the name of the
         # field to be used for representing
         # the column in the BaseRow
         self.str_field = str_field
 
-        self.ordering = OrderBy(ordering)
+        self.ordering = set(ordering)
 
         super().__init__()
         self.fields_map = OrderedDict()
@@ -111,11 +144,15 @@ class Table(AbstractTable):
 
         non_authorized_names = ['rowid', 'id']
         for field in fields:
-            if not isinstance(field, Field):
-                raise ValueError(f'{field} should be an instance of Field')
+            # TODO: This does not work
+            # if not issubclass(field.__class__, Field):
+            #     raise ValueError(f'{field} should be an instance of Field')
 
             if field.name in non_authorized_names:
-                raise ValueError(f'Invalid name "{field.name}" for field: {field}')
+                raise ValueError(
+                    f'Invalid name "{field.name}" '
+                    f'for field: {field}'
+                )
 
             # Identify the date fields that require either
             # an auto_update or auto_add. Which means that
@@ -128,7 +165,14 @@ class Table(AbstractTable):
                 if field.auto_update:
                     self.auto_update_fields.add(field.name)
 
+            self.field_types[field.name] = field.field_type
+
             field.prepare(self)
+            # If the user uses the same keys multiple
+            # times, leave the error for him to resolve
+            # since this will just override the first
+            # apparition of the duplicate field multiple
+            # times in the map
             self.fields_map[field.name] = field
 
         # Automatically create an ID field and set
@@ -154,6 +198,9 @@ class Table(AbstractTable):
             self.field_names == table.field_names
         ])
 
+    def __contains__(self, value):
+        return value in self.field_names
+
     def __setattr__(self, name, value):
         if name == 'name':
             if re.search(r'\W', value):
@@ -162,9 +209,6 @@ class Table(AbstractTable):
                     "such as _, -, @ or %"
                 )
         return super().__setattr__(name, value)
-
-    def __contains__(self, value):
-        return value in self.field_names
 
     def __getattribute__(self, name):
         if name == 'backend':
@@ -176,6 +220,20 @@ class Table(AbstractTable):
                     "and therefore calling it without a backend being set"
                 )
         return super().__getattribute__(name)
+
+    @staticmethod
+    def compare_field_types(*fields):
+        """Compare the different field types
+        and check if we are dealing with
+        mixed types"""
+        seen_types = []
+
+        for field in fields:
+            seen_types.append(field.field_type)
+
+        unique_types = set(seen_types)
+
+        return len(unique_types) > 1
 
     def _add_field(self, field_name, field):
         """Internala function to add a field on the
@@ -191,6 +249,8 @@ class Table(AbstractTable):
             raise ValueError("Field is already present on the database")
 
         self.fields_map[field_name] = field
+        self.field_names = list(self.fields_map.keys())
+
         field_params = self.build_field_parameters()
         field_params = [
             self.backend.simple_join(params)
@@ -209,9 +269,24 @@ class Table(AbstractTable):
         return self.fields_map[name]
 
     def create_table_sql(self, fields):
+        unique_constraints = []
+        check_constraints = []
+        for constraint in self.table_constraints:
+            constraint_sql = constraint.as_sql(self.backend)
+            if isinstance(constraint, UniqueConstraint):
+                unique_constraints.append(constraint_sql)
+            elif isinstance(constraint, CheckConstraint):
+                check_constraints.append(constraint_sql)
+
+        # Unique constraints are comma separated
+        # just like normal fields while check_constraints
+        # are just joined by normal space
+        joined_unique = self.backend.comma_join([fields, *unique_constraints])
+        joined_checks = self.backend.simple_join([joined_unique, *check_constraints])
+
         sql = self.backend.CREATE_TABLE.format_map({
             'table': self.name,
-            'fields': fields
+            'fields': joined_checks
         })
         return [sql]
 
@@ -228,10 +303,13 @@ class Table(AbstractTable):
         parameters e.g. null, autoincrement
         used to define the field in 
         the database"""
-        return [
-            field.field_parameters()
-            for field in self.fields_map.values()
-        ]
+        for field in self.fields_map.values():
+            yield field.field_parameters()
+
+        # return [
+        #     field.field_parameters()
+        #         for field in self.fields_map.values()
+        # ]
 
     def prepare(self, database):
         """Prepares the table with other parameters, 
@@ -241,7 +319,7 @@ class Table(AbstractTable):
         field_params = self.build_field_parameters()
         field_params = [
             self.backend.simple_join(params)
-            for params in field_params
+                for params in field_params
         ]
 
         if database.has_relationships:
@@ -265,9 +343,10 @@ class Table(AbstractTable):
                         self.backend.simple_join(relationship_sql)
                     ])
 
-        create_sql = self.create_table_sql(
-            self.backend.comma_join(field_params)
-        )
-        query = self.query_class(create_sql, table=self)
+        joined_fields = self.backend.comma_join(field_params)
+        create_sql = self.create_table_sql(joined_fields)
+
+        query = self.query_class(table=self)
+        query.add_sql_nodes(create_sql)
         query.run(commit=True)
         self.is_prepared = True

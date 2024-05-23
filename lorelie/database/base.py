@@ -162,7 +162,7 @@ class Database:
     backend_class = SQLiteBackend
     objects = DatabaseManager()
 
-    def __init__(self, *tables, name=None, path=None):
+    def __init__(self, *tables, name=None, path=None, log_queries=False):
         self.database_name = name
         # Use the immediate parent path if not
         # path is provided by the user
@@ -188,6 +188,7 @@ class Database:
         self.table_instances = list(tables)
         self.relationships = OrderedDict()
         self.triggers_map = TriggersMap()
+        self.log_queries = log_queries
 
         databases.register(self)
         # FIXME: Seems like if this class is not called

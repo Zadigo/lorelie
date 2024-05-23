@@ -155,6 +155,8 @@ class Query:
                 self.backend.connection.commit()
             self.result_cache = list(result)
             self.is_evaluated = True
+        finally:
+            log_queries.append(self.sql, table=self.table, backend=self.backend)
 
     def transform_to_python(self):
         """Transforms the values returned by the

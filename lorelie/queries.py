@@ -2,6 +2,7 @@ import sqlite3
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
 
+from lorelie import log_queries
 from lorelie.database.functions.aggregation import Count
 from lorelie.database.nodes import BaseNode, OrderByNode, SelectMap, WhereNode
 
@@ -51,7 +52,6 @@ class Query:
     def run_script(cls, backend=None, table=None, sql_tokens=[]):
         template = 'begin; {statements} commit;'
         instance = cls(table=table, backend=backend)
-        instance.add_sql_nodes(sql_tokens)
 
         statements = []
         for token in sql_tokens:

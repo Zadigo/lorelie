@@ -54,18 +54,35 @@ class Query:
         instance.add_sql_nodes(sql_tokens)
 
         statements = []
-        for statement in instance.statements:
-            statements.append(instance.backend.finalize_sql(statement))
+        for token in sql_tokens:
+            if not isinstance(token, str):
+                token = token.as_sql(backend)
+            finalized_token = instance.backend.finalize_sql(token)
+            statements.append(finalized_token)
 
         joined_statements = instance.backend.simple_join(statements)
         script = template.format(statements=joined_statements)
-        instance.sql = script
-
-        result = instance.backend.connection.executescript(script)
-        instance.backend.connection.commit()
-        instance.result_cache = list(result)
-        instance.is_evaluated = True
-        return instance
+        instance.add_sql_node(script)
+        
+        try:
+            result = instance.backend.connection.executescript(script)
+        except OperationalError as e:
+            print(e, script)
+            raise
+        except IntegrityError as e:
+            print(e, script)
+            raise
+        except Exception as e:
+            print(e, script)
+            raise
+        else:
+            print(script)
+            instance.backend.connection.commit()
+            instance.result_cache = list(result)
+            instance.is_evaluated = True
+        finally:
+            log_queries.append(script, table=table, backend=backend)
+            return instance
 
     @property
     def return_single_item(self):

@@ -138,7 +138,7 @@ class Query:
         """Runs an sql statement and stores the
         return data in the `result_cache`"""
         self.pre_sql_setup()
-
+        # print(self.sql)
         try:
             result = self.backend.connection.execute(self.sql)
         except OperationalError as e:

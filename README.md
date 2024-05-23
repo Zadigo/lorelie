@@ -554,3 +554,27 @@ db.objects.annotate('celebrities', other_name=case)
 In this example, we first define the condition using the When expression, specifying that when the name is `Kendall`, the result should be `Kandy`. Then, we create the Case expression with the defined condition. Finally, we use the annotate method to apply the Case expression to the 'celebrities' table, assigning the result to the `other_name` alias column.
 
 It's important to note that the Case expression should only be used in conjunction with the `annotate` method, as it generates an alias column in the database with the result of the condition.
+
+### F
+
+You can utilize the `F` expression to reference database columns within SQL queries and perform arithmetic operations or other manipulations on their values.
+
+__Single Column Reference and Arithmetic Operation__
+
+```python
+db.objects.annotate('celebrities', age_plus_one=F('age') + 1)
+```
+
+In this example, the `F` expression is used to reference the `age` column in the `celebrities` table. By adding 1 to the value of `age`, users can create a new alias column named `age_plus_one` in the query result, where each value is incremented by 1.
+
+__Multiple Column Reference and Arithmetic Operation__
+
+```python
+db.objects.annotate('celebrities', age_plus_age=F('age') + F('age'))
+```
+
+Here, the F expression is used to reference the `age` column twice in the `celebrities` table. By adding the values of `age` together, you can create a new alias column named `age_plus_age` in the query result, where each value is the sum of the corresponding `age` values.
+
+__Single Column Reference without Operation__
+
+In this case, the F expression is used to reference the `age` column in the `celebrities` table without performing any arithmetic operation. This creates a new alias column named `age_plus_one` in the query result, where each value is the same as the original `age` column.

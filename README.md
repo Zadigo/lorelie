@@ -142,6 +142,12 @@ db.objects.create("celebrities", name="Anya-Taylor Joy")
 
 This function creates a new row in the specified table with the provided data.
 
+__Preparation__
+
+* The before_action method ensures that the specified table exists and is ready for manipulation
+* The _validate_auto_fields method checks for any fields that need automatic values (e.g., auto-increment IDs) and prepares them accordingly.
+* The validate_values_from_dict method ensures that the provided values match the table's
+
 __Filtering Rows__
 
 ```python

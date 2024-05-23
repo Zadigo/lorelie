@@ -93,7 +93,7 @@ class DatabaseManager:
 
     def get_or_create(
         self, table: str,
-        defaults: dict = ...,
+        create_defaults: dict = ...,
         **kwargs
     ) -> BaseRow: ...
 

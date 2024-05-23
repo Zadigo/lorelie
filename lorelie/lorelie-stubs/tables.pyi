@@ -1,4 +1,4 @@
-from typing import Any, Literal, OrderedDict, Type, override
+from typing import Any, List, Literal, OrderedDict, Tuple, Type, override
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint
@@ -35,7 +35,9 @@ class AbstractTable(metaclass=BaseTable):
     @staticmethod
     def validate_table_name(name: str) -> str: ...
 
-    def validate_values(self, fields, values) -> Any: ...
+    def validate_values_from_list(self, fields, values) -> List[Tuple[list[str], dict[str, Any]]]: ...
+    def validate_values_from_dict(self, fields, values) -> Tuple[list[str], dict[str, Any]]: ...
+    def validate_values(self, fields, values) -> Tuple[list[str], dict[str, Any]]: ...
 
 
 class Table(AbstractTable):

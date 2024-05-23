@@ -522,6 +522,8 @@ db.objects.aggregate('products', Min('price'))
 
 Expressions in Lorelie serve as powerful tools for constructing SQL queries and representing various components of database operations. These expressions enable users to define conditions, select specific fields, filter data, handle logical operations, and manipulate values within their database queries.
 
+You can read more about the different types of lookups by going to [the lookups section on this page](#lookup-filters).
+
 The main expressions are:
 
 * __Q:__ Represents query conditions and filters, allowing users to construct complex filter expressions to retrieve specific data from the database.
@@ -551,6 +553,10 @@ Here, the Q function constructs a filter condition with two criteria joined by a
 
 __Filtering with Multiple Conditions using Logical OR__
 
+```python
+db.objects.filter('celebrities', Q(age__gt=20) | Q(age__lt=30))
+```
+
 Similarly, the Q function is employed to create a filter condition with two criteria joined by a logical __OR__ operator. It retrieves rows from the 'celebrities' table where the 'age' column is either greater than 20 or less than 30.
 
 __Complex Filtering with Multiple Conditions and Field Matching__
@@ -569,7 +575,23 @@ db.objects.filter('celebrities', ~Q(age__gt=20))
 
 In this example, the tilde (~) operator is applied to the Q function, signifying an inversion operation. The inversion reverses the logical condition specified within the Q object. Here, the query retrieves rows from the 'celebrities' table where the 'age' column is not greater than 20.
 
-[indexes](#indexes)
+__CheckConstraint with Q__
+
+__Q__ also extends beyond filtering and querying data; it can also be employed within CheckConstraints and Indexes to establish conditions for these functions.
+
+```python
+CheckConstraint('age', Q(age__gt=22))
+```
+
+Here, __Q__ is utilized within a CheckConstraint to define a condition for the 'age' column. The constraint ensures that the value in the 'age' column must be greater than 22 for every row in the database table. You can read more by going to the [constraints section of this page](#constraints).
+
+__Index with Q Condition__
+
+```python
+Index('idx_age', fields=['age'], condition=Q(age__gt=25))
+```
+
+In this instance, an Index is created with the condition specified by Q. The index, named 'idx_age', is constructed on the 'age' column, but it's conditioned such that only rows where the 'age' is greater than 25 are indexed. This optimizes data retrieval operations, particularly for queries involving the 'age' column. You can read more by going to the [constraints section of this page](#indexes).
 
 ### F
 

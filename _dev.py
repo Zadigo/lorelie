@@ -1,47 +1,52 @@
-# from lorelie.database.functions.aggregation import Count
-# from lorelie.database.base import Database
-# from lorelie.expressions import F, Q, Case, Value, When
-# from lorelie.fields.base import IntegerField, CharField
-# from lorelie.tables import Table
+from lorelie import log_queries
+from lorelie.database.indexes import Index
+from lorelie.constraints import CheckConstraint, UniqueConstraint
+from lorelie.database.functions.aggregation import Count
+from lorelie.database.base import Database
+from lorelie.expressions import F, Q, Case, Value, When
+from lorelie.fields.base import DateTimeField, IntegerField, CharField, JSONField, CommaSeparatedField
+from lorelie.tables import Table
 
-# table = Table('products', fields=[
-#     CharField('name', null=True),
-#     IntegerField('unit_price', default=0),
-#     IntegerField('price', default=0)
-# ])
+fields = [
+    CharField('name', null=True),
+    IntegerField('unit_price', default=0),
+    IntegerField('price', default=0),
+    JSONField('meta', null=True),
+    CommaSeparatedField('items', null=True),
+    DateTimeField('created_on', auto_add=True)
+]
 
-# db = Database(table)
-# db.migrate()
+constraints = [
+    # FIXME: When using jupe -> Nothing, Jupe -> Valid
+    # CheckConstraint('some_constraint', Q(name='jupe'))
 
-# db.objects.create('products', name='Jupe longue')
-# qs = db.objects.update_or_create('products', create_defaults={'price': 14}, name='Jupe longue')
-# print(qs)
-# print(qs.sql_statement)
+    # NOTE: Jupe, jupe will not raise unique constraint
+    # UniqueConstraint('one_jupe', fields=['name'])
 
-# # db.objects.create('products', unit_price=10, price=12)
-# # db.objects.create('products', unit_price=12, price=16)
+    CheckConstraint('price', Q(price__gte=0)),
+    CheckConstraint('price', Q(unit_price__gte=0) & Q(unit_price__lt=1000))
+]
 
-# # # Invalid usage
-# # # db.objects.annotate('products', F('price'))
-# # # db.objects.annotate('products', F('price') + F('price'))
-# # # db.objects.annotate('products', Value(1))
-# # # db.objects.annotate('products', Q(price__gt=1))
+indexes = [
+    Index('name', fields=['name'], condition=Q(name__contains='jupe'))
+]
 
-# # # Valid usage
-# # qs = db.objects.annotate('products', my_price=F('price'))
-# # # qs = db.objects.annotate('products', my_price=F('price'))
-# # # qs = db.objects.annotate('products', my_price=F('price') + F('price'))
-# # # qs = db.objects.annotate('products', my_price=F('price') + F('price') - 1)
-# # # qs = db.objects.annotate('products', my_price=F('price') + 1)
-# # # qs = db.objects.annotate('products', my_price=Value(1))
-# # # qs = db.objects.annotate('products', my_price=Q(price__gt=1))
+table = Table(
+    'products', 
+    fields=fields, 
+    constraints=constraints,
+    ordering=['name'],
+    index=indexes
+)
 
-# # # case = Case(When('price__eq=10', then_case=1), default=30)
-# # # qs = db.objects.annotate('products', my_price=case)
+db = Database(table)
+db.migrate()
 
-# # # qs = db.objects.annotate('products', Count('price'))
-# # # qs = db.objects.annotate('products', count_price=Count('price'))
-# # # qs = db.objects.annotate('products', Count('price'), Count('unit_price'))
+db.objects.create('products', name='jupe a')
+db.objects.create('products', name='jupe b', price=34)
+db.objects.update_or_create('products', create_defaults={'price': 25}, name='jupe b')
+qs = db.objects.filter('products', name__contains='jupe')
+print(qs)
 
-# # print(qs)
-# # print(qs.values())
+# TODO: Watch if we can create with a manual ID
+# TODO: Watch if we can create by passing a datetime in created on/modified on with auto times

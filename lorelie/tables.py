@@ -67,12 +67,18 @@ class AbstractTable(metaclass=BaseTable):
             )
         return name.lower()
 
-    # TODO: Rename this to validate_new_values
+    def validate_values_from_list(self, values):
+        for value in values:
+            yield self.validate_values_from_dict(value)
+
+    def validate_values_from_dict(self, values):
+        fields, values = self.backend.dict_to_sql(values, quote_values=False)
+        return self.validate_values(fields, values)
+
     def validate_values(self, fields, values):
-        """Validate an incoming value in regards
-        to the related field the user is trying
-        to set on the column. The returned values
-        are quoted by default"""
+        """Validate a set of values that the
+        user is trying to insert or update in
+        the database"""
         validated_values = []
         for i, field in enumerate(fields):
             # TODO: Allow creation with id field
@@ -85,11 +91,10 @@ class AbstractTable(metaclass=BaseTable):
                 raise FieldExistsError(field, self)
 
             value = list(values)[i]
-            validated_value = self.backend.quote_value(
-                field.to_database(value)
-            )
+            clean_value = field.to_database(value)
+            validated_value = self.backend.quote_value(clean_value)
             validated_values.append(validated_value)
-        return validated_values
+        return validated_values, dict(zip(fields, validated_values))
 
     def load_current_connection(self):
         from lorelie.backends import connections

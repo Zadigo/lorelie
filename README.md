@@ -74,18 +74,132 @@ The `Database` provides a `DatabaseManager` class which serves as an endpoint fo
     * All: Retrieves all rows from the specified table
     * Order By: Orders the queryset based on specified fields
     * Count: Counts the total number of rows in the specified table
-* Data Retrieval:
+* Data Retrieval
     * First: Retrieves the first row from the specified table
     * Last: Retrieves the last row from the specified table
     * Earliest: Retrieves the row with the earliest date or datetime
     * Latest: Retrieves the row with the latest date or datetime
-* Additional Operations:
+* Additional Operations
     * Dates: Retrieves unique dates from a datetime field
     * Difference: Finds the difference between two querysets
     * Distinct: Removes duplicate rows from the queryset
     * Only: Retrieves queryset with only specified fields
     * Exclude: Excludes rows based on specified conditions
     * Extra: Performs additional operations on the queryset
+
+__Retrieving All Rows__
+
+```python
+# Retrieves all rows from the "celebrities" table.
+db.objects.all("celebrities")
+```
+
+This function retrieves all rows from the specified table in the database.
+
+
+__Ordering Rows__
+
+```python
+# Orders the rows of the "celebrities" table by the "name" field.
+db.objects.order_by("celebrities", "name")
+```
+
+This function orders the rows of the specified table by the specified field.
+
+__Counting Rows__
+
+```python
+# Counts the number of rows in the "celebrities" table.
+db.objects.count("celebrities")
+```
+
+This function counts the number of rows in the specified table.
+
+__Retrieving First Row__
+
+```python
+# Retrieves the first row from the "celebrities" table.
+db.objects.first("celebrities")
+```
+
+This function retrieves the first row from the specified table.
+
+__Retrieving Last Row__
+
+```python
+# Retrieves the last row from the "celebrities" table.
+db.objects.last("celebrities")
+```
+
+This function retrieves the last row from the specified table.
+
+__Creating a Row__
+
+```python
+# Creates a new row in the "celebrities" table with the provided data.
+db.objects.create("celebrities", name="Anya-Taylor Joy")
+```
+
+This function creates a new row in the specified table with the provided data.
+
+__Filtering Rows__
+
+```python
+# Filters rows from the "celebrities" table based on the provided conditions.
+db.objects.filter("celebrities", Q(name_contains="Anya-Taylor Joy"))
+```
+
+This function filters rows from the specified table based on the provided conditions.
+
+__Retrieving a Single Row__
+
+```python
+# Retrieves a single row from the "celebrities" table based on the provided conditions.
+db.objects.get("celebrities", Q(name_contains="Anya-Taylor Joy"))
+```
+
+This function retrieves a single row from the specified table based on the provided conditions.
+
+__Annotating Rows__
+
+```python
+# Adds annotations to the rows returned from the "celebrities" table.
+db.objects.annotate("celebrities", lowered_name=Lower("name"))
+```
+
+This function adds annotations to the rows returned from the specified table.
+
+__Retrieving Specific Values__
+
+```python
+# Returns values of the "name" field from the rows of the "celebrities" table.
+db.objects.values("celebrities", "name")
+```
+
+This function returns values of the specified field from the rows of the specified table as list of dictionnaries.
+
+__Retrieving Dataframe__
+
+```python
+# Returns a pandas DataFrame containing the rows and "name" field from the "celebrities" table.
+db.objects.dataframe("celebrities", "name")
+```
+
+This function returns a pandas DataFrame containing the specified fields from the rows of the specified table.
+
+__Bulk Creation__
+
+```python
+# Creates multiple rows in the "celebrities" table with the provided dataclass instances.
+@dataclasses.dataclass
+class Celebrity:
+    name: str
+
+celebrities = [Celebrity("Jennifer Lawrence")]
+db.objects.bulk_create("celebrities", celebrities)
+```
+
+This function creates multiple rows in the specified table with the provided dataclass instances. In this example, it creates rows in the "celebrities" table using instances of the Celebrity dataclass, where each instance represents a row in the table.
 
 ## Tables
 

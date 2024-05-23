@@ -1,4 +1,5 @@
-from lorelie.database.nodes import InsertNode
+from lorelie.database.nodes import InsertNode, WhereNode
+from lorelie.expressions import Q
 from lorelie.test.testcases import LorelieTestCase
 
 # from types import NotImplementedType
@@ -47,6 +48,66 @@ class TestInsertNode(LorelieTestCase):
         node = InsertNode(self.create_table(), insert_values=data)
         print(node.as_sql(self.create_connection()))
 
+
+class TestWhereNode(LorelieTestCase):
+    def test_structure(self):
+        node = WhereNode(firstname='Kendall')
+        sql = node.as_sql(self.create_connection())
+        self.assertEqual(sql, ["where firstname='Kendall'"])
+
+    def test_expressions(self):
+        node = WhereNode(firstname='Kendall', lastname='Jenner')
+        sql = node.as_sql(self.create_connection())
+        self.assertEqual(sql, ["where firstname='Kendall' and lastname='Jenner'"])
+
+    def test_arguments(self):
+        node = WhereNode(Q(firstname='Kendall'))
+        sql = node.as_sql(self.create_connection())
+        self.assertEqual(sql, ["where firstname='Kendall'"])
+
+        combined = Q(firstname='Kendall') & Q(lastname='Jenner')
+        node = WhereNode(combined)
+        sql = node.as_sql(self.create_connection())
+        self.assertEqual(sql, ["where (firstname='Kendall' and lastname='Jenner')"])
+
+    def test_complex_lookup_parameters(self):
+        where = WhereNode(age__gte=10, age__lte=40)
+        self.assertListEqual(
+            where.as_sql(self.create_connection()),
+            ['where age>=10 and age<=40']
+        )
+
+    def test_arguments_and_expressions(self):
+        where = WhereNode(
+            Q(lastname='Jenner'),
+            firstname='Kendall', age__gt=40
+        )
+        self.assertListEqual(
+            where.as_sql(self.create_connection()),
+            ["where lastname='Jenner' and firstname='Kendall' and age>40"]
+        )
+
+    def test_enriching_existing_parameters(self):
+        backend = self.create_connection()
+
+        w1 = WhereNode(firstname='Kendall')
+        self.assertListEqual(
+            w1.as_sql(backend),
+            ["where firstname='Kendall'"]
+        )
+
+        new_instance = w1(lastname='Jenner')
+        self.assertListEqual(
+            w1.as_sql(backend),
+            ["where firstname='Kendall' and lastname='Jenner'"]
+        )
+        self.assertListEqual(
+            new_instance.as_sql(backend),
+            ["where firstname='Kendall' and lastname='Jenner'"]
+        )
+
+
+
 # class TestBaseNode(unittest.TestCase):
 #     def test_structure(self):
 #         n1 = BaseNode(table=table, fields=['firstname'])
@@ -59,7 +120,6 @@ class TestInsertNode(LorelieTestCase):
 #         c = a + b
 #         self.assertIsInstance(c, ComplexNode)
 #         self.assertEqual(c.as_sql(table.backend), NotImplementedType)
-
 
 # class TestSelectNode(unittest.TestCase):
 #     def test_structure(self):
@@ -76,45 +136,6 @@ class TestInsertNode(LorelieTestCase):
 #             ['select distinct firstname, lastname from test_table']
 #         )
 
-
-# class TestWhereNode(unittest.TestCase):
-#     def test_keyword_parameters(self):
-#         where = WhereNode(firstname='Kendall', age__gt=40)
-#         self.assertListEqual(
-#             where.as_sql(table.backend),
-#             ["where firstname='Kendall' and age>40"]
-#         )
-
-#     def test_functions_and_keyword_parameters(self):
-#         where = WhereNode(Q(lastname='Jenner'),
-#                           firstname='Kendall', age__gt=40)
-#         self.assertListEqual(
-#             where.as_sql(table.backend),
-#             ["where lastname='Jenner' and firstname='Kendall' and age>40"]
-#         )
-
-#     def test_functions(self):
-#         where = WhereNode(Q(firstname='Kendall', age__gte=24))
-#         self.assertListEqual(
-#             where.as_sql(table.backend),
-#             ["where firstname='Kendall' and age>=24"]
-#         )
-
-#     def test_call_function(self):
-#         w1 = WhereNode(firstname='Kendall')
-#         self.assertListEqual(
-#             w1.as_sql(table.backend),
-#             ["where firstname='Kendall'"]
-#         )
-#         new_instance = w1(lastname='Jenner')
-#         self.assertListEqual(
-#             w1.as_sql(table.backend),
-#             ["where firstname='Kendall' and lastname='Jenner'"]
-#         )
-#         self.assertListEqual(
-#             new_instance.as_sql(table.backend),
-#             ["where firstname='Kendall' and lastname='Jenner'"]
-#         )
 
 
 # class TestOrderNode(unittest.TestCase):
@@ -207,7 +228,3 @@ class TestInsertNode(LorelieTestCase):
 #             insert_node.as_sql(table.backend),
 #             ["insert into test_table (firstname) values('Kendall')"]
 #         )
-
-
-# if __name__ == '__main__':
-#     unittest.main()

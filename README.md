@@ -516,3 +516,41 @@ The `Min` class returns the minimum value of the specified field.
 ```python
 db.objects.aggregate('products', Min('price'))
 ```
+
+
+## Expressions
+
+Expressions in Lorelie serve as powerful tools for constructing SQL queries and representing various components of database operations. These expressions enable users to define conditions, select specific fields, filter data, handle logical operations, and manipulate values within their database queries.
+
+The main expressions are:
+
+* __Q:__ Represents query conditions and filters, allowing users to construct complex filter expressions to retrieve specific data from the database.
+* __F:__ Represents database fields or columns, providing a convenient way to reference and manipulate column values within SQL queries.
+* __Case:__ Represents conditional expressions in SQL queries, enabling users to perform conditional logic and transformations on data.
+* __Value:__ Represents literal values or constants in SQL queries, allowing users to include specific values directly in their queries.
+
+### Case
+
+It corresponds to the SQL __CASE__ statement, allowing you to perform conditional evaluations and transformations on data. With the Case expression, you can define multiple conditions and their corresponding outcomes. This enables conditional logic within queries, such as determining different values based on specific conditions or criteria.
+
+On the other hand, the `Where` expression represents the __WHEN ... THEN ...__ clauses within the Case expression. By combining `Where` clauses within a Case expression, you can create complex conditional logic and data transformations.
+
+```python
+from lorelie.expressions import When, Case
+from lorelie.database.base import Database
+
+# Define the condition using the When expression
+logic = When(name='Kendall', then_case='Kandy')
+
+# Create the Case expression with the defined condition
+case = Case(logic)
+
+# Annotate the 'celebrities' table with the Case expression
+# The result will be stored in the 'other_name' alias column
+db.objects.annotate('celebrities', other_name=case)
+
+```
+
+In this example, we first define the condition using the When expression, specifying that when the name is `Kendall`, the result should be `Kandy`. Then, we create the Case expression with the defined condition. Finally, we use the annotate method to apply the Case expression to the 'celebrities' table, assigning the result to the `other_name` alias column.
+
+It's important to note that the Case expression should only be used in conjunction with the `annotate` method, as it generates an alias column in the database with the result of the condition.

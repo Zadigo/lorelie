@@ -205,6 +205,27 @@ class BaseRow:
         else:
             return self
 
+    def refresh_from_database(self):
+        """This function is designed to update the object's data 
+        with the latest values from the database. This is useful when 
+        the column values have changed in the database, and you want to 
+        ensure that your object reflects these changes."""
+        table = registry.known_tables[self.linked_to_table]
+
+        select_node = SelectNode(table, *self._fields, limit=1)
+        where_node = WhereNode(id=self.pk)
+        
+        query_class = Query(table=table)
+        query_class.add_sql_nodes([select_node, where_node])
+        query_class.run()
+        
+        refreshed_row = query_class.result_cache[0]
+        for field in self._fields:
+            new_value = getattr(refreshed_row, field)
+            setattr(self, field, new_value)
+            self._cached_data[field] = new_value
+        return self
+
 
 def row_factory(backend):
     """Base function for generation custom SQLite Row

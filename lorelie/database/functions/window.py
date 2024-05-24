@@ -82,7 +82,7 @@ class Rank(WindowFunctionMixin, Functions):
     rows with ranks before it
 
     >>> db.objects.annotate(age_rank=Window(function=Rank('age')))
-    ... db.objects.annotate(age_rank=Window(function=Rank(Length('age'))))
+    ... db.objects.annotate(age_rank=Window(function=Rank(F('age'))))
     """
 
     template_sql = 'rank'
@@ -95,7 +95,7 @@ class PercentRank(WindowFunctionMixin, Functions):
     `(r - 1) / (the number of rows in the window or partition - r)`
 
     >>> db.objects.annotate(pct_rank=Window(function=PercentRank('age')))
-    ... db.objects.annotate(pct_rank=Window(function=PercentRank(Length('age'))))
+    ... db.objects.annotate(pct_rank=Window(function=PercentRank(F('age'))))
     """
 
     template_sql = 'percent_rank'

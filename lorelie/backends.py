@@ -750,6 +750,7 @@ class SQLiteBackend(SQL):
         # sqlite3.register_adapter(datetime.datetime.now, str)
         sqlite3.register_converter('date', converters.convert_date)
         sqlite3.register_converter('datetime', converters.convert_datetime)
+        sqlite3.register_converter('timestamp', converters.convert_timestamp)
 
         connection = sqlite3.connect(
             database_name,

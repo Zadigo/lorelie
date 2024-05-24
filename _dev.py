@@ -16,13 +16,17 @@ from lorelie.database import registry
 table = Table('products', fields=[
     CharField('name'),
     DateTimeField('created_on', auto_add=True)
-])
+],
+    index=[Index('my_index', fields=['name'], condition=Q(name='Kendall'))]
+)
 
-db = Database(table)
+db = Database(table, name='products')
+# db.make_migrations()
 db.migrate()
-
 db.objects.create('products', name='Jupe')
-item = db.objects.first('products')
+
+# db.objects.create('products', name='Jupe')
+# item = db.objects.first('products')
 # item.refresh_from_database()
 
 

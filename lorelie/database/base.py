@@ -229,18 +229,21 @@ class Database:
             raise TableExistsError(table_name)
 
     def make_migrations(self):
-        """Updates the migration file with the
-        local changes to the tables. Make migrations
-        should generally be called before running `migrate`
-        """
+        """The function `make_migrations` serves as a pivotal step 
+        in the database schema evolution process. It collects the 
+        various elements from the fields, tables, constraints, 
+        and indexes defined by the user, capturing these changes in a 
+        structured manner. These collected elements are then organized and stored in 
+        a migration JSON file. Additionally, the function inserts this collected data into 
+        a designated table named lorelie_migrations within the database."""
         self.migrations.has_migrations = True
         self.migrations.make_migrations(self.table_instances)
 
     def migrate(self):
-        """Implements the changes from the migration
-        file to the database for example by creating the
-        tables, implementing the constraints and all other
-        table parameters specified by on the table"""
+        """This function executes the modifications outlined in the 
+        migration file onto the database. It achieves this by orchestrating 
+        various actions such as creating tables, implementing constraints, 
+        and applying other specified parameters to the tables."""
         self.migrations.migrate(self.table_map)
 
     def simple_load(self):

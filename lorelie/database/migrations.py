@@ -253,7 +253,7 @@ class Migrations:
     def check_fields(self, table, backend):
         """Checks the migration file for fields
         in relationship with the table"""
-        database_table_columns = backend.list_table_columns_sql(table)
+        database_table_columns = backend.list_table_columns(table)
 
         columns_to_create = set()
         for field_name in table.fields_map.keys():

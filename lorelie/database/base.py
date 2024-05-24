@@ -1,44 +1,18 @@
 import dataclasses
 import pathlib
+from collections import OrderedDict
 from dataclasses import field
 from functools import wraps
-from typing import OrderedDict, Union
+from typing import Union
 
 from lorelie.backends import SQLiteBackend
+from lorelie.database import registry
 from lorelie.database.manager import DatabaseManager
 from lorelie.database.migrations import Migrations
 from lorelie.exceptions import TableExistsError
 from lorelie.fields.relationships import ForeignKeyField
 from lorelie.queries import Query
 from lorelie.tables import Table
-
-# class Databases:
-#     """A class that remembers the databases
-#     that were created and allows their retrieval
-#     if needed from other sections of the code"""
-
-#     def __init__(self):
-#         self.database_map = {}
-
-#     def __getitem__(self, name):
-#         return self.database_map[name]
-
-#     def __contains__(self, value):
-#         return value in self.created_databases
-
-#     @property
-#     def created_databases(self):
-#         return list(self.database_map.values())
-
-#     def register(self, database):
-#         from lorelie.database.base import Database
-#         if not isinstance(database, Database):
-#             raise ValueError('Value should be an instance of Database')
-#         name = 'default' if database.database_name is None else database.database_name
-#         self.database_map[name] = database
-
-
-# databases = Databases()
 
 
 @dataclasses.dataclass
@@ -196,6 +170,7 @@ class Database:
         # function to setup the different elements of the
         # class later on
         self.migrations = self.migrations_class(self)
+        registry.register_database(self)
 
     def __repr__(self):
         return f'<{self.__class__.__name__} [tables: {len(self.table_names)}]>'

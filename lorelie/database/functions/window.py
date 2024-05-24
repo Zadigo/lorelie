@@ -65,8 +65,11 @@ class WindowFunctionMixin:
 
         if self.takes_partition is not None:
             partition_clause = self.takes_partition
-            if isinstance(self.takes_partition, Functions):
-                partition_clause = self.takes_partition.as_sql(backend)
+            if hasattr(self.takes_partition, 'internal_type'):
+                if self.takes_partition.internal_type == 'expression':
+                    partition_clause = backend.comma_join(
+                        self.takes_partition.as_sql(backend)
+                    )
             over_clause.insert(0, f'partition by {partition_clause}')
 
         return self.over_clause.format(conditions=backend.simple_join(over_clause))

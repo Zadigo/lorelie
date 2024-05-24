@@ -94,7 +94,9 @@ class AbstractTable(metaclass=BaseTable):
             clean_value = field.to_database(value)
             validated_value = self.backend.quote_value(clean_value)
             validated_values.append(validated_value)
-        return validated_values, dict(zip(fields, validated_values))
+
+        validated_dict_values = dict(zip(fields, validated_values))
+        return validated_values, validated_dict_values
 
     def load_current_connection(self):
         from lorelie.backends import connections

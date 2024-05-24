@@ -116,7 +116,7 @@ class Migrations:
         table = Table('lorelie_migrations', fields=table_fields)
         self.database._add_table(table)
 
-    def check(self, table_instances):
+    def migrate(self, table_instances):
         from lorelie.tables import Table
 
         # Safeguard that avoids calling

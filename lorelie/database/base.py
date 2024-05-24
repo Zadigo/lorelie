@@ -12,34 +12,33 @@ from lorelie.fields.relationships import ForeignKeyField
 from lorelie.queries import Query
 from lorelie.tables import Table
 
+# class Databases:
+#     """A class that remembers the databases
+#     that were created and allows their retrieval
+#     if needed from other sections of the code"""
 
-class Databases:
-    """A class that remembers the databases
-    that were created and allows their retrieval
-    if needed from other sections of the code"""
+#     def __init__(self):
+#         self.database_map = {}
 
-    def __init__(self):
-        self.database_map = {}
+#     def __getitem__(self, name):
+#         return self.database_map[name]
 
-    def __getitem__(self, name):
-        return self.database_map[name]
+#     def __contains__(self, value):
+#         return value in self.created_databases
 
-    def __contains__(self, value):
-        return value in self.created_databases
+#     @property
+#     def created_databases(self):
+#         return list(self.database_map.values())
 
-    @property
-    def created_databases(self):
-        return list(self.database_map.values())
-
-    def register(self, database):
-        from lorelie.database.base import Database
-        if not isinstance(database, Database):
-            raise ValueError('Value should be an instance of Database')
-        name = 'default' if database.database_name is None else database.database_name
-        self.database_map[name] = database
+#     def register(self, database):
+#         from lorelie.database.base import Database
+#         if not isinstance(database, Database):
+#             raise ValueError('Value should be an instance of Database')
+#         name = 'default' if database.database_name is None else database.database_name
+#         self.database_map[name] = database
 
 
-databases = Databases()
+# databases = Databases()
 
 
 @dataclasses.dataclass
@@ -190,7 +189,7 @@ class Database:
         self.triggers_map = TriggersMap()
         self.log_queries = log_queries
 
-        databases.register(self)
+        # databases.register(self)
         # FIXME: Seems like if this class is not called
         # after all the elements have been set, this
         # raises an error. Maybe create a special prepare
@@ -233,6 +232,10 @@ class Database:
         return self.database_name is None
 
     @property
+    def is_ready(self):
+        return self.migrations.migrated
+
+    @property
     def table_names(self):
         return list(self.table_map.keys())
 
@@ -245,7 +248,10 @@ class Database:
         self.table_map[table.name] = table
 
     def get_table(self, table_name):
-        return self.table_map[table_name]
+        try:
+            return self.table_map[table_name]
+        except KeyError:
+            raise TableExistsError(table_name)
 
     def make_migrations(self):
         """Updates the migration file with the
@@ -260,7 +266,7 @@ class Database:
         file to the database for example by creating the
         tables, implementing the constraints and all other
         table parameters specified by on the table"""
-        self.migrations.check(self.table_map)
+        self.migrations.migrate(self.table_map)
 
     def simple_load(self):
         """Loads an existing sqlite and checks that the
@@ -271,8 +277,21 @@ class Database:
         an existing database without modifiying the existing
         data sqlite
         """
+        return NotImplemented
+
+    def create_view(self, name, queryset, temporary=True):
+        return NotImplemented
 
     def register_trigger(self, table=None, trigger=None):
+        """Registers a trigger function onto the database
+        and that will get called at a specific stage of
+        when the database runs a specific type of operation
+
+        >>> db = Database()
+        ... @db.register_trigger(table=None, trigger=pre_save)
+        ... def my_trigger(database, table, **kwargs):
+        ...     pass
+        """
         def wrapper(func):
             @wraps(func)
             def inner(**kwargs):
@@ -299,28 +318,29 @@ class Database:
         ... db.objects.foreign_key('social_media').all()
         ... db.objects.foreign_key('social_media', reverse=True).all()
         """
-        if (not isinstance(left_table, Table) and
-                not isinstance(right_table, Table)):
-            raise ValueError(
-                "Both tables should be an instance of "
-                f"Table: {left_table}, {right_table}"
-            )
+        # if (not isinstance(left_table, Table) and
+        #         not isinstance(right_table, Table)):
+        #     raise ValueError(
+        #         "Both tables should be an instance of "
+        #         f"Table: {left_table}, {right_table}"
+        #     )
 
-        if (left_table not in self.table_instances and
-                right_table not in self.table_instances):
-            raise ValueError(
-                "Both tables need to be registered in the database "
-                "namespace in order to create a relationship"
-            )
+        # if (left_table not in self.table_instances and
+        #         right_table not in self.table_instances):
+        #     raise ValueError(
+        #         "Both tables need to be registered in the database "
+        #         "namespace in order to create a relationship"
+        #     )
 
-        right_table.is_foreign_key_table = True
-        relationship_map = RelationshipMap(left_table, right_table)
+        # right_table.is_foreign_key_table = True
+        # relationship_map = RelationshipMap(left_table, right_table)
 
-        field = ForeignKeyField(relationship_map=relationship_map)
-        field.prepare(self)
+        # field = ForeignKeyField(relationship_map=relationship_map)
+        # field.prepare(self)
 
-        relationship_map.field = field
-        self.relationships[relationship_map.relationship_field_name] = relationship_map
+        # relationship_map.field = field
+        # self.relationships[relationship_map.relationship_field_name] = relationship_map
+        return NotImplemented
 
     def many_to_many(self, left_table, right_table, primary_key=True, related_name=None):
         # Create an intermediate junction table that
@@ -335,7 +355,7 @@ class Database:
         # relationship_map = RelationshipMap(left_table, right_table)
         # relationship_map.junction_table = table
         # self.relationships[relationship_map.relationship_field_name] = relationship_map
-        pass
+        return NotImplemented
 
     def one_to_one_key(self, left_table, right_table, on_delete=None, related_name=None):
-        pass
+        return NotImplemented

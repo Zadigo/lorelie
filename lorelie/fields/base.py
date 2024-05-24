@@ -137,7 +137,7 @@ class Field:
         #         f"{type(data)} for column '{self.name}' "
         #         f"should be an instance of {self.python_type}"
         #     )
-        
+
         # self.run_validators(data)
         # try:
         #     # return self.to_python(data)
@@ -270,7 +270,6 @@ class NumericFieldMixin:
             self.constraints.append(instance)
 
 
-
 class IntegerField(NumericFieldMixin, Field):
     python_type = int
 
@@ -292,7 +291,7 @@ class IntegerField(NumericFieldMixin, Field):
     #             "The value for {name} is not valid",
     #             name=self.name
     #         )
-        
+
     def to_database(self, data):
         if isinstance(data, str):
             if data.isnumeric() or data.isdigit():
@@ -367,7 +366,7 @@ class BooleanField(Field):
     def to_database(self, data):
         if data in self.truth_types:
             return super().to_database(1)
-        
+
         if data in self.false_types:
             return super().to_database(0)
         return super().to_database(data)
@@ -443,7 +442,7 @@ class DateField(DateFieldMixin, Field):
             d = self.parse_from_format(data, formats)
             d = d.date()
             self.run_validators(d)
-            clean_data =  self.python_type(d)
+            clean_data = self.python_type(d)
 
         if hasattr(data, 'date'):
             data = getattr(data, 'date')
@@ -543,7 +542,6 @@ class CommaSeparatedField(CharField):
         if isinstance(data, (list, set, tuple)):
             data = ', '.join(data)
         return super().to_database(data)
-        
 
 
 class AliasField(Field):

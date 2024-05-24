@@ -63,7 +63,7 @@ class Query:
         joined_statements = instance.backend.simple_join(statements)
         script = template.format(statements=joined_statements)
         instance.add_sql_node(script)
-        
+
         try:
             result = instance.backend.connection.executescript(script)
         except OperationalError as e:
@@ -76,7 +76,7 @@ class Query:
             print(e, script)
             raise
         else:
-            print(script)
+            # print(script)
             instance.backend.connection.commit()
             instance.result_cache = list(result)
             instance.is_evaluated = True
@@ -216,7 +216,7 @@ class EmptyQuerySet:
 
     def __contains__(self):
         return False
-    
+
     def __iter__(self):
         return []
 
@@ -225,7 +225,7 @@ class EmptyQuerySet:
 
     def __gt__(self):
         return False
-    
+
     def __gte__(self):
         return False
 

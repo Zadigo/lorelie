@@ -123,54 +123,55 @@ class DatabaseManager:
         return QuerySet(query)
 
     def create(self, table, **kwargs):
-        """Creates a new row in the table of 
-        the current database
-
+        """The create function facilitates the creation 
+        of a new row in the specified table within the 
+        current database
+        
         >>> db.objects.create('celebrities', firstname='Kendall')
         """
         selected_table = self.before_action(table)
-
-        fields, values = selected_table.backend.dict_to_sql(
-            kwargs,
-            quote_values=False
-        )
-        values, _ = selected_table.validate_values(fields, values)
-
-        pre_saved_values = self.pre_save(selected_table, fields, values)
-
-        # TODO: Create functions for datetimes and timezones
-        current_date = datetime.datetime.now(tz=pytz.UTC)
-        if selected_table.auto_add_fields:
-            for field in selected_table.auto_add_fields:
-                fields.append(field)
-                date = selected_table.backend.quote_value(str(current_date))
-                values.append(date)
-
-        joined_fields = selected_table.backend.comma_join(fields)
-        joined_values = selected_table.backend.comma_join(values)
-
+        kwargs = self._validate_auto_fields(selected_table, kwargs)
+        values, kwargs = selected_table.validate_values_from_dict(kwargs)
         query = self.database.query_class(table=selected_table)
-        # See: https://www.sqlitetutorial.net/sqlite-returning/
-        # query.add_sql_nodes([insert_sql, 'returning *'])
-        # query.run(commit=True)
-        # return query.return_single_item
 
-        #     select_node = SelectNode(selected_table, 'id', *joined_values)
-        #     where_node = WhereNode(id__eq=1)
-
-        insert_sql = selected_table.backend.INSERT.format(
-            table=selected_table.name,
-            fields=joined_fields,
-            values=joined_values
+        insert_node = InsertNode(
+            selected_table,
+            insert_values=kwargs,
+            returning=selected_table.field_names
         )
 
-        query.add_sql_nodes([insert_sql, 'returning id'])
-        # query.run(commit=True)
-        # TODO: This raises a sqlite3.OperationalError: cannot
-        # commit transaction - SQL statements in progress
-        queryset = QuerySet(query)
-        queryset.use_commit = True
-        return list(queryset)[-0]
+        query.add_sql_node(insert_node)
+        return QuerySet(query)[0]
+
+        # fields, values = selected_table.backend.dict_to_sql(
+        #     kwargs,
+        #     quote_values=False
+        # )
+        # values, _ = selected_table.validate_values(fields, values)
+
+        # # pre_saved_values = self.pre_save(selected_table, fields, values)
+        # joined_fields = selected_table.backend.comma_join(fields)
+        # joined_values = selected_table.backend.comma_join(values)
+
+        # query = self.database.query_class(table=selected_table)
+        # # insert_node = InsertNode(selected_table, insert_values=kwargs)
+        # insert_sql = selected_table.backend.INSERT.format(
+        #     table=selected_table.name,
+        #     fields=joined_fields,
+        #     values=joined_values
+        # )
+
+        # # See: https://www.sqlitetutorial.net/sqlite-returning/
+        # return_fields = selected_table.backend.comma_join(
+        #     selected_table.field_names
+        # )
+        # query.add_sql_nodes([insert_sql, f'returning {return_fields}'])
+        # # query.run(commit=True)
+        # # TODO: This raises a sqlite3.OperationalError: cannot
+        # # commit transaction - SQL statements in progress
+        # queryset = QuerySet(query)
+        # queryset.use_commit = True
+        # return list(queryset)[-0]
 
     def filter(self, table, *args, **kwargs):
         """Filter the data in the database based on

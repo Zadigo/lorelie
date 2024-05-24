@@ -1,60 +1,57 @@
+import asyncio
+import dataclasses
+
 from database.functions.text import Lower
+
+from lorelie import log_queries
 from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.database.base import Database
 from lorelie.database.indexes import Index
-from lorelie.expressions import F, Q, Case, When
-from lorelie.fields.base import CharField
+from lorelie.expressions import Case, F, Q, When
+from lorelie.fields.base import CharField, DateTimeField, IntegerField
 from lorelie.tables import Table
-import dataclasses
+from lorelie.database.functions.window import Window, Rank
 
-table = Table(
-    'celebrities',
-    fields=[
-        CharField('name')
-    ],
-    constraints=[
-        UniqueConstraint('name', fields=['name']),
-        CheckConstraint('age', Q(age__gt=22))
-    ],
-    index=[
-        Index('idx_age', fields=['age'], condition=Q(age__gt=25))
-    ],
-    str_field='name',
-    ordering=['name']
-)
+table = Table('products', fields=[
+    CharField('name'),
+    DateTimeField('created_on', auto_add=True)
+])
 
 db = Database(table)
 db.migrate()
 
-db.objects.all('celebrities')
+db.objects.create('products', name='Julie')
+db.objects.update_or_create('products', name='Julie')
+db.objects.get_or_create('products', name='Justine')
 
-db.objects.order_by('celebrities', 'name')
-
-db.objects.count('celebrities')
-
-db.objects.first('celebrities')
-db.objects.last('celebrities')
-
-db.objects.create('celebrities', name='Anya-Taylor Joy')
-
-db.objects.filter('celebrities', Q(name_contains='Anya-Taylor Joy'))
-db.objects.filter('celebrities', Q(name__contains='Anya-Taylor Joy') | Q(name__contains='Eugénie Bouchard'))
-
-db.objects.get('celebrities', Q(name_contains='Anya-Taylor Joy'))
-
-db.objects.annotate('celebrities', lowered_name=Lower('name'))
-
-db.objects.values('celebrities', 'name')
-
-db.objects.dataframe('celebrities', 'name')
+qs = db.objects.annotate(
+    'products',
+    Window(Rank('name'), partition_by=F('name'))
+)
+print(qs)
+print(list(log_queries))
 
 
-@dataclasses.dataclass
-class Celebrity:
-    name: str
-celebrities = [Celebrity('Jennifer Lawrence')]
-db.objects.bulk_create('celebrities', celebrities)
+# async def create():
+#     await db.objects.acreate('products', name='Julie')
+#     await asyncio.sleep(1)
 
 
-# TODO: Watch if we can create with a manual ID
-# TODO: Watch if we can create by passing a datetime in created on/modified on with auto times
+# async def getall():
+#     qs = await db.objects.aall('products')
+#     print(qs)
+#     await asyncio.sleep(4)
+
+
+# async def main():
+#     while True:
+#         t1 = asyncio.create_task(create())
+#         t2 = asyncio.create_task(getall())
+#         asyncio.gather(t1, t2)
+#         await asyncio.sleep(2)
+
+# asyncio.run(main())
+
+
+# # TODO: Watch if we can create with a manual ID
+# # TODO: Watch if we can create by passing a datetime in created on/modified on with auto times

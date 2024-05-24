@@ -403,6 +403,7 @@ class InsertNode(BaseNode):
         sql = [insert_sql]
 
         if self.returning:
+            sql.append(f'returning {backend.comma_join(self.returning)}')
+        else:
             sql.append('returning id')
-
         return sql

@@ -4,7 +4,6 @@ class Functions:
 
     def __init__(self, field_name):
         self.field_name = field_name
-        # self.backend = None
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.field_name})'

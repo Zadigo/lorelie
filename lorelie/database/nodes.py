@@ -344,7 +344,8 @@ class UpdateNode(BaseNode):
             'table': self.table.name,
             'fields': fields_to_set
         })
-        return [update_sql, *where_node.as_sql(backend)]
+        sql = [update_sql, *where_node.as_sql(backend)]
+        return sql
 
 
 class InsertNode(BaseNode):

@@ -362,7 +362,7 @@ class InsertNode(BaseNode):
     template_sql = 'insert into {table} ({columns}) values({values})'
     bactch_insert_sql = 'insert into {table} ({columns}) values {values}'
 
-    def __init__(self, table, batch_values=[], insert_values={}, returning=False):
+    def __init__(self, table, batch_values=[], insert_values={}, returning=[]):
         super().__init__(table=table)
         self.insert_values = insert_values
         self.returning = returning

@@ -90,7 +90,10 @@ class Query:
 
     def add_sql_node(self, node):
         if not isinstance(node, (BaseNode, str)):
-            raise ValueError('Node should be an instance of BaseNode or <str>')
+            raise ValueError(
+                f"{node} should be an instance "
+                "of BaseNode or <str>"
+            )
 
         if isinstance(node, BaseNode):
             if node.node_name == 'order_by':
@@ -103,7 +106,11 @@ class Query:
 
     def add_sql_nodes(self, nodes):
         if not isinstance(nodes, list):
-            raise ValueError('Node should be an instance of BaseNode or <str>')
+            raise ValueError(
+                f"{nodes} should be an instance "
+                " of BaseNode or <str>"
+            )
+
         for node in nodes:
             self.add_sql_node(node)
 
@@ -157,7 +164,7 @@ class Query:
             self.is_evaluated = True
         finally:
             log_queries.append(
-                self.sql, 
+                self.sql,
                 table=self.table,
                 backend=self.backend
             )

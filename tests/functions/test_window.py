@@ -1,18 +1,44 @@
-# import unittest
-
-# from database.functions.window import PercentRank, Rank, Window
-
-# from lorelie.backends import SQLiteBackend
-# from lorelie.database.functions.text import Length
-# from lorelie.fields.base import IntegerField
-# from lorelie.tables import Table
-
-# backend = SQLiteBackend()
-# table = Table('celebrities', fields=[IntegerField('age')])
-# table.backend = backend
-# backend.set_current_table(table)
+from lorelie.database.functions.window import CumeDist, PercentRank, Rank, Window
+from lorelie.test.testcases import LorelieTestCase
 
 
+class TestRank(LorelieTestCase):
+    def test_structure(self):
+        instance = Window(Rank('age'), order_by='age')
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(sql, 'rank() over (order by age) as window_rank_age')
+
+    def test_query_window(self):
+        db = self.create_database()
+        db.objects.create('celebrities', name='Julie', height=167)
+        db.objects.create('celebrities', name='Julie', height=195)
+        db.objects.create('celebrities', name='Julie', height=199)
+
+        window = Window(Rank('height'))
+        qs = db.objects.annotate('celebrities', rank_height=window)
+        values = qs.values('height', 'rank_height')
+        print(values)
+
+
+class TestPercentRank(LorelieTestCase):
+    def test_structure(self):
+        instance = Window(function=PercentRank('age'), order_by='age')
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(
+            sql,
+            'percent_rank() over (order by age) as window_percentrank_age'
+        )
+
+
+class TestCumeDist(LorelieTestCase):
+    def test_structure(self):
+        instance = Window(function=CumeDist('age'),
+                          partition_by='age', order_by='age')
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(
+            sql,
+            'cume_dist() over (partition by age order by age) as window_cumedist_age'
+        )
 
 # class TestWindowFunctions(unittest.TestCase):
 #     def test_window_function_with_string(self):

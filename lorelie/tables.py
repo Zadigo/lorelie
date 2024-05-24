@@ -1,4 +1,5 @@
 import re
+import datetime
 from collections import OrderedDict
 
 from lorelie.backends import SQLiteBackend
@@ -17,7 +18,7 @@ class BaseTable(type):
             new_class = super_new(cls, name, bases, attrs)
             cls.prepare(new_class)
             return new_class
-        
+
         return super_new(cls, name, bases, attrs)
 
     @classmethod
@@ -52,7 +53,7 @@ class AbstractTable(metaclass=BaseTable):
                 "Table name uses a reserved "
                 "keyword: objects"
             )
-        
+
         result = re.search(r'^(\w+\_?)+$', name)
         if not result:
             raise ValueError(
@@ -284,7 +285,8 @@ class Table(AbstractTable):
         # just like normal fields while check_constraints
         # are just joined by normal space
         joined_unique = self.backend.comma_join([fields, *unique_constraints])
-        joined_checks = self.backend.simple_join([joined_unique, *check_constraints])
+        joined_checks = self.backend.simple_join(
+            [joined_unique, *check_constraints])
 
         sql = self.backend.CREATE_TABLE.format_map({
             'table': self.name,
@@ -321,7 +323,7 @@ class Table(AbstractTable):
         field_params = self.build_field_parameters()
         field_params = [
             self.backend.simple_join(params)
-                for params in field_params
+            for params in field_params
         ]
 
         if database.has_relationships:

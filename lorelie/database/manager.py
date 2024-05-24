@@ -96,7 +96,7 @@ class DatabaseManager:
         try:
             table = self.table_map[table_name]
         except KeyError:
-            if not self.database.migrations.migrated:
+            if not self.database.is_ready:
                 raise MigrationsExistsError()
             raise TableExistsError(table_name)
         else:

@@ -1,7 +1,6 @@
 import dataclasses
 import pathlib
 from collections import OrderedDict
-from dataclasses import field
 from functools import wraps
 from typing import Union
 
@@ -80,19 +79,6 @@ class RelationshipMap:
         return table == self.right_table
 
 
-@dataclasses.dataclass
-class TriggersMap:
-    pre_save: list = field(default_factory=list)
-    post_save: list = field(default_factory=list)
-    pre_delete: list = field(default_factory=list)
-
-    def list_functions(self, table, trigger_name):
-        """Returns the list of functions for a given
-        specific trigger name"""
-        container = getattr(self, trigger_name, [])
-        return list(filter(lambda x: table in x, container))
-
-
 class Database:
     """This class links and unifies independent
     tables together for a unique database and allows 
@@ -160,7 +146,6 @@ class Database:
 
         self.table_instances = list(tables)
         self.relationships = OrderedDict()
-        self.triggers_map = TriggersMap()
         self.log_queries = log_queries
 
         # databases.register(self)
@@ -260,7 +245,7 @@ class Database:
     def create_view(self, name, queryset, temporary=True):
         return NotImplemented
 
-    def register_trigger(self, table=None, trigger=None):
+    def register_trigger(self, trigger, table=None):
         """Registers a trigger function onto the database
         and that will get called at a specific stage of
         when the database runs a specific type of operation
@@ -271,13 +256,15 @@ class Database:
         ...     pass
         """
         def wrapper(func):
+            if table is not None:
+                values = [table.name, trigger, func]
+            else:
+                values = [None, trigger, func]
+            registry.registered_triggers.container.append(values)
+
             @wraps(func)
             def inner(**kwargs):
-                if trigger is not None:
-                    func(database=self, table=table, **kwargs)
-
-            if trigger == 'pre_save':
-                self.triggers_map.pre_save.append((table, inner))
+                func(database=self, table=table, **kwargs)
             return inner
         return wrapper
 

@@ -6,6 +6,7 @@ from dataclasses import is_dataclass
 import pytz
 from asgiref.sync import sync_to_async
 
+from lorelie.database import registry
 from lorelie.database.functions.aggregation import (Avg,
                                                     CoefficientOfVariation,
                                                     Count, Max,
@@ -146,7 +147,7 @@ class DatabaseManager:
         """The create function facilitates the creation 
         of a new row in the specified table within the 
         current database
-        
+
         >>> db.objects.create('celebrities', firstname='Kendall')
         """
         selected_table = self.before_action(table)
@@ -811,13 +812,13 @@ class DatabaseManager:
 
     async def afirst(self, table):
         return await sync_to_async(self.first)(table)
-    
+
     async def alast(self, table):
         return await sync_to_async(self.last)(table)
-    
+
     async def aall(self, table):
         return await sync_to_async(self.all)(table)
-    
+
     async def acreate(self, table, **kwargs):
         return await sync_to_async(self.create)(table, **kwargs)
 

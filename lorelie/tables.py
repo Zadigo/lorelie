@@ -1,5 +1,4 @@
 import re
-import datetime
 from collections import OrderedDict
 
 from lorelie.backends import SQLiteBackend

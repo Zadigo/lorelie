@@ -58,6 +58,26 @@ class DatabaseManager:
         or last value from the database"""
         pass
 
+    def _validate_auto_fields(self, table, params, update_only=False):
+        # There might be cases where the
+        # user does not pass any values
+        # in the create fields but that
+        # there are auto_add and auto_update
+        # fields in the database. We have to
+        # send the current dates for these
+        d = datetime.datetime.now()
+        if not update_only:
+            for field in table.auto_add_fields:
+                if field in params:
+                    continue
+                params[field] = str(d)
+
+        for field in table.auto_update_fields:
+            if field in params:
+                continue
+            params[field] = str(d)
+        return params
+
     def pre_save(self, selected_table, fields, values):
         """Pre-save stores the pre-processed data
         into a namedtuple that is then sent to the
@@ -76,7 +96,7 @@ class DatabaseManager:
         try:
             table = self.table_map[table_name]
         except KeyError:
-            if not self.database.migrations.migrated:
+            if not self.database.is_ready:
                 raise MigrationsExistsError()
             raise TableExistsError(table_name)
         else:
@@ -94,7 +114,7 @@ class DatabaseManager:
 
         query = self.database.query_class(table=selected_table)
         query.add_sql_nodes([select_node, orderby_node])
-        return QuerySet(query)[-0]
+        return QuerySet(query)[0]
 
     def last(self, table):
         """Returns the last row from
@@ -106,7 +126,7 @@ class DatabaseManager:
 
         query = self.database.query_class(table=selected_table)
         query.add_sql_nodes([select_node, orderby_node])
-        return QuerySet(query)[-0]
+        return QuerySet(query)[0]
 
     def all(self, table):
         selected_table = self.before_action(table)
@@ -123,54 +143,55 @@ class DatabaseManager:
         return QuerySet(query)
 
     def create(self, table, **kwargs):
-        """Creates a new row in the table of 
-        the current database
-
+        """The create function facilitates the creation 
+        of a new row in the specified table within the 
+        current database
+        
         >>> db.objects.create('celebrities', firstname='Kendall')
         """
         selected_table = self.before_action(table)
-
-        fields, values = selected_table.backend.dict_to_sql(
-            kwargs,
-            quote_values=False
-        )
-        values, _ = selected_table.validate_values(fields, values)
-
-        pre_saved_values = self.pre_save(selected_table, fields, values)
-
-        # TODO: Create functions for datetimes and timezones
-        current_date = datetime.datetime.now(tz=pytz.UTC)
-        if selected_table.auto_add_fields:
-            for field in selected_table.auto_add_fields:
-                fields.append(field)
-                date = selected_table.backend.quote_value(str(current_date))
-                values.append(date)
-
-        joined_fields = selected_table.backend.comma_join(fields)
-        joined_values = selected_table.backend.comma_join(values)
-
+        kwargs = self._validate_auto_fields(selected_table, kwargs)
+        values, kwargs = selected_table.validate_values_from_dict(kwargs)
         query = self.database.query_class(table=selected_table)
-        # See: https://www.sqlitetutorial.net/sqlite-returning/
-        # query.add_sql_nodes([insert_sql, 'returning *'])
-        # query.run(commit=True)
-        # return query.return_single_item
 
-        #     select_node = SelectNode(selected_table, 'id', *joined_values)
-        #     where_node = WhereNode(id__eq=1)
-
-        insert_sql = selected_table.backend.INSERT.format(
-            table=selected_table.name,
-            fields=joined_fields,
-            values=joined_values
+        insert_node = InsertNode(
+            selected_table,
+            insert_values=kwargs,
+            returning=selected_table.field_names
         )
 
-        query.add_sql_nodes([insert_sql, 'returning id'])
-        # query.run(commit=True)
-        # TODO: This raises a sqlite3.OperationalError: cannot
-        # commit transaction - SQL statements in progress
-        queryset = QuerySet(query)
-        queryset.use_commit = True
-        return list(queryset)[-0]
+        query.add_sql_node(insert_node)
+        return QuerySet(query)[0]
+
+        # fields, values = selected_table.backend.dict_to_sql(
+        #     kwargs,
+        #     quote_values=False
+        # )
+        # values, _ = selected_table.validate_values(fields, values)
+
+        # # pre_saved_values = self.pre_save(selected_table, fields, values)
+        # joined_fields = selected_table.backend.comma_join(fields)
+        # joined_values = selected_table.backend.comma_join(values)
+
+        # query = self.database.query_class(table=selected_table)
+        # # insert_node = InsertNode(selected_table, insert_values=kwargs)
+        # insert_sql = selected_table.backend.INSERT.format(
+        #     table=selected_table.name,
+        #     fields=joined_fields,
+        #     values=joined_values
+        # )
+
+        # # See: https://www.sqlitetutorial.net/sqlite-returning/
+        # return_fields = selected_table.backend.comma_join(
+        #     selected_table.field_names
+        # )
+        # query.add_sql_nodes([insert_sql, f'returning {return_fields}'])
+        # # query.run(commit=True)
+        # # TODO: This raises a sqlite3.OperationalError: cannot
+        # # commit transaction - SQL statements in progress
+        # queryset = QuerySet(query)
+        # queryset.use_commit = True
+        # return list(queryset)[-0]
 
     def filter(self, table, *args, **kwargs):
         """Filter the data in the database based on
@@ -520,7 +541,7 @@ class DatabaseManager:
     def bulk_create(self, table, objs):
         """Creates multiple objects in the database at once
         using a list of datasets or dictionnaries
-        
+
         >>> @dataclasses.dataclass
         ... class Celebrity:
         ...     name: str
@@ -567,13 +588,17 @@ class DatabaseManager:
 
         # TODO: We have to call validate values
 
-        insert_node = InsertNode(selected_table, batch_values=values_to_create)
-        
+        insert_node = InsertNode(
+            selected_table,
+            batch_values=values_to_create
+        )
+
         query = selected_table.query_class(table=selected_table)
         query.add_sql_node(insert_node)
 
         columns_to_use.add('id')
-        query.add_sql_node(f'returning {selected_table.backend.comma_join(columns_to_use)}')
+        query.add_sql_node(
+            f'returning {selected_table.backend.comma_join(columns_to_use)}')
 
         query.run(commit=True)
         return QuerySet(query)
@@ -657,31 +682,32 @@ class DatabaseManager:
                 raise ValueError('Returned more than one values')
             return queryset[-0]
         else:
-            if not create_defaults:
-                create_defaults.update(**kwargs)
-            _, create_defaults = selected_table.validate_values_from_dict(create_defaults)
+            create_defaults.update(kwargs)
+            create_defaults = self._validate_auto_fields(
+                selected_table,
+                create_defaults
+            )
+            _, create_defaults = selected_table.validate_values_from_dict(
+                create_defaults
+            )
 
             insert_node = InsertNode(
                 selected_table,
                 insert_values=create_defaults,
-                returning=True
+                returning=selected_table.field_names
             )
             new_query = query.create(table=selected_table)
             new_query.add_sql_node(insert_node)
-
+            return QuerySet(new_query)[0]
             # new_query.run(commit=True)
-            # TODO: This raises a sqlite3.OperationalError: cannot commit
-            # transaction - SQL statements in progress
-            queryset = QuerySet(new_query)
-            queryset.use_commit = True
-            return list(queryset)[-0]
+            # return new_query.result_cache[0]
 
     # def select_for_update()
     # def select_related()
     # def fetch_related()
 
     def update_or_create(self, table, create_defaults={}, **kwargs):
-        """Updates a set of rows in the database selected on the
+        """Updates a row in the database selected on the
         filters determined by kwargs. It then uses the `create_defaults`
         parameter to create the values that do not exist.
 
@@ -716,6 +742,8 @@ class DatabaseManager:
                 "in the database"
             )
 
+        # TODO: There's a x2 select called
+        # on the database
         queryset = QuerySet(query)
 
         if not create_defaults:
@@ -726,42 +754,72 @@ class DatabaseManager:
             # We'll just let the error raise itself.
             create_defaults.update(**kwargs)
 
-        _, create_defaults = selected_table.validate_values_from_dict(create_defaults)
+        _, create_defaults = selected_table.validate_values_from_dict(
+            create_defaults
+        )
         ids = list(map(lambda x: x['id'], queryset))
 
         if len(ids) > 1:
             # TODO: Check for cases where kwargs is not provided
             # but there's only one element in the database
             raise ValueError('Get returned more than one value')
-        
-        # TODO: We have to call validate values
+
+        returning_fields = selected_table.field_names
 
         if queryset.exists():
+            create_defaults = self._validate_auto_fields(
+                selected_table,
+                create_defaults,
+                update_only=True
+            )
+            # TODO: Add a returning like
+            # the InsertNode
             update_node = UpdateNode(
-                selected_table, 
-                create_defaults, 
+                selected_table,
+                create_defaults,
                 id__in=ids
             )
 
             new_query = query.create(table=selected_table)
             new_query.add_sql_node(update_node)
+
+            returning_fields = selected_table.backend.comma_join(
+                returning_fields
+            )
+            new_query.add_sql_node(f'returning {returning_fields}')
         else:
-            insert_node = InsertNode(selected_table, insert_values=create_defaults)
+            create_defaults = self._validate_auto_fields(
+                selected_table,
+                create_defaults,
+            )
+            insert_node = InsertNode(
+                selected_table,
+                insert_values=create_defaults,
+                returning=returning_fields
+            )
             new_query = query.create(table=selected_table)
             new_query.add_sql_node(insert_node)
+            # new_query.run(commit=True)
+
         # We have to execute the query before
         # hand. The reason for this is the insert
         # and update nodes need to be comitted
         # immediately otherwise the QuerySet would
         # delay their evaaluation which would not
         # then modify the data in the database
-        new_query.run(commit=True)
-        return QuerySet(new_query)
+        return QuerySet(new_query)[0]
 
+    async def afirst(self, table):
+        return await sync_to_async(self.first)(table)
+    
+    async def alast(self, table):
+        return await sync_to_async(self.last)(table)
+    
     async def aall(self, table):
         return await sync_to_async(self.all)(table)
-
-    # def resolve_expression()
+    
+    async def acreate(self, table, **kwargs):
+        return await sync_to_async(self.create)(table, **kwargs)
 
 
 class ForeignTablesManager:

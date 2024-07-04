@@ -142,6 +142,12 @@ db.objects.create("celebrities", name="Anya-Taylor Joy")
 
 This function creates a new row in the specified table with the provided data.
 
+__Preparation__
+
+* The before_action method ensures that the specified table exists and is ready for manipulation
+* The _validate_auto_fields method checks for any fields that need automatic values (e.g., auto-increment IDs) and prepares them accordingly.
+* The validate_values_from_dict method ensures that the provided values match the table's
+
 __Filtering Rows__
 
 ```python
@@ -404,7 +410,9 @@ In this example, a check constraint is applied to the `age` column of the table,
 
 ## Functions
 
-### Lower
+### Text
+
+#### Lower
 
 The Lower function is designed to facilitate text manipulation within your SQLite database by converting each value of a specified column to lowercase. This function is particularly useful for standardizing text data, enabling efficient comparison, sorting, and search operations.
 
@@ -427,7 +435,7 @@ __Example__
 Consider a scenario where you have a table named 'employees' with a column named 'full_name', which contains names in various formats (e.g., "John DOE", "Mary Smith", "alice@example.com"). You may want to standardize these names to lowercase for consistency and ease of comparison. This can be achieved using the Lower function as follows:
 
 
-### Upper
+#### Upper
 
 The Upper function facilitates text manipulation within your SQLite database by converting each value of a specified column to uppercase. This function is particularly useful for standardizing text data, enabling efficient comparison, sorting, and search operations.
 
@@ -449,7 +457,7 @@ __Example__
 
 Consider a scenario where you have a table named 'employees' with a column named 'full_name', which contains names in various formats (e.g., "John DOE", "Mary Smith", "alice@example.com"). You may want to standardize these names to lowercase for consistency and ease of comparison. This can be achieved using the Lower function as follows:
 
-### Length
+#### Length
 
 The Upper function facilitates text manipulation within your SQLite database by converting each value of a specified column to uppercase. This function is particularly useful for standardizing text data, enabling efficient comparison, sorting, and search operations.
 
@@ -471,7 +479,27 @@ __Example__
 
 Consider a scenario where you have a table named 'articles' with a column named 'content', which contains textual content of varying lengths. You may want to analyze the distribution of article lengths or filter articles based on their length. This can be achieved using the Length function as follows:
 
-### ExtractYear
+#### MD5Hash
+
+The `MD5Hash` function calculates the MD5 hash of each value in a specified column.
+
+```python
+db.objects.annotate('table_name', year=MD5Hash('date_column'))
+```
+
+```sql
+SELECT hash(name) AS hash_name FROM table_name;
+```
+
+__Example__
+
+This will add a new column named 'minute' to the 'celebrities' table, containing the year component of each value from the 'date_of_birth' column.
+
+
+
+### Date
+
+#### ExtractYear
 
 The `ExtractYear` function extracts the year component from a date value in a specified column.
 
@@ -488,7 +516,7 @@ __Example__
 This will add a new column named 'year' to the 'celebrities' table, containing the year component of each value from the 'date_of_birth' column.
 
 
-### ExtractMonth
+#### ExtractMonth
 
 Like [ExtractYear](#extractyear) but extracts the month component from a date value in a specified column.
 
@@ -504,7 +532,7 @@ __Example__
 
 This will add a new column named 'month' to the 'celebrities' table, containing the year component of each value from the 'date_of_birth' column.
 
-### ExtractDay
+#### ExtractDay
 
 Like [ExtractYear](#extractyear) and [ExtractYear](#extractmonth) but extracts the day component from a date value in a specified column.
 
@@ -520,7 +548,7 @@ __Example__
 
 This will add a new column named 'day' to the 'celebrities' table, containing the year component of each value from the 'date_of_birth' column.
 
-### ExtractHour
+#### ExtractHour
 
 Like [ExtractYear](#extractyear), [ExtractYear](#extractmonth) and [ExtractYear](#extractday) but extracts the hour component from a datetime value in a specified column.
 
@@ -536,7 +564,7 @@ __Example__
 
 This will add a new column named 'hour' to the 'celebrities' table, containing the year component of each value from the 'date_of_birth' column.
 
-### ExtractMinute
+#### ExtractMinute
 
 Like [ExtractYear](#extracthour) but extracts the minute component from a datetime value in a specified column.
 
@@ -552,22 +580,100 @@ __Example__
 
 This will add a new column named 'minute' to the 'celebrities' table, containing the year component of each value from the 'date_of_birth' column.
 
-### MD5Hash
+### Window
 
-The `MD5Hash` function calculates the MD5 hash of each value in a specified column.
+Window functions in SQL are powerful tools for performing calculations across a set of table rows that are related to the current row. Unlike aggregate functions, window functions do not cause rows to become grouped into a single output row; instead, the rows retain their separate identities. This makes window functions extremely useful for tasks such as ranking, calculating running totals, and performing calculations on subsets of data.
+
+In Lorelie, you can use window functions to enhance your queries by performing calculations across specific partitions or orders of your dataset. The Window class in Lorelie allows you to create these window functions with ease.
+
+#### Rank
+
+The `Rank` function assigns a rank to each row within the result set of a query. The rank is determined by adding one to the number of preceding rows with ranks before it.
 
 ```python
-db.objects.annotate('table_name', year=MD5Hash('date_column'))
+qs = db.objects.annotate('products', Window(Rank('name'), partition_by=F('name')))
 ```
 
-```sql
-SELECT hash(name) AS hash_name FROM table_name;
+#### Dense Rank
+
+The `DenseRank` function computes the rank of a row in an ordered set of rows and returns the rank as an integer. Rows with equal values receive the same rank, and rank values are not skipped in case of ties.
+
+```python
+qs = db.objects.annotate('products', Window(DenseRank('name'), partition_by=F('name')))
 ```
 
-__Example__
+#### Percent Rank
 
-This will add a new column named 'minute' to the 'celebrities' table, containing the year component of each value from the 'date_of_birth' column.
+The `PercentRank` function calculates the percent rank of a given row using the formula:
+`(r - 1) / (number of rows in the window or partition - r)`
 
+```python
+qs = db.objects.annotate('products', Window(PercentRank('name'), partition_by=F('name')))
+```
+
+#### Cumulative Distribution (CumeDist)
+
+The `CumeDist` function calculates the cumulative distribution of a value in a set of values.
+
+```python
+qs = db.objects.annotate('products', Window(CumeDist('name'), partition_by=F('name')))
+```
+
+#### First Value
+
+The `FirstValue` function returns the first value in a set of values.
+
+```python
+qs = db.objects.annotate('products', Window(FirstValue('name'), partition_by=F('name')))
+```
+
+#### Last Value
+
+The `LastValue` function returns the first value in a set of values.
+
+```python
+qs = db.objects.annotate('products', Window(LastValue('name'), partition_by=F('name')))
+```
+
+#### Nth Value
+
+The `NthValue` function returns the nth value in a set of values.
+
+```python
+qs = db.objects.annotate('products', Window(NthValue('name', 3), partition_by=F('name')))
+```
+
+#### Lag
+
+The `Lag` function accesses data from a previous row in the same result set.
+
+```python
+qs = db.objects.annotate('products', Window(Lag('name'), partition_by=F('name')))
+```
+
+#### Lead
+
+The `Lead` function accesses data from the next row in the same result set.
+
+```python
+qs = db.objects.annotate('products', Window(Lead('name'), partition_by=F('name')))
+```
+
+#### NTile
+
+The `NTile` function divides the result set into a specified number of roughly equal parts, or buckets, and assigns a bucket number to each row.
+
+```python
+qs = db.objects.annotate('products', Window(NTile('name'), partition_by=F('name')))
+```
+
+#### Row Number
+
+The `RowNumber` function assigns a unique number to each row to which it is applied, starting from one for the first row.
+
+```python
+qs = db.objects.annotate('products', Window(RowNumber('name'), partition_by=F('name')))
+```
 
 ## Aggregation
 

@@ -9,11 +9,13 @@ from dataclasses import field
 import pytz
 
 from lorelie import converters
+from lorelie.database import registry
 from lorelie.database.functions.aggregation import (CoefficientOfVariation,
                                                     MeanAbsoluteDifference,
                                                     StDev, Variance)
 from lorelie.database.functions.text import MD5Hash, SHA256Hash
 from lorelie.database.manager import ForeignTablesManager
+from lorelie.database.nodes import SelectNode, WhereNode
 from lorelie.exceptions import ConnectionExistsError
 from lorelie.queries import Query, QuerySet
 
@@ -205,6 +207,27 @@ class BaseRow:
         else:
             return self
 
+    def refresh_from_database(self):
+        """This function is designed to update the object's data 
+        with the latest values from the database. This is useful when 
+        the column values have changed in the database, and you want to 
+        ensure that your object reflects these changes."""
+        table = registry.known_tables[self.linked_to_table]
+
+        select_node = SelectNode(table, *self._fields, limit=1)
+        where_node = WhereNode(id=self.pk)
+        
+        query_class = Query(table=table)
+        query_class.add_sql_nodes([select_node, where_node])
+        query_class.run()
+        
+        refreshed_row = query_class.result_cache[0]
+        for field in self._fields:
+            new_value = getattr(refreshed_row, field)
+            setattr(self, field, new_value)
+            self._cached_data[field] = new_value
+        return self
+
 
 def row_factory(backend):
     """Base function for generation custom SQLite Row
@@ -349,11 +372,11 @@ class SQL:
         def check_value_type(value):
             if callable(value):
                 return str(value())
-                    
+
             if isinstance(value, (int, float, list, tuple)):
                 return str(value)
             return value
-        
+
         return ', '.join(map(check_value_type, values))
 
     @staticmethod
@@ -727,6 +750,7 @@ class SQLiteBackend(SQL):
         # sqlite3.register_adapter(datetime.datetime.now, str)
         sqlite3.register_converter('date', converters.convert_date)
         sqlite3.register_converter('datetime', converters.convert_datetime)
+        sqlite3.register_converter('timestamp', converters.convert_timestamp)
 
         connection = sqlite3.connect(
             database_name,
@@ -745,7 +769,7 @@ class SQLiteBackend(SQL):
 
         self.connection = connection
         self.current_table = None
-        self.log_queries= log_queries
+        self.log_queries = log_queries
 
         connections.register(self, name=database_name)
 
@@ -758,7 +782,7 @@ class SQLiteBackend(SQL):
         elif self.current_table != table:
             self.current_table = table
 
-    def list_table_columns_sql(self, table):
+    def list_table_columns(self, table):
         sql = f'pragma table_info({table.name})'
         # query = Query([sql], table=table)
         query = Query(table=table)

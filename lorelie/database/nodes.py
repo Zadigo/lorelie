@@ -344,7 +344,8 @@ class UpdateNode(BaseNode):
             'table': self.table.name,
             'fields': fields_to_set
         })
-        return [update_sql, *where_node.as_sql(backend)]
+        sql = [update_sql, *where_node.as_sql(backend)]
+        return sql
 
 
 class InsertNode(BaseNode):
@@ -361,7 +362,7 @@ class InsertNode(BaseNode):
     template_sql = 'insert into {table} ({columns}) values({values})'
     bactch_insert_sql = 'insert into {table} ({columns}) values {values}'
 
-    def __init__(self, table, batch_values=[], insert_values={}, returning=False):
+    def __init__(self, table, batch_values=[], insert_values={}, returning=[]):
         super().__init__(table=table)
         self.insert_values = insert_values
         self.returning = returning
@@ -403,6 +404,7 @@ class InsertNode(BaseNode):
         sql = [insert_sql]
 
         if self.returning:
+            sql.append(f'returning {backend.comma_join(self.returning)}')
+        else:
             sql.append('returning id')
-
         return sql

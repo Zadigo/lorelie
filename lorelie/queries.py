@@ -63,7 +63,7 @@ class Query:
         joined_statements = instance.backend.simple_join(statements)
         script = template.format(statements=joined_statements)
         instance.add_sql_node(script)
-        
+
         try:
             result = instance.backend.connection.executescript(script)
         except OperationalError as e:
@@ -76,7 +76,7 @@ class Query:
             print(e, script)
             raise
         else:
-            print(script)
+            # print(script)
             instance.backend.connection.commit()
             instance.result_cache = list(result)
             instance.is_evaluated = True
@@ -90,7 +90,10 @@ class Query:
 
     def add_sql_node(self, node):
         if not isinstance(node, (BaseNode, str)):
-            raise ValueError('Node should be an instance of BaseNode or <str>')
+            raise ValueError(
+                f"{node} should be an instance "
+                "of BaseNode or <str>"
+            )
 
         if isinstance(node, BaseNode):
             if node.node_name == 'order_by':
@@ -103,7 +106,11 @@ class Query:
 
     def add_sql_nodes(self, nodes):
         if not isinstance(nodes, list):
-            raise ValueError('Node should be an instance of BaseNode or <str>')
+            raise ValueError(
+                f"{nodes} should be an instance "
+                " of BaseNode or <str>"
+            )
+
         for node in nodes:
             self.add_sql_node(node)
 
@@ -156,7 +163,11 @@ class Query:
             self.result_cache = list(result)
             self.is_evaluated = True
         finally:
-            log_queries.append(self.sql, table=self.table, backend=self.backend)
+            log_queries.append(
+                self.sql,
+                table=self.table,
+                backend=self.backend
+            )
 
     def transform_to_python(self):
         """Transforms the values returned by the
@@ -212,7 +223,7 @@ class EmptyQuerySet:
 
     def __contains__(self):
         return False
-    
+
     def __iter__(self):
         return []
 
@@ -221,7 +232,7 @@ class EmptyQuerySet:
 
     def __gt__(self):
         return False
-    
+
     def __gte__(self):
         return False
 

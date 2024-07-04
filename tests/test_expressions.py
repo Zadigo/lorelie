@@ -4,6 +4,7 @@ from lorelie.backends import SQLiteBackend
 from lorelie.expressions import Case, CombinedExpression, F, Q, NegatedExpression, Value, When
 from lorelie.test.testcases import LorelieTestCase
 
+
 class TestQ(LorelieTestCase):
     def test_structure(self):
         instance = Q(firstname='Kendall')
@@ -14,8 +15,13 @@ class TestQ(LorelieTestCase):
         instance = Q(firstname='Kendall', lastname='Jenner')
         sql = instance.as_sql(self.create_connection())
         self.assertIsInstance(sql, list)
-        self.assertListEqual(sql, ["firstname='Kendall' and lastname='Jenner'"])
- 
+        self.assertListEqual(
+            sql, ["firstname='Kendall' and lastname='Jenner'"])
+
+        instance = Q(is_valid=True)
+        sql = instance.as_sql(self.create_connection())
+        print(sql)
+
     def test_and(self):
         a = Q(firstname='Kendall')
         b = Q(firstname='Kylie')
@@ -25,7 +31,8 @@ class TestQ(LorelieTestCase):
         sql = c.as_sql(self.create_connection())
 
         self.assertIsInstance(sql, list)
-        self.assertListEqual(sql, ["(firstname='Kendall' and firstname='Kylie')"])
+        self.assertListEqual(
+            sql, ["(firstname='Kendall' and firstname='Kylie')"])
 
     def test_or(self):
         a = Q(firstname='Kendall')
@@ -34,12 +41,14 @@ class TestQ(LorelieTestCase):
         self.assertIsInstance(c, CombinedExpression)
         sql = c.as_sql(self.create_connection())
         self.assertIsInstance(sql, list)
-        self.assertListEqual(sql, ["(firstname='Kendall' or firstname='Kylie')"])
+        self.assertListEqual(
+            sql, ["(firstname='Kendall' or firstname='Kylie')"])
 
     def test_multiple_filters(self):
         logic = Q(firstname='Kendall', age__gt=20, age__lte=50)
         result = logic.as_sql(self.create_connection())
-        self.assertListEqual(result, ["firstname='Kendall' and age>20 and age<=50"])
+        self.assertListEqual(
+            result, ["firstname='Kendall' and age>20 and age<=50"])
 
     def test_multioperators(self):
         multi = (
@@ -216,7 +225,7 @@ class TestValue(LorelieTestCase):
         instance = Value(lambda: 'Kendall')
         sql = instance.as_sql(self.create_connection())
         self.assertIsInstance(sql[0], str)
-        
+
         instance = Value(Q(age__gt=25))
         sql = instance.as_sql(self.create_connection())
         self.assertIsInstance(sql[0], str)

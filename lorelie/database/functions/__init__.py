@@ -11,6 +11,10 @@ from lorelie.database.functions.text import (Concat, Length, Lower, LTrim,
                                              SHA224Hash, SHA256Hash,
                                              SHA384Hash, SHA512Hash, SubStr,
                                              Trim, Upper)
+from lorelie.database.functions.window import (CumeDist, DenseRank, FirstValue,
+                                               Lag, LastValue, Lead, NthValue,
+                                               NTile, PercentRank, Rank,
+                                               RowNumber, Window)
 
 __all__ = [
     'ExtractDay',
@@ -36,11 +40,24 @@ __all__ = [
 
     'Avg',
     'CoefficientOfVariation',
-    'Count', 
+    'Count',
     'Max',
     'Min',
     'StDev',
     'Sum',
     'Variance',
-    'MeanAbsoluteDifference'
+    'MeanAbsoluteDifference',
+
+    'CumeDist', 
+    'DenseRank', 
+    'FirstValue',
+    'Lag', 
+    'LastValue', 
+    'Lead', 
+    'NthValue',
+    'NTile', 
+    'PercentRank',
+    'Rank',
+    'RowNumber',
+    'Window'
 ]

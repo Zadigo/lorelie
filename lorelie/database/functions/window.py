@@ -1,37 +1,43 @@
 from lorelie.database.functions.base import Functions
 
-# CumeDist,
-# DenseRank,
-# FirstValue,
-# Lag,
-# LastValue,
-# Lead,
-# NthValue,
-# Ntile,
-# PercentRank,
-# Rank,
-# RowNumber
-
 
 class Window(Functions):
-    template_sql = '{function_name} over (order by {condition}) as {alias_name}'
+    template_sql = '{function_name} {over_clause}'
 
-    def __init__(self, expression=None, order_by=None):
-        self.expression = expression
+    def __init__(self, function, partition_by=None, order_by=None):
+        if function is None:
+            raise ValueError("Function cannot be None")
+
+        if not isinstance(function, (Rank, PercentRank, CumeDist, Lead, Lag)):
+            raise ValueError("Function should be an instance of Rank")
+
+        if order_by is None:
+            order_by = function.field_name
+
+        self.function = function
+        self.partition_by = partition_by
         self.order_by = order_by
-        super().__init__(expression.field_name)
+        super().__init__(function.field_name)
 
     def as_sql(self, backend):
+        if self.partition_by:
+            self.function.takes_partition = self.partition_by
+
+        function_name = f'{self.function.template_sql}()'
+
         return self.template_sql.format(**{
-            'function_name': self.expression.template_sql,
-            'condition': self.expression.as_sql(backend),
-            'alias_name': self.alias_field_name
+            'function_name': function_name,
+            'over_clause': self.function.as_sql(backend),
+            # 'alias_name': self.alias_field_name
         })
 
 
 class WindowFunctionMixin:
+    over_clause = 'over ({conditions})'
+
     def __init__(self, *expressions):
         self.expressions = list(expressions)
+        self.takes_partition = None
 
         names = []
         for expression in expressions:
@@ -54,7 +60,19 @@ class WindowFunctionMixin:
                 result = expression.as_sql(backend)
                 resolved_expressions.append(result)
 
-        return backend.comma_join(resolved_expressions)
+        orderby_clause = f'order by {backend.comma_join(resolved_expressions)}'
+        over_clause = [orderby_clause]
+
+        if self.takes_partition is not None:
+            partition_clause = self.takes_partition
+            if hasattr(self.takes_partition, 'internal_type'):
+                if self.takes_partition.internal_type == 'expression':
+                    partition_clause = backend.comma_join(
+                        self.takes_partition.as_sql(backend)
+                    )
+            over_clause.insert(0, f'partition by {partition_clause}')
+
+        return self.over_clause.format(conditions=backend.simple_join(over_clause))
 
 
 class Rank(WindowFunctionMixin, Functions):
@@ -63,11 +81,11 @@ class Rank(WindowFunctionMixin, Functions):
     determined by adding one to the number of preceding 
     rows with ranks before it
 
-    >>> db.objects.annotate(expression=Rank('age'))
-    ... db.objects.annotate(expression=Rank(Length('age')))
+    >>> db.objects.annotate(age_rank=Window(function=Rank('age')))
+    ... db.objects.annotate(age_rank=Window(function=Rank(F('age'))))
     """
 
-    template_sql = 'rank()'
+    template_sql = 'rank'
 
 
 class PercentRank(WindowFunctionMixin, Functions):
@@ -76,8 +94,51 @@ class PercentRank(WindowFunctionMixin, Functions):
 
     `(r - 1) / (the number of rows in the window or partition - r)`
 
-    >>> db.objects.annotate(expression=PercentRank('age'))
-    ... db.objects.annotate(expression=PercentRank(Length('age')))
+    >>> db.objects.annotate(pct_rank=Window(function=PercentRank('age')))
+    ... db.objects.annotate(pct_rank=Window(function=PercentRank(F('age'))))
     """
 
-    template_sql = 'percent_rank()'
+    template_sql = 'percent_rank'
+
+
+class DenseRank(WindowFunctionMixin, Functions):
+    """The DENSE_RANK() is a window function that computes 
+    the rank of a row in an ordered set of rows and returns 
+    the rank as an integer. The ranks are consecutive integers 
+    starting from 1. Rows with equal values receive the 
+    same rank. And rank values are not skipped in case 
+    of ties.
+    """
+    template_sql = 'dense_rank'
+
+
+class CumeDist(WindowFunctionMixin, Functions):
+    template_sql = 'cume_dist'
+
+
+class FirstValue(WindowFunctionMixin, Functions):
+    template_sql = 'first_value'
+
+
+class LastValue(WindowFunctionMixin, Functions):
+    template_sql = 'last_value'
+
+
+class NthValue(WindowFunctionMixin, Functions):
+    template_sql = 'nth_value'
+
+
+class Lag(WindowFunctionMixin, Functions):
+    template_sql = 'lag'
+
+
+class Lead(WindowFunctionMixin, Functions):
+    template_sql = 'lead'
+
+
+class NTile(WindowFunctionMixin, Functions):
+    template_sql = 'ntile'
+
+
+class RowNumber(WindowFunctionMixin, Functions):
+    template_sql = 'row_number'

@@ -8,11 +8,12 @@ import pandas
 from lorelie.aggregation import Avg, Count, Sum
 from lorelie.backends import BaseRow
 from lorelie.database.base import Database, RelationshipMap
-from lorelie.queries import QuerySet, ValuesIterable
+from lorelie.queries import Query, QuerySet, ValuesIterable
 from lorelie.tables import Table
 
+
 class DataclassProtocol(Protocol):
-    __dataclass_fields__: ClassVar[Dict[str, Any]] 
+    __dataclass_fields__: ClassVar[Dict[str, Any]]
 
 
 class DatabaseManager:
@@ -36,6 +37,13 @@ class DatabaseManager:
         database: Optional[Database] = ...
     ) -> DatabaseManager: ...
 
+    def _validate_auto_fields(
+        self,
+        table: Table,
+        params: dict[str, str],
+        update_only: bool = ...
+    ) -> dict[str, str]: ...
+
     def _get_select_sql(
         self,
         selected_table: Table,
@@ -44,7 +52,7 @@ class DatabaseManager:
 
     def _get_first_or_last_sql(
         self,
-        selected_table: Table, 
+        selected_table: Table,
         first: Optional[bool] = ...
     ) -> list[str]: ...
 
@@ -64,7 +72,9 @@ class DatabaseManager:
     def annotate(self, table: str, *args, **kwargs) -> QuerySet[BaseRow]: ...
     def values(self, table: str, *fields: str) -> ValuesIterable: ...
     def dataframe(self, table: str, *fields) -> pandas.DataFrame: ...
-    def bulk_create(self, table: str, objs: list[DataclassProtocol]) -> QuerySet[BaseRow]: ...
+    def bulk_create(self, table: str,
+                    objs: list[DataclassProtocol]) -> QuerySet[BaseRow]: ...
+
     def order_by(self, table: str, *fields: str) -> QuerySet[BaseRow]: ...
     def count(self, table: str) -> int: ...
 
@@ -93,8 +103,9 @@ class DatabaseManager:
     def extra(self, table: str) -> QuerySet[BaseRow]: ...
 
     def get_or_create(
-        self, table: str,
-        create_defaults: dict = ...,
+        self,
+        table: str,
+        create_defaults: dict[str, Any] = ...,
         **kwargs
     ) -> BaseRow: ...
 
@@ -103,11 +114,11 @@ class DatabaseManager:
     def fetch_related(self, table: str) -> QuerySet[BaseRow]: ...
 
     def update_or_create(
-        self, 
+        self,
         table: str,
         create_defaults: dict[str, Any] = ...,
         **kwargs
-    ) -> QuerySet: ...
+    ) -> BaseRow: ...
 
     def resolve_expression(
         self,
@@ -123,7 +134,10 @@ class DatabaseManager:
 
     def count(self, table: str) -> int: ...
 
+    async def afirst(self, table: str) -> Awaitable[BaseRow]: ...
+    async def alast(self, table: str) -> Awaitable[BaseRow]: ...
     async def aall(self, table: str) -> Awaitable[QuerySet]: ...
+    async def acreate(self, table: str, **kwargs) -> Awaitable[BaseRow]: ...
 
 
 class ForeignTablesManager:

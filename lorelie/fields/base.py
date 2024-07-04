@@ -430,6 +430,9 @@ class DateField(DateFieldMixin, Field):
     #     return d.date()
 
     def to_database(self, data):
+        if data == '' or data is None:
+            return data
+        
         clean_data = ''
 
         if isinstance(data, str):
@@ -471,6 +474,9 @@ class DateTimeField(DateFieldMixin, Field):
         return 'datetime'
 
     def to_database(self, data):
+        if data == '' or data is None:
+            return data
+        
         clean_data = ''
 
         if isinstance(data, str):
@@ -478,6 +484,7 @@ class DateTimeField(DateFieldMixin, Field):
                 '%Y-%m-%d %H:%M:%S.%f',
                 '%Y-%m-%d %H:%M:%S.%f%z'
             )
+
             clean_data = self.parse_from_format(data, formats)
             self.run_validators(clean_data)
             clean_data = str(clean_data)

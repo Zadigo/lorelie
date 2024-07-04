@@ -15,6 +15,15 @@ from lorelie.tables import Table
 TableType = TypeVar('TableType', bound=Table)
 
 
+class InnerMethodProtocol(Protocol):
+    def __call__(
+        self,
+        instance: BaseRow,
+        table: Table,
+        **kwargs: Any
+    ) -> None: ...
+
+
 class MasterRegistry:
     current_database: Database = ...
     known_tables: OrderedDict[str, Table] = ...
@@ -67,30 +76,7 @@ class RelationshipMap:
     def creates_relationship(self, table) -> bool: ...
 
 
-class InnerMethodProtocol(Protocol):
-    def __call__(
-        self,
-        instance: BaseRow,
-        table: Table,
-        **kwargs: Any
-    ) -> None: ...
-
-
 T = TypeVar('T', bound=InnerMethodProtocol)
-
-
-@dataclasses.dataclass
-class TriggersMap:
-    pre_save: list[InnerMethodProtocol] = field(default_factory=list)
-    post_save: list[InnerMethodProtocol] = field(default_factory=list)
-    pre_delete: list[InnerMethodProtocol] = field(default_factory=list)
-
-    def list_functions(
-        self,
-        table: Union[str, Table],
-        trigger_name: str
-    ) -> list[InnerMethodProtocol]: ...
-
 
 class Database:
     migrations_class: Type[Migrations] = ...
@@ -102,7 +88,6 @@ class Database:
     objects: DatabaseManager = ...
     path: pathlib.Path = ...
     relationships: RelationshipMap = ...
-    triggers_map: TriggersMap = ...
 
     def __init__(self, *tables: Table,
                  name: Optional[str] = ..., log_queries: Optional[bool] = ...): ...
@@ -128,8 +113,8 @@ class Database:
 
     def register_trigger(
         self,
+        trigger:str,
         table: Optional[Table] = ...,
-        trigger: Optional[str] = ...
     ) -> Callable[[Callable[..., None]], T]: ...
 
     def create_view(

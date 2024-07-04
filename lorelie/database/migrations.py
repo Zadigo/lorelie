@@ -249,19 +249,19 @@ class Migrations:
         # TODO: For now we will not remove obsolete
         # indexes too. We will implement this after too
         # Remove obsolete indexes
-        # for row in database_indexes:
-        #     if row not in table.indexes:
-        #         # We cannot and should not drop autoindexes
-        #         # which are created by sqlite. Anyways, it
-        #         # raises an error
-        #         if 'sqlite_autoindex' in row.name:
-        #             continue
+        for row in database_indexes:
+            if row not in table.indexes:
+                # We cannot and should not drop autoindexes
+                # which are created by sqlite. Anyways, it
+                # raises an error
+                if 'sqlite_autoindex' in row.name:
+                    continue
 
-        #         other_sqls_to_run.append(
-        #             backend.DROP_INDEX.format_map({
-        #                 'value': row['name']
-        #             })
-        #         )
+                other_sqls_to_run.append(
+                    backend.DROP_INDEX.format_map({
+                        'value': row['name']
+                    })
+                )
 
         if self.pending_migration:
             params = {

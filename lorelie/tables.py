@@ -326,25 +326,14 @@ class Table(AbstractTable):
         ]
 
         if database.has_relationships:
-            for _, relationship_map in database.relationships.items():
-                if not relationship_map.can_be_validated:
-                    raise ValueError(relationship_map.error_message)
+            for _, manager in database.relationships.items():
+                if not manager.relationship_map.can_be_validated:
+                    raise ValueError(manager.relationship_map.error_message)
 
-                if relationship_map.creates_relationship(self):
-                    # We have to create the field automatically
-                    # in the fields map of the table
-                    field_name = relationship_map.backward_related_field
-                    field_params = self._add_field(
-                        field_name,
-                        IntegerField(field_name, null=False)
-                    )
-
-                    relationship_sql = relationship_map.field.as_sql(
-                        self.backend
-                    )
-                    field_params.extend([
-                        self.backend.simple_join(relationship_sql)
-                    ])
+                if manager.relationship_map.creates_relationship(self):
+                    # TODO: Gather all the fields and append the sql
+                    # used for creating the relationship on table
+                    continue
 
         joined_fields = self.backend.comma_join(field_params)
         create_sql = self.create_table_sql(joined_fields)

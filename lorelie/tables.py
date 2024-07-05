@@ -245,7 +245,11 @@ class Table(AbstractTable):
             raise ValueError(f"{field} should be be an instance of Field")
 
         if field_name != field.name:
-            raise ValueError('Name does not match the internal field name')
+            raise ValueError(
+                f"Field name '{field_name}' does not match the "
+                f"field's internal name '{field.name}'. You are trying "
+                "to add a field on the table where the names do not match"
+            )
 
         if field_name in self.fields_map:
             raise ValueError("Field is already present on the database")
@@ -253,7 +257,7 @@ class Table(AbstractTable):
         self.fields_map[field_name] = field
         self.field_names = list(self.fields_map.keys())
 
-        field_params = self.build_field_parameters()
+        field_params = self.build_all_field_parameters()
         field_params = [
             self.backend.simple_join(params)
             for params in field_params
@@ -275,6 +279,7 @@ class Table(AbstractTable):
         check_constraints = []
         for constraint in self.table_constraints:
             constraint_sql = constraint.as_sql(self.backend)
+
             if isinstance(constraint, UniqueConstraint):
                 unique_constraints.append(constraint_sql)
             elif isinstance(constraint, CheckConstraint):
@@ -285,7 +290,8 @@ class Table(AbstractTable):
         # are just joined by normal space
         joined_unique = self.backend.comma_join([fields, *unique_constraints])
         joined_checks = self.backend.simple_join(
-            [joined_unique, *check_constraints])
+            [joined_unique, *check_constraints]
+        )
 
         sql = self.backend.CREATE_TABLE.format_map({
             'table': self.name,
@@ -304,22 +310,21 @@ class Table(AbstractTable):
         the fields present on the current
         table. The parameters are the SQL
         parameters e.g. null, autoincrement
-        used to define the field in 
-        the database"""
+        used to define/create the field in 
+        the database on creation or update"""
         for field in self.fields_map.values():
             yield field.field_parameters()
 
-        # return [
-        #     field.field_parameters()
-        #         for field in self.fields_map.values()
-        # ]
+            if field.is_relationship_field:
+                yield field.relationship_field_params
 
     def prepare(self, database):
-        """Prepares the table with other parameters, 
-        creates the create SQL and then creates the
-        different tables in the database using the 
-        parameters of the different fields"""
-        field_params = self.build_field_parameters()
+        """Prepares the table with additional parameters, 
+        gets all the field parameters to be used in order to
+        create the current table and then creates the create SQL
+        statement that will then be used to creates the
+        different tables in the database using the database"""
+        field_params = self.build_all_field_parameters()
         field_params = [
             self.backend.simple_join(params)
             for params in field_params

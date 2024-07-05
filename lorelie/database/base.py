@@ -231,6 +231,24 @@ class Database:
         table.load_current_connection()
         self.table_map[table.name] = table
 
+    def _prepare_relationship_map(self, right_table, left_table):
+        if (not isinstance(left_table, Table) and
+                not isinstance(right_table, Table)):
+            raise ValueError(
+                "Both tables should be an instance of "
+                f"Table: {left_table}, {right_table}"
+            )
+
+        if (left_table not in self.table_instances and
+                right_table not in self.table_instances):
+            raise ValueError(
+                "Both tables need to be registered in the database "
+                "namespace in order to create a relationship between them"
+            )
+
+        right_table.is_foreign_key_table = True
+        return RelationshipMap(left_table, right_table)
+
     def get_table(self, table_name):
         try:
             return self.table_map[table_name]

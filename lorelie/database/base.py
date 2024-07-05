@@ -72,7 +72,7 @@ class RelationshipMap:
         return f'{name}_set'
 
     @property
-    def backward_related_field(self):
+    def foreign_backward_related_field_name(self):
         """Returns the database field that will
         relate the right table to the ID field
         of the left table e.g. table_id -> id"""

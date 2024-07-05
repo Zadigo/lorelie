@@ -76,7 +76,19 @@ class RelationshipMap:
         """Returns the database field that will
         relate the right table to the ID field
         of the left table e.g. table_id -> id"""
-        name = getattr(self.left_table, 'name', None)
+        name = getattr(self.left_table, 'name')
+        return f'{name}_id'
+    
+    @property
+    def foreign_forward_related_field_name(self):
+        """Returns the database field that will
+        relate the right table to the ID field
+        of the left table so if we have tables
+        A (fields name) and B (fields age), then
+        the age_id which is the backward related
+        field name will be the name of the field
+        created in A: `id -> age_id`"""
+        name = getattr(self.left_table, 'name')
         return f'{name}_id'
 
     def creates_relationship(self, table):

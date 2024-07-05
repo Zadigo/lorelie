@@ -96,11 +96,11 @@ class RelationshipMap:
         return f'{name}_id'
 
     def creates_relationship(self, table):
-        """The relationship is created from right
-        to left. This function allows us to determine
-        if a table can create a relationship with
-        another one"""
-        return table == self.right_table
+        """The relationship is created from left
+        to right. This function allows us to determine
+        if a table can create a relationship if it matches
+        the left table registed in this map"""
+        return table == self.left_table
 
 
 class Database:

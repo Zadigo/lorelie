@@ -44,7 +44,11 @@ class RelationshipMap:
         self.can_be_validated = True
 
     def __repr__(self):
-        return f'<RelationshipMap[{self.right_table.name} -> {self.left_table.name}]>'
+        relationship = '/'
+        template = '<RelationshipMap[{value}]>'
+        if self.relationship_type == 'foreign':
+            relationship = f"{self.left_table.name} -> {self.right_table.name}"
+        return template.format_map({'value': relationship})
 
     @property
     def relationship_field_name(self):

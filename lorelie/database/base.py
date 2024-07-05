@@ -51,7 +51,9 @@ class RelationshipMap:
         return template.format_map({'value': relationship})
 
     @property
-    def relationship_field_name(self):
+    def relationship_name(self):
+        """Creates a default relationship name by using
+        the respective name of each table"""
         if self.left_table is not None and self.right_table is not None:
             left_table_name = getattr(self.left_table, 'name', None)
             right_table_name = getattr(self.right_table, 'name', None)

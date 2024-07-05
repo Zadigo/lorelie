@@ -84,3 +84,22 @@ class LorelieTestCase(unittest.TestCase):
             ]
         )
         return table
+
+    def create_foreign_key_database(self):
+        table1 = Table(
+            'celebrities',
+            fields=[
+                CharField('names')
+            ]
+        )
+
+        table2 = Table(
+            'followers',
+            fields=[
+                IntegerField('number_of_follower')
+            ]
+        )
+        db = Database(table1, table2)
+        db.foreign_key(table1, table2)
+        db.migrate()
+        return db

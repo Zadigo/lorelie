@@ -16,7 +16,3 @@ class TestQuerySet(LorelieTestCase):
         self.assertTrue(qs.query.is_evaluated)
         # qs.get()
         print(qs.sql_statement)
-
-
-if __name__ == '__main__':
-    unittest.main()

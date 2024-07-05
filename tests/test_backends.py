@@ -1,171 +1,161 @@
-# import dataclasses
-# import sqlite3
-# import unittest
-# from collections import defaultdict
+import dataclasses
+import sqlite3
+import unittest
+from collections import defaultdict
 
-# from lorelie.backends import SQLiteBackend
-# from lorelie.database.base import Database
-# from lorelie.database.functions.aggregation import Count
-# from lorelie.fields.base import CharField
-# from lorelie.tables import Table
+from lorelie.backends import SQLiteBackend
+from lorelie.database.base import Database
+from lorelie.database.functions.aggregation import Count
+from lorelie.fields.base import CharField
+from lorelie.tables import Table
+from lorelie.test.testcases import LorelieTestCase
 
 
-# class TestSQLiteBackend(unittest.TestCase):
-#     def setUp(self):
-#         self.backend = SQLiteBackend()
+class TestSQLiteBackend(LorelieTestCase):
+    def test_in_memory(self):
+        connection = self.create_connection()
+        self.assertTrue(connection.database_name == ':memory:')
 
-#     def test_in_memory(self):
-#         self.assertTrue(self.backend.database_name == ':memory:')
+    def test_connection(self):
+        connection = self.create_connection()
+        self.assertIsInstance(connection.connection, sqlite3.Connection)
 
-#     def test_connection(self):
-#         self.assertIsInstance(self.backend.connection, sqlite3.Connection)
+    def test_quote_value(self):
+        connection = self.create_connection()
+        values = ['Kendall', 'Great', 'Tall', "j'ai", "l'abbaye"]
+        for value in values:
+            with self.subTest(value=value):
+                result = connection.quote_value(value)
+                self.assertRegex(result, r"\'\w+\'")
 
-#     def test_quote_value(self):
-#         # TODO: Test with texts like: "j'ai", "l'abbye"
-#         values = ['Kendall', 'Great', 'Tall']
-#         for value in values:
-#             with self.subTest(value=value):
-#                 result = self.backend.quote_value(value)
-#                 self.assertRegex(
-#                     result,
-#                     r"\'\w+\'"
-#                 )
+    def test_comma_join(self):
+        connection = self.create_connection()
+        values = ['Kendall', 'Great', 'Tall']
+        result = connection.comma_join(values)
+        self.assertRegex(result, r'(\w+\,)+')
+        self.assertEqual("Kendall, Great, Tall", result)
 
-#     def test_comma_join(self):
-#         values = ['Kendall', 'Great', 'Tall']
-#         result = self.backend.comma_join(values)
-#         self.assertRegex(
-#             result,
-#             r'(\w+\,)+'
-#         )
+    def test_operator_join(self):
+        connection = self.create_connection()
+        values = ['Kendall', 'Great', 'Tall']
+        result = connection.operator_join(values)
+        self.assertRegex(result, r'^(\w+\sand\s)+(?:\w+)?$')
+        self.assertEqual(result, "Kendall and Great and Tall")
 
-#     def test_operator_join(self):
-#         values = ['Kendall', 'Great', 'Tall']
-#         result = self.backend.operator_join(values)
-#         self.assertRegex(
-#             result,
-#             r'^(\w+\sand\s)+(?:\w+)?$'
-#         )
+    def test_simple_join(self):
+        connection = self.create_connection()
+        values = ['Kendall', 'Great', 'Tall']
+        result = connection.simple_join(values)
+        self.assertRegex(result, r'(\w+\s?)+')
+        self.assertEqual(result, "Kendall Great Tall")
 
-#     def test_simple_join(self):
-#         values = ['Kendall', 'Great', 'Tall']
-#         result = self.backend.simple_join(values)
-#         self.assertRegex(
-#             result,
-#             r'(\w+\s?)+'
-#         )
+        result = connection.simple_join(values, space_characters=False)
+        self.assertEqual(result, 'KendallGreatTall')
 
-#         result = self.backend.simple_join(values, space_characters=False)
-#         self.assertRegex(
-#             result,
-#             r'KendallGreatTall'
-#         )
+    def test_finalize_sql(self):
+        connection = self.create_connection()
+        result = connection.finalize_sql('sql statement')
+        self.assertTrue(result.endswith(';'))
 
-#     def test_finalize_sql(self):
-#         result = self.backend.finalize_sql('sql statement')
-#         self.assertTrue(result.endswith(';'))
+    def test_de_sqlize_statement(self):
+        connection = self.create_connection()
+        result = connection.de_sqlize_statement('sql statement;')
+        self.assertFalse(result.endswith(';'))
 
-#     def test_de_sqlize_statement(self):
-#         result = self.backend.de_sqlize_statement('sql statement;')
-#         self.assertTrue(not result.endswith(';'))
+    def test_wrap_parenthesis(self):
+        connection = self.create_connection()
+        result = connection.wrap_parenthentis('Kendall')
+        self.assertRegex(result, r'\(Kendall\)')
+        self.assertEqual(result, "(Kendall)")
 
-#     def test_wrap_parenthesis(self):
-#         result = self.backend.wrap_parenthentis('Kendall')
-#         self.assertRegex(
-#             result,
-#             r'\(Kendall\)'
-#         )
+    def test_build_alias(self):
+        connection = self.create_connection()
+        result = connection.build_alias('count(name)', 'name_count')
+        self.assertRegex(result, r'^count\(name\) as name_count$')
+        self.assertEqual(result, "count(name) as name_count")
 
-#     def test_build_alias(self):
-#         result = self.backend.build_alias('count(name)', 'name_count')
-#         self.assertRegex(
-#             result,
-#             r'^count\(name\) as name_count$'
-#         )
+    def test_quote_startswith(self):
+        connection = self.create_connection()
+        result = connection.quote_startswith('Ken')
+        self.assertRegex(result, r'^\'Ken\%\'$')
+        self.assertEqual(result, "Ken%")
 
-#     def test_quote_startswith(self):
-#         result = self.backend.quote_startswith('Ken')
-#         self.assertRegex(
-#             result,
-#             r'^\'Ken\%\'$'
-#         )
+    def test_quote_endswith(self):
+        connection = self.create_connection()
+        result = connection.quote_endswith('all')
+        self.assertRegex(result, r'^\'\%all\'$')
 
-#     def test_quote_endswith(self):
-#         result = self.backend.quote_endswith('all')
-#         self.assertRegex(
-#             result,
-#             r'^\'\%all\'$'
-#         )
+    def test_quote_like(self):
+        connection = self.create_connection()
+        result = connection.quote_like('all')
+        self.assertRegex(result, r'^\'\%all%\'$')
 
-#     def test_quote_like(self):
-#         result = self.backend.quote_like('all')
-#         self.assertRegex(
-#             result,
-#             r'^\'\%all%\'$'
-#         )
-
-#     def test_dict_to_sql(self):
-#         result = self.backend.dict_to_sql({'name__eq': 'Kendall'})
-#         self.assertIsInstance(result, (list, tuple))
-#         self.assertTupleEqual(
-#             result,
-#             (['name__eq'], ["'Kendall'"])
-#         )
+    def test_dict_to_sql(self):
+        connection = self.create_connection()
+        result = connection.dict_to_sql({'name__eq': 'Kendall'})
+        self.assertIsInstance(result, (list, tuple))
+        self.assertTupleEqual(result, (['name__eq'], ["'Kendall'"]))
 
 #     def test_build_script(self):
 #         pass
 
-#     def test_decompose_filters_from_string(self):
-#         filters = [
-#             ('rowid__eq=1', [('rowid', '=', '1')]),
-#             ('rowid__gt=1', [('rowid', '>', '1')]),
-#             ('rowid__lt=1', [('rowid', '<', '1')]),
-#             ('rowid__gte=1', [('rowid', '>=', '1')]),
-#             ('rowid__lte=1', [('rowid', '<=', '1')])
-#         ]
+    def test_decompose_filters_from_string(self):
+        connection = self.create_connection()
+        filters = [
+            # expression - expected result
+            ('rowid__eq=1', [('rowid', '=', '1')]),
+            ('rowid__gt=1', [('rowid', '>', '1')]),
+            ('rowid__lt=1', [('rowid', '<', '1')]),
+            ('rowid__gte=1', [('rowid', '>=', '1')]),
+            ('rowid__lte=1', [('rowid', '<=', '1')])
+        ]
 
-#         for lhv, rhv in filters:
-#             with self.subTest(lhv=lhv, rhv=rhv):
-#                 result = self.backend.decompose_filters_from_string(lhv)
-#                 self.assertIsInstance(result, list)
-#                 self.assertListEqual(result, rhv)
+        for lhv, rhv in filters:
+            with self.subTest(lhv=lhv, rhv=rhv):
+                result = connection.decompose_filters_from_string(lhv)
+                self.assertIsInstance(result, list)
+                self.assertListEqual(result, rhv)
 
-#     @unittest.expectedFailure
-#     def test_failed_decompose_filters_from_string(self):
-#         self.backend.decompose_filters_from_string('rowid__google=1')
+    @unittest.expectedFailure
+    def test_failed_decompose_filters_from_string(self):
+        connection = self.create_connection()
+        connection.decompose_filters_from_string('rowid__google=1')
 
-#     def test_decompose_filters(self):
-#         filters = [
-#             ({'rowid__eq': 1}, [('rowid', '=', 1)]),
-#             ({'rowid__gt': 1}, [('rowid', '>', 1)]),
-#             ({'rowid__lt': 1}, [('rowid', '<', 1)]),
-#             ({'rowid__gte': 1}, [('rowid', '>=', 1)]),
-#             ({'rowid__lte': 1}, [('rowid', '<=', 1)])
-#         ]
+    def test_decompose_filters_from_dict(self):
+        connection = self.create_connection()
+        filters = [
+            ({'rowid__eq': 1}, [('rowid', '=', 1)]),
+            ({'rowid__gt': 1}, [('rowid', '>', 1)]),
+            ({'rowid__lt': 1}, [('rowid', '<', 1)]),
+            ({'rowid__gte': 1}, [('rowid', '>=', 1)]),
+            ({'rowid__lte': 1}, [('rowid', '<=', 1)])
+        ]
 
-#         for lhv, rhv in filters:
-#             with self.subTest(lhv=lhv, rhv=rhv):
-#                 result = self.backend.decompose_filters(**lhv)
-#                 self.assertIsInstance(result, list)
-#                 self.assertListEqual(result, rhv)
+        for lhv, rhv in filters:
+            with self.subTest(lhv=lhv, rhv=rhv):
+                result = connection.decompose_filters(**lhv)
+                self.assertIsInstance(result, list)
+                self.assertListEqual(result, rhv)
 
-#     @unittest.expectedFailure
-#     def test_failed_decompose_filters(self):
-#         self.backend.decompose_filters_from_string({'rowid__google': 1})
+    @unittest.expectedFailure
+    def test_failed_decompose_filters_from_dict(self):
+        connection = self.create_connection()
+        connection.decompose_filters_from_string({'rowid__google': 1})
 
-#     def test_build_filters(self):
-#         filters = [
-#             ([('rowid', '=', '1')], ["rowid = '1'"]),
-#             ([('rowid', '>', '1')], ["rowid > '1'"]),
-#             ([('rowid', '<', '1')], ["rowid < '1'"]),
-#             ([('rowid', '>=', '1')], ["rowid >= '1'"]),
-#             ([('rowid', '<=', '1')], ["rowid <= '1'"]),
-#         ]
-#         for lhv, rhv in filters:
-#             with self.subTest(lhv=lhv, rhv=rhv):
-#                 result = self.backend.build_filters(lhv)
-#                 self.assertIsInstance(result, list)
-#                 self.assertListEqual(result, rhv)
+    def test_build_filters(self):
+        connection = self.create_connection()
+        filters = [
+            ([('rowid', '=', '1')], ["rowid = '1'"]),
+            ([('rowid', '>', '1')], ["rowid > '1'"]),
+            ([('rowid', '<', '1')], ["rowid < '1'"]),
+            ([('rowid', '>=', '1')], ["rowid >= '1'"]),
+            ([('rowid', '<=', '1')], ["rowid <= '1'"]),
+        ]
+        for lhv, rhv in filters:
+            with self.subTest(lhv=lhv, rhv=rhv):
+                result = connection.build_filters(lhv)
+                self.assertIsInstance(result, list)
+                self.assertListEqual(result, rhv)
 
 #     @unittest.expectedFailure
 #     def test_failed_build_filters(self):
@@ -173,26 +163,30 @@
 #         # be able to build the filter
 #         self.backend.build_filters([('rowid', '<=>', '1')])
 
-#     def test_build_annotation(self):
-#         grouping_functions = []
+    def test_build_annotation(self):
+        connection = self.create_connection()
+        connection.current_table = self.create_table()
+        connection.current_table.backend = connection
 
-#         annotation_map = self.backend.build_annotation(name=Count('name'))
-#         self.assertTrue(dataclasses.is_dataclass(annotation_map))
+        annotation_map = connection.build_annotation({'name': Count('name')})
+        self.assertTrue(dataclasses.is_dataclass(annotation_map))
 
-#         self.assertDictEqual(annotation_map.sql_statements_dict, {
-#                              'name': 'count(name)'})
-#         self.assertIn('name', annotation_map.alias_fields)
-#         self.assertIn('name', annotation_map.field_names)
-#         self.assertDictEqual(
-#             annotation_map.annotation_type_map,
-#             {'name': 'Count'}
-#         )
+        self.assertDictEqual(
+            annotation_map.sql_statements_dict,
+            {'name': 'count(name)'}
+        )
+        self.assertIn('name', annotation_map.alias_fields)
+        # self.assertIn('name', annotation_map.field_names)
+        self.assertDictEqual(
+            annotation_map.annotation_type_map,
+            {'name': 'Count'}
+        )
 
-#         self.assertListEqual(
-#             annotation_map.joined_final_sql_fields, [
-#                 'count(name) as name']
-#         )
-#         self.assertTrue(annotation_map.requires_grouping)
+        self.assertListEqual(
+            annotation_map.joined_final_sql_fields, 
+            ['count(name) as name']
+        )
+        self.assertTrue(annotation_map.requires_grouping)
 
 #     def test_decompose_sql(self):
 #         bits = self.backend.decompose_sql_statement(

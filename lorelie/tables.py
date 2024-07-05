@@ -299,7 +299,7 @@ class Table(AbstractTable):
         })
         return [sql]
 
-    def build_field_parameters(self):
+    def build_all_field_parameters(self):
         """Returns the paramaters for all
         the fields present on the current
         table. The parameters are the SQL

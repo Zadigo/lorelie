@@ -6,7 +6,7 @@ from typing import Union
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database import registry
-from lorelie.database.manager import DatabaseManager
+from lorelie.database.manager import DatabaseManager, ForeignTablesManager
 from lorelie.database.migrations import Migrations
 from lorelie.exceptions import TableExistsError
 from lorelie.fields.relationships import ForeignKeyField
@@ -20,7 +20,6 @@ class RelationshipMap:
     right_table: Table
     junction_table: Table = None
     relationship_type: str = dataclasses.field(default='foreign')
-    field: Union[ForeignKeyField] = None
     can_be_validated: bool = False
     error_message: str = None
 
@@ -311,7 +310,7 @@ class Database:
         return wrapper
 
     def foreign_key(self, left_table, right_table, on_delete=None, related_name=None):
-        """Adds a foreign key between two databases by using the
+        """Adds a foreign key between two tables by using the
         default primary ID field. The orientation for the foreign
         key goes from `left_table.id` to `right_table.id`
         >>> table1 = Table('celebrities', fields=[CharField('firstname', max_length=200)])
@@ -325,29 +324,27 @@ class Database:
         ... db.objects.foreign_key('social_media').all()
         ... db.objects.foreign_key('social_media', reverse=True).all()
         """
-        # if (not isinstance(left_table, Table) and
-        #         not isinstance(right_table, Table)):
-        #     raise ValueError(
-        #         "Both tables should be an instance of "
-        #         f"Table: {left_table}, {right_table}"
-        #     )
+        relationship_map = self._prepare_relationship_map(right_table, left_table)
 
-        # if (left_table not in self.table_instances and
-        #         right_table not in self.table_instances):
-        #     raise ValueError(
-        #         "Both tables need to be registered in the database "
-        #         "namespace in order to create a relationship"
-        #     )
+        default_manager = ForeignTablesManager(relationship_map)
+        self.relationships[relationship_map.relationship_name] = default_manager
 
-        # right_table.is_foreign_key_table = True
-        # relationship_map = RelationshipMap(left_table, right_table)
+        # Create the default field that will be used to access the
+        # the right table: db.objects.first().field_set.all() and
+        # then implemented on the left table. The left table will
+        # contain the ID relatonship keys used to associate the
+        # two tables
+        field = ForeignKeyField(
+            relationship_map=relationship_map,
+            related_name=related_name
+        )
+        field.prepare(self)
 
-        # field = ForeignKeyField(relationship_map=relationship_map)
-        # field.prepare(self)
-
-        # relationship_map.field = field
-        # self.relationships[relationship_map.relationship_field_name] = relationship_map
-        return NotImplemented
+        relationship_map.left_table.is_foreign_key_table = True
+        relationship_map.right_table._add_field(
+            relationship_map.foreign_forward_related_field_name, 
+            field
+        )
 
     def many_to_many(self, left_table, right_table, primary_key=True, related_name=None):
         # Create an intermediate junction table that

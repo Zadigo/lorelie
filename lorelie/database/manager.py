@@ -824,22 +824,21 @@ class DatabaseManager:
 
 
 class ForeignTablesManager:
-    def __init__(self, right_table_name, left_table, reverse=False):
+    """This is the main manager used to access/reverse
+    access tables linked by a relationship"""
+
+    def __init__(self, relationship_map, reverse=False):
         self.reverse = reverse
-        self.left_table = left_table
-        self.right_table = left_table.database.get_table(right_table_name)
+        self.relationship_map = relationship_map
+        self.left_table = relationship_map.left_table
+        self.right_table = relationship_map.right_table
 
         if not self.right_table.is_foreign_key_table:
             raise ValueError(
                 "Trying to access a table which has no "
                 "foreign key relationship with the related "
-                f"table: {right_table_name} <- {left_table}"
+                f"table: {self.left_table} -> {self.right_table}"
             )
-        self.relatationship_name = f'{
-            self.left_table.name}_{self.right_table.name}'
-        relationships = getattr(left_table.database, 'relationships')
-        self.relationship = relationships[self.relatationship_name]
-        self.database_manager = getattr(self.left_table.database, 'objects')
         self.current_row = None
 
     def __repr__(self):

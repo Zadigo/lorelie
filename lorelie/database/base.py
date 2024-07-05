@@ -55,18 +55,20 @@ class RelationshipMap:
         """Creates a default relationship name by using
         the respective name of each table"""
         if self.left_table is not None and self.right_table is not None:
-            left_table_name = getattr(self.left_table, 'name', None)
-            right_table_name = getattr(self.right_table, 'name', None)
+            left_table_name = getattr(self.left_table, 'name')
+            right_table_name = getattr(self.right_table, 'name')
             return f'{left_table_name}_{right_table_name}'
         return None
 
     @property
     def forward_field_name(self):
-        return getattr(self.left_table, 'name', None)
+        # db.objects.first().followers.all()
+        return getattr(self.left_table, 'name')
 
     @property
     def backward_field_name(self):
-        name = getattr(self.right_table, 'name', None)
+        # db.objects.first().names_set.all()
+        name = getattr(self.right_table, 'name')
         return f'{name}_set'
 
     @property

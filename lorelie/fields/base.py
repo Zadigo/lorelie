@@ -28,6 +28,7 @@ class Field:
         self.max_length = max_length
         self.base_validators = self.base_validators + validators
         self.standard_field_types = ['text', 'integer', 'blob', 'real', 'null']
+        self.is_relationship_field = False
         self.base_field_parameters = {
             'primary key': False,
             'null': False,
@@ -155,9 +156,9 @@ class Field:
         """Adapts the python function parameters passed within
         the fields to usable SQL text statements:
 
-        >>> field = CharField('visited', default=False)
+        >>> field = BooleanField('visited', default=False)
         ... field.field_parameters()
-        ... ['visited', 'text', 'not null', 'default', 0]
+        ... ['visited', 'integer', 'not null', 'default', 0]
         """
         field_type = None
         if self.max_length is not None:

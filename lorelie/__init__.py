@@ -1,9 +1,7 @@
+from collections import defaultdict, deque
 import pathlib
 import re
 
-# from lorelie import fields
-# from lorelie.database import Database
-# from lorelie.tables import Table
 
 PROJECT_PATH = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -15,9 +13,6 @@ DATABASE = 'scraping'
 #     'Table',
 #     'fields'
 # ]
-
-
-from collections import defaultdict, deque
 
 
 class LogQueries:
@@ -33,10 +28,10 @@ class LogQueries:
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {len(self.container)}>'
-    
+
     def __iter__(self):
         return iter(self.container)
-    
+
     def __len__(self):
         return len(self.container)
 
@@ -52,9 +47,10 @@ class LogQueries:
             except:
                 pass
             else:
-                container.append(statement)            
+                container.append(statement)
 
         if len(self.container) > self.maxsize:
             self.container.clear()
+
 
 log_queries = LogQueries()

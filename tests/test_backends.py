@@ -103,11 +103,20 @@ class TestSQLiteBackend(LorelieTestCase):
         connection = self.create_connection()
         filters = [
             # expression - expected result
+            ('rowid=1', [('rowid', '=', '1')]),
             ('rowid__eq=1', [('rowid', '=', '1')]),
-            ('rowid__gt=1', [('rowid', '>', '1')]),
             ('rowid__lt=1', [('rowid', '<', '1')]),
+            ('rowid__gt=1', [('rowid', '>', '1')]),
+            ('rowid__lte=1', [('rowid', '<=', '1')]),
             ('rowid__gte=1', [('rowid', '>=', '1')]),
-            ('rowid__lte=1', [('rowid', '<=', '1')])
+            ('rowid__contains=1', [('rowid', 'like', '1')]),
+            ('rowid__startswith=1', [('rowid', 'startswith', '1')]),
+            ('rowid__endswith=1', [('rowid', 'endswith', '1')]),
+            # ('rowid__range=[1, 2]', [('rowid', 'between', '1')]),
+            ('rowid__ne=1', [('rowid', '!=', '1')]),
+            # ('rowid__in=1', [('rowid', 'in', '1')]),
+            # ('rowid__isnull=True', [('rowid', 'isnull', 'True')]),
+            # ('rowid__regex=True', [('rowid', 'regex', r'\w+')]),
         ]
 
         for lhv, rhv in filters:
@@ -120,6 +129,17 @@ class TestSQLiteBackend(LorelieTestCase):
     def test_failed_decompose_filters_from_string(self):
         connection = self.create_connection()
         connection.decompose_filters_from_string('rowid__google=1')
+
+    def test_decompose_foreign_key_filters_from_string(self):
+        connection = self.create_connection()
+        filters = [
+            ('followers__id__eq=1', [('followers', 'id', '=', 1)]),
+            ('followers__users__id__eq=1', [
+             ('followers', 'users', 'id', '=', 1)]),
+        ]
+        for lhv, rhv in filters:
+            with self.subTest(lhv=lhv, rhv=rhv):
+                result = connection.decompose_filters_from_string(lhv)
 
     def test_decompose_filters_from_dict(self):
         connection = self.create_connection()
@@ -183,10 +203,16 @@ class TestSQLiteBackend(LorelieTestCase):
         )
 
         self.assertListEqual(
-            annotation_map.joined_final_sql_fields, 
+            annotation_map.joined_final_sql_fields,
             ['count(name) as name']
         )
         self.assertTrue(annotation_map.requires_grouping)
+
+    def test_build_dot_notation(self):
+        connection = self.create_connection()
+        values = [('followers', 'id', '=', '1')]
+        result = connection.build_dot_notation(values)
+        self.assertListEqual(result, ["followers.id='1'"])
 
 #     def test_decompose_sql(self):
 #         bits = self.backend.decompose_sql_statement(

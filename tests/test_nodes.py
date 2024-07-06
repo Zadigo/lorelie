@@ -1,4 +1,5 @@
-from lorelie.database.nodes import InsertNode, WhereNode
+from lorelie.database.base import RelationshipMap
+from lorelie.database.nodes import InsertNode, JoinNode, WhereNode
 from lorelie.expressions import Q
 from lorelie.test.testcases import LorelieTestCase
 
@@ -58,7 +59,8 @@ class TestWhereNode(LorelieTestCase):
     def test_expressions(self):
         node = WhereNode(firstname='Kendall', lastname='Jenner')
         sql = node.as_sql(self.create_connection())
-        self.assertEqual(sql, ["where firstname='Kendall' and lastname='Jenner'"])
+        self.assertEqual(
+            sql, ["where firstname='Kendall' and lastname='Jenner'"])
 
     def test_arguments(self):
         node = WhereNode(Q(firstname='Kendall'))
@@ -68,7 +70,8 @@ class TestWhereNode(LorelieTestCase):
         combined = Q(firstname='Kendall') & Q(lastname='Jenner')
         node = WhereNode(combined)
         sql = node.as_sql(self.create_connection())
-        self.assertEqual(sql, ["where (firstname='Kendall' and lastname='Jenner')"])
+        self.assertEqual(
+            sql, ["where (firstname='Kendall' and lastname='Jenner')"])
 
     def test_complex_lookup_parameters(self):
         where = WhereNode(age__gte=10, age__lte=40)
@@ -107,6 +110,20 @@ class TestWhereNode(LorelieTestCase):
         )
 
 
+class TestJoinNode(LorelieTestCase):
+    def test_structure(self):
+        # celebrities -> followers
+        # inner join followers on celebrities.id = followers.celebrity_id
+        db = self.create_foreign_key_database()
+        manager = db.relationships['followers']
+
+        node = JoinNode('followers', manager.relationship_map)
+        result = node.as_sql(db.get_table('celebrities').backend)
+        expected = [
+            'inner join followers on followers.id = celebrities.celebrities_id'
+        ]
+        self.assertListEqual(result, expected)
+
 
 # class TestBaseNode(unittest.TestCase):
 #     def test_structure(self):
@@ -135,7 +152,6 @@ class TestWhereNode(LorelieTestCase):
 #             select_distinct.as_sql(table.backend),
 #             ['select distinct firstname, lastname from test_table']
 #         )
-
 
 
 # class TestOrderNode(unittest.TestCase):

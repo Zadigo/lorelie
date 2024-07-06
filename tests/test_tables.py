@@ -157,3 +157,9 @@ class TestTable(LorelieTestCase):
         db.objects.create('stars', name='Lucie Safarova', height=165)
         with self.assertRaises(sqlite3.IntegrityError):
             db.objects.create('stars', name='Lucie Safarova', height=165)
+
+    def test_list_contains_table(self):
+        table = self.create_table()
+        tables = [table]
+        self.assertIn(table, tables)
+        self.assertIn(table.name, tables)

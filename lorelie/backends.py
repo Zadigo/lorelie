@@ -216,11 +216,11 @@ class BaseRow:
 
         select_node = SelectNode(table, *self._fields, limit=1)
         where_node = WhereNode(id=self.pk)
-        
+
         query_class = Query(table=table)
         query_class.add_sql_nodes([select_node, where_node])
         query_class.run()
-        
+
         refreshed_row = query_class.result_cache[0]
         for field in self._fields:
             new_value = getattr(refreshed_row, field)
@@ -578,7 +578,8 @@ class SQL:
 
     def decompose_filters_from_string(self, value):
         """Decompose a set of filters to a list of
-        key, operator and value list from a string
+        key, operator and value list from a filter 
+        passed as a string
 
         >>> self.decompose_filters_from_string('rowid__eq=1')
         ... [('rowid', '=', '1')]
@@ -597,7 +598,10 @@ class SQL:
             # user does not use a "__" filter
             result = re.match(r'\w+\=', value)
             if not result:
-                raise ValueError('Could not identify the condition')
+                raise ValueError(
+                    "Could not identify the operator "
+                    "to use for the provided filter"
+                )
 
         tokens = value.split('=')
         return self.decompose_filters(**{tokens[0]: tokens[1]})
@@ -608,23 +612,41 @@ class SQL:
 
         >>> self.decompose_filters(rowid__eq=1)
         ... [('rowid', '=', '1')]
+
+        >>> self.decompose_filters(followers__users__id__eq=1)
+        ... [('followers', 'users', 'id', '=', 1)]
         """
         filters_map = []
         for key, value in kwargs.items():
-            if '__' not in key:
-                key = f'{key}__eq'
+            tokens = key.split('__')
+            if not self.is_query_filter(tokens):
+                # Case for rowid=1 which should
+                # be by default: rowid__eq
+                tokens.append('eq')
 
-            tokens = key.split('__', maxsplit=1)
-            if len(tokens) > 2:
-                raise ValueError(f'Filter is not valid. Got: {key}')
+            if len(tokens) == 2:
+                # Normal sequence: rowid__eq
+                lhv, rhv = tokens
 
-            lhv, rhv = tokens
-            operator = self.base_filters.get(rhv)
-            if operator is None:
-                raise ValueError(
-                    f'Operator is not recognized. Got: {key}'
-                )
-            filters_map.append((lhv, operator, value))
+                operator = self.base_filters.get(rhv)
+                if operator is None:
+                    raise ValueError(
+                        f'Operator is not recognized. Got: {key}'
+                    )
+                filters_map.append((lhv, operator, value))
+            elif len(tokens) > 2:
+                # Foreign key sequence:
+                # foreignkeyfield__field__eq=1
+                # foreignkeyfield1__foreignkeyfield2__field__eq=1
+                rebuilt_tokens = []
+                for token in tokens:
+                    if self.is_query_filter(token):
+                        operator = self.base_filters.get(token)
+                        rebuilt_tokens.append(operator)
+                        continue
+                    rebuilt_tokens.append(token)
+                rebuilt_tokens.append(value)
+                filters_map.append(tuple(rebuilt_tokens))
         return filters_map
 
     def build_filters(self, items, space_characters=True):
@@ -657,7 +679,7 @@ class SQL:
                 if not isinstance(value, (tuple, list)):
                     raise ValueError(
                         'The value when using "in" '
-                        'should be a tuple or a list'
+                        f'should be a tuple or a list. Got: {value}'
                     )
 
                 quoted_list_values = (self.quote_value(item) for item in value)
@@ -693,6 +715,11 @@ class SQL:
                 continue
 
             if operator == 'between':
+                if not isinstance(value, (list, tuple)):
+                    raise ValueError(
+                        'The value when using "between" '
+                        f'should be a tuple or a list. Got: {value}'
+                    )
                 lhv, rhv = value
                 operator_and_value = self.BETWEEN.format_map({
                     'field': field,
@@ -717,6 +744,7 @@ class SQL:
                     space_characters=space_characters
                 )
             )
+
         return built_filters
 
     def build_annotation(self, conditions):

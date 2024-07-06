@@ -94,6 +94,22 @@ class RelationshipMap:
         name = getattr(self.left_table, 'name')
         return f'{name}_id'
 
+    def get_relationship_condition(self, table):
+        tables = (self.right_table, self.left_table)
+        if table not in tables:
+            raise ValueError(
+                "Cannot create conditions for none "
+                "existing tables"
+            )
+        
+        selected_table = list(filter(lambda x: table == x, tables))
+        other_table = list(filter(lambda x: table != x, tables))
+        
+        lhv = f"{selected_table[-1].name}.id"
+        rhv = f"{other_table[-1].name}.{self.foreign_forward_related_field_name}"
+
+        return lhv, rhv
+
     def creates_relationship(self, table):
         """The relationship is created from left
         to right. This function allows us to determine

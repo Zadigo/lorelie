@@ -435,6 +435,65 @@ class SQL:
         statement like in `count(name) as top_names`"""
         return f'{condition} as {alias}'
 
+    def build_dot_notation(self, values):
+        """Transforms a set of values to a valid
+        SQL dot notation
+
+        >>> self.build_dot_notation([('followers', 'id', '=', '1')])
+        ... 'followers.id = 1'
+        """
+        notations = []
+        for sub_items in values:
+            if not isinstance(sub_items, (list, tuple)):
+                raise ValueError(
+                    f"Expected list or array. Got: {sub_items}"
+                )
+            
+            # The tuple needs exactly four
+            # elements in order to create a
+            # valid notation: el1.el2=el4
+            # the operator is el3
+            if len(sub_items) != 4:
+                raise ValueError(
+                    f"Invalid number of items in '{sub_items}' "
+                    "in order to create a valid dot notation"
+                )
+
+            dot_notation = []
+            for i, sub_value in enumerate(sub_items):
+                # As soon as we get the operator, stop the
+                # dotting. Get the remaing items from the
+                # array that were not parsed starting from
+                # the iteration index i
+                if sub_value in list(self.base_filters.values()):
+                    remaining_bits = list(sub_items[i:])
+                    remaining_bits[-1] = self.quote_value(sub_items[-1])
+                    dot_notation.extend(remaining_bits)
+                    break
+
+                if i > 0:
+                    dot_notation.append('.')
+                dot_notation.append(sub_value)
+
+            final_notation = self.simple_join(
+                dot_notation, 
+                space_characters=False
+            )
+            notations.append(final_notation)
+        return notations
+
+    def is_query_filter(self, value_or_values):
+        """Checks that the last value or that a single
+        value is a query filtering value. For example
+        `eq` in `['name', 'eq']`
+
+        >>> self.is_query_filter(['name', 'eq'])
+        ... True
+        """
+        if isinstance(value_or_values, list):
+            value_or_values = value_or_values[-1]
+        return value_or_values in list(self.base_filters.keys())
+
     def parameter_join(self, data):
         """Takes a list of fields and values
         and returns string of key/value parameters

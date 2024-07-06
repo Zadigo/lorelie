@@ -1,8 +1,7 @@
 import dataclasses
 import pathlib
 from collections import OrderedDict
-from functools import wraps
-from typing import Union
+from functools import wraps, cached_property
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database import registry
@@ -26,21 +25,22 @@ class RelationshipMap:
     def __post_init__(self):
         accepted_types = ['foreign', 'one', 'many']
         if self.relationship_type not in accepted_types:
-            self.can_be_validated = False
             self.error_message = (
-                f"The relationship type is not valid: {self.relationship_type}"
+                f"The relationship type is "
+                "not valid: {self.relationship_type}"
             )
 
         # If both tables are exactly the same
         # in name and fields, this cannot be
         # a valid relationship
         if self.left_table == self.right_table:
-            self.can_be_validated = False
             self.error_message = (
                 "Cannot create a relationship between "
-                f"two similar tables: {self.left_table}, {self.right_table}"
+                f"two same tables: {self.left_table}, {self.right_table}"
             )
-        self.can_be_validated = True
+
+        if self.error_message is None:
+            self.can_be_validated = True
 
     def __repr__(self):
         relationship = '/'
@@ -81,7 +81,7 @@ class RelationshipMap:
         created in A: `age_id <- id`"""
         name = getattr(self.right_table, 'name')
         return f'{name}_id'
-    
+
     @property
     def foreign_forward_related_field_name(self):
         """Returns the database field that will
@@ -325,25 +325,27 @@ class Database:
             return inner
         return wrapper
 
-    def foreign_key(self, left_table, right_table, on_delete=None, related_name=None):
+    def foreign_key(self, name, left_table, right_table, on_delete=None, related_name=None):
         """Adds a foreign key between two tables by using the
         default primary ID field. The orientation for the foreign
-        key goes from `left_table.id` to `right_table.id`
+        key goes from `left_table.id` to `right_table.field_id`
+
         >>> table1 = Table('celebrities', fields=[CharField('firstname', max_length=200)])
         ... table2 = Table('social_media', fields=[CharField('name', max_length=200)])
 
         >>> db = Database(table1, table2)
-        ... db.foreign_key(table1, table2, on_delete='cascade', related_name='f_my_table')
+        ... db.foreign_key('followers', table1, table2, on_delete='cascade', related_name='f_my_table')
         ... db.migrate()
         ... db.social_media_tbl.all()
         ... db.celebrity_tbl_set.all()
         ... db.objects.foreign_key('social_media').all()
         ... db.objects.foreign_key('social_media', reverse=True).all()
         """
-        relationship_map = self._prepare_relationship_map(right_table, left_table)
-
-        default_manager = ForeignTablesManager(relationship_map)
-        self.relationships[relationship_map.relationship_name] = default_manager
+        relationship_map = self._prepare_relationship_map(
+            right_table, 
+            left_table
+        )
+        self.relationships[name] = ForeignTablesManager(relationship_map)
 
         # Create the default field that will be used to access the
         # the right table: db.objects.first().field_set.all() and
@@ -358,7 +360,7 @@ class Database:
 
         relationship_map.left_table.is_foreign_key_table = True
         relationship_map.right_table._add_field(
-            relationship_map.foreign_forward_related_field_name, 
+            relationship_map.foreign_forward_related_field_name,
             field
         )
 

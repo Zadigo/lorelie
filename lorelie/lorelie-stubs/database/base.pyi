@@ -78,6 +78,7 @@ class RelationshipMap:
     @property
     def foreign_forward_related_field_name(self) -> str: ...
     
+    def get_relationship_condition(self, table: str) -> tuple[str, str]: ...
     def creates_relationship(self, table: Table) -> bool: ...
 
 
@@ -138,10 +139,10 @@ class Database:
 
     def foreign_key(
         self,
+        name: str,
         left_table: TableType,
         right_table: TableType,
-        on_delete: str = ...,
-        related_name: str = ...
+        on_delete: str = ...
     ) -> None: ...
 
     def many_to_many(

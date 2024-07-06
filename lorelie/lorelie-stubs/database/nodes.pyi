@@ -1,6 +1,7 @@
 import dataclasses
 from typing import Any, Callable, Dict, Literal, Tuple, Union, override
 
+from database.base import RelationshipMap
 from expressions import Q
 from tables import Table
 
@@ -141,4 +142,13 @@ class InsertNode(BaseNode):
         batch_values: list[dict[str, Any]] = ...,
         insert_values: dict[str, Any] = ...,
         returning: list[str] = ...
+    ) -> None: ...
+
+
+class JoinNode(BaseNode):
+    def __init__(
+        self,
+        table: str,
+        relationship_map: RelationshipMap,
+        join_type: str = ...
     ) -> None: ...

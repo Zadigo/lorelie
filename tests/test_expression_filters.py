@@ -11,7 +11,6 @@ from lorelie.database.expression_filters import ExpressionFilter
 # s = ExpressionFilter('google')
 # print(list(map(lambda x: x, ExpressionFilter('google__id__eq=1'))))
 
-
 class TestExpressionFilter(unittest.TestCase):
     def test_structure(self):
         pass

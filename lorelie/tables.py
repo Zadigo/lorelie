@@ -191,13 +191,16 @@ class Table(AbstractTable):
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
 
-    def __eq__(self, table):
-        if not isinstance(table, Table):
-            return NotImplemented
+    def __eq__(self, value):
+        if not isinstance(value, Table):
+            return any([
+                value == self.name,
+                value in self.field_names
+            ])
 
         return all([
-            self.name == table.name,
-            self.field_names == table.field_names
+            self.name == value.name,
+            self.field_names == value.field_names
         ])
 
     def __contains__(self, value):

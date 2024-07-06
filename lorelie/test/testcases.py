@@ -89,7 +89,8 @@ class LorelieTestCase(unittest.TestCase):
         table1 = Table(
             'celebrities',
             fields=[
-                CharField('names')
+                CharField('name'),
+                IntegerField('age')
             ]
         )
 
@@ -100,6 +101,6 @@ class LorelieTestCase(unittest.TestCase):
             ]
         )
         db = Database(table1, table2)
-        db.foreign_key(table1, table2)
+        db.foreign_key('followers', table1, table2)
         db.migrate()
         return db

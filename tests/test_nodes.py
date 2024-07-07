@@ -1,22 +1,16 @@
-from lorelie.database.base import RelationshipMap
-from lorelie.database.nodes import InsertNode, JoinNode, WhereNode
+import unittest
+
+from lorelie.database.nodes import (BaseNode, ComplexNode, InsertNode, IntersectNode, JoinNode,
+                                    OrderByNode, SelectNode, UpdateNode, ViewNode,
+                                    WhereNode)
 from lorelie.expressions import Q
 from lorelie.test.testcases import LorelieTestCase
 
-# from types import NotImplementedType
-# import unittest
-
-# from lorelie.backends import SQLiteBackend
-# from lorelie.database.nodes import BaseNode, ComplexNode, InsertNode, OrderByNode, SelectNode, UpdateNode, WhereNode
-# from lorelie.expressions import Q
-# from lorelie.tables import Table
-
-# table = Table('test_table')
-# table.backend = SQLiteBackend()
-
 
 class TestBaseNode(LorelieTestCase):
-    pass
+    def test_structure(self):
+        node = BaseNode(self.create_table())
+        self.assertEqual(node.node_name, NotImplemented)
 
 
 class TestInsertNode(LorelieTestCase):
@@ -27,7 +21,10 @@ class TestInsertNode(LorelieTestCase):
         sql = node.as_sql(self.create_connection())
         self.assertListEqual(
             sql,
-            ["insert into celebrities (firstname) values('Kendall')"]
+            [
+                "insert into celebrities (firstname) values('Kendall')",
+                'returning id'
+            ]
         )
 
         batch_values = [{'firstname': 'Kendall'}, {'firstname': 'Jaime'}]
@@ -35,7 +32,10 @@ class TestInsertNode(LorelieTestCase):
         sql = node.as_sql(self.create_connection())
         self.assertListEqual(
             sql,
-            ["insert into celebrities (firstname) values ('Kendall'), ('Jaime')"]
+            [
+                "insert into celebrities (firstname) values ('Kendall'), ('Jaime')",
+                'returning id'
+            ]
         )
 
     def test_different_value_types(self):
@@ -47,7 +47,54 @@ class TestInsertNode(LorelieTestCase):
             'country': ['USA']
         }
         node = InsertNode(self.create_table(), insert_values=data)
-        print(node.as_sql(self.create_connection()))
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            [
+                "insert into celebrities (name, age, height, city, country) values('Kendall', 22, 154, 'LA', '[''USA'']')",
+                'returning id'
+            ]
+        )
+
+    def test_batch_values(self):
+        node = InsertNode(
+            self.create_table(),
+            batch_values=[{'name': 'Kendall'}, {'name': 'Kylie'}]
+        )
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            [
+                "insert into celebrities (name) values ('Kendall'), ('Kylie')",
+                'returning id'
+            ]
+        )
+
+
+class TestSelectNode(LorelieTestCase):
+    def test_structure(self):
+        node = SelectNode(self.create_table())
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            ['select * from celebrities']
+        )
+
+    def test_distinct(self):
+        node = SelectNode(self.create_table(), distinct=True)
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            ['select distinct * from celebrities']
+        )
+
+    def test_limit(self):
+        node = SelectNode(self.create_table(), limit=10)
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            ['select * from celebrities limit 10']
+        )
 
 
 class TestWhereNode(LorelieTestCase):
@@ -71,7 +118,9 @@ class TestWhereNode(LorelieTestCase):
         node = WhereNode(combined)
         sql = node.as_sql(self.create_connection())
         self.assertEqual(
-            sql, ["where (firstname='Kendall' and lastname='Jenner')"])
+            sql,
+            ["where (firstname='Kendall' and lastname='Jenner')"]
+        )
 
     def test_complex_lookup_parameters(self):
         where = WhereNode(age__gte=10, age__lte=40)
@@ -110,10 +159,101 @@ class TestWhereNode(LorelieTestCase):
         )
 
 
+class TestOrderByNode(LorelieTestCase):
+    def test_structure(self):
+        node = OrderByNode(self.create_table(), 'id')
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            ['order by id asc']
+        )
+
+    def test_descending(self):
+        node = OrderByNode(self.create_table(), '-id')
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            ['order by id desc']
+        )
+
+    @unittest.expectedFailure
+    def test_using_same_field_different_directions(self):
+        table = self.create_table()
+        a = OrderByNode(table, 'name')
+        b = OrderByNode(table, '-name')
+        a & b
+
+    @unittest.expectedFailure
+    def test_using_same_fields(self):
+        table = self.create_table()
+        OrderByNode(table, '-name', '-name')
+        OrderByNode(table, 'name', 'name')
+
+    def test_and_operation(self):
+        table = self.create_table()
+        a = OrderByNode(table, 'name')
+        b = OrderByNode(table, '-age')
+
+        c = a & b
+
+        self.assertIsInstance(c, OrderByNode)
+        self.assertListEqual(
+            c.as_sql(self.create_connection()),
+            ['order by name asc, age desc']
+        )
+
+
+class TestUpdateNode(LorelieTestCase):
+    def test_structure(self):
+        node = UpdateNode(
+            self.create_table(),
+            {'name': 'Kendall'},
+            name='Kylie'
+        )
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            [
+                "update celebrities set name='Kendall'",
+                "where name='Kylie'"
+            ]
+        )
+
+    def test_with_where_node(self):
+        node = UpdateNode(
+            self.create_table(),
+            {'name': 'Kendall'},
+            Q(name='Kylie')
+        )
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            [
+                "update celebrities set name='Kendall'",
+                "where name='Kylie'"
+            ]
+        )
+
+    def test_mixed_args(self):
+        node = UpdateNode(
+            self.create_table(),
+            {'name': 'Kendall'},
+            Q(name='Kylie'),
+            name='Julie'
+        )
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            [
+                "update celebrities set name='Kendall'",
+                "where name='Kylie' and name='Julie'"
+            ]
+        )
+
+
 class TestJoinNode(LorelieTestCase):
     def test_structure(self):
         # celebrities -> followers
-        # inner join followers on celebrities.id = followers.celebrity_id
         db = self.create_foreign_key_database()
         manager = db.relationships['followers']
 
@@ -125,122 +265,35 @@ class TestJoinNode(LorelieTestCase):
         self.assertListEqual(result, expected)
 
 
-# class TestBaseNode(unittest.TestCase):
-#     def test_structure(self):
-#         n1 = BaseNode(table=table, fields=['firstname'])
-#         n2 = BaseNode(table=table, fields=['lastname'])
-#         self.assertFalse(n1 != n2)
-
-#     def test_and(self):
-#         a = BaseNode(table=table, fields=['firstname'])
-#         b = BaseNode(table=table, fields=['lastname'])
-#         c = a + b
-#         self.assertIsInstance(c, ComplexNode)
-#         self.assertEqual(c.as_sql(table.backend), NotImplementedType)
-
-# class TestSelectNode(unittest.TestCase):
-#     def test_structure(self):
-#         select = SelectNode(table, 'firstname', 'lastname')
-#         self.assertListEqual(
-#             select.as_sql(table.backend),
-#             ['select firstname, lastname from test_table']
-#         )
-
-#         select_distinct = SelectNode(
-#             table, 'firstname', 'lastname', distinct=True)
-#         self.assertListEqual(
-#             select_distinct.as_sql(table.backend),
-#             ['select distinct firstname, lastname from test_table']
-#         )
+class TestComplexNode(LorelieTestCase):
+    def test_structure(self):
+        select = SelectNode(self.create_table())
+        where = WhereNode(name='Kendall')
+        node = ComplexNode(select, where)
+        result = node.as_sql(self.create_connection())
+        print(result)
 
 
-# class TestOrderNode(unittest.TestCase):
-#     def test_structure(self):
-#         order_by = OrderByNode(table, 'name', 'age')
-#         self.assertListEqual(
-#             order_by.as_sql(table.backend),
-#             ['order by name asc, age asc']
-#         )
-
-#         order_by = OrderByNode(table, 'name', '-age')
-#         self.assertListEqual(
-#             order_by.as_sql(table.backend),
-#             ['order by name asc, age desc']
-#         )
-
-#         order_by = OrderByNode(table, '-name', '-age')
-#         self.assertListEqual(
-#             order_by.as_sql(table.backend),
-#             ['order by name desc, age desc']
-#         )
-
-#     @unittest.expectedFailure
-#     def test_has_same_fields(self):
-#         # Test the user putting the same fields
-#         order_by = OrderByNode(table, '-name', '-name')
-#         self.assertListEqual(
-#             order_by.as_sql(table.backend),
-#             ['order by name desc']
-#         )
-
-#         order_by = OrderByNode(table, 'name', 'name')
-#         self.assertListEqual(
-#             order_by.as_sql(table.backend),
-#             ['order by name asc']
-#         )
-
-#     def test_and_operation(self):
-#         a = OrderByNode(table, 'name')
-#         b = OrderByNode(table, '-age')
-#         c = a & b
-#         self.assertIsInstance(c, OrderByNode)
-#         self.assertListEqual(
-#             c.as_sql(table.backend),
-#             ['order by name asc, age desc']
-#         )
-
-#     @unittest.expectedFailure
-#     def test_and_operation_fail(self):
-#         a = OrderByNode(table, 'name')
-#         b = OrderByNode(table, '-name')
-#         c = a & b
+class TestIntersectNode(LorelieTestCase):
+    def test_structure(self):
+        select1 = SelectNode(self.create_table())
+        select2 = SelectNode(self.create_table())
+        node = IntersectNode(select1, select2)
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            ['select * from celebrities intersect select * from celebrities']
+        )
 
 
-# class TestUpdateNode(unittest.TestCase):
-#     def test_structure(self):
-#         defaults = {'firstname': 'Kandy'}
-#         update_node = UpdateNode(table, defaults, firstname='Kendall')
-#         result = update_node.as_sql(table.backend)
-
-#         self.assertListEqual(
-#             result[:1],
-#             ["update test_table set firstname='Kandy'"]
-#         )
-
-#         self.assertListEqual(
-#             result[1:][0].as_sql(table.backend),
-#             ["where firstname='Kendall'"]
-#         )
-
-
-# class TestInsertNode(unittest.TestCase):
-#     def test_simple_update(self):
-#         insert_defaults = {'firstname': 'Kendall'}
-#         insert_node = InsertNode(
-#             table,
-#             insert_defaults
-#         )
-#         self.assertListEqual(
-#             insert_node.as_sql(table.backend),
-#             ["insert into test_table (firstname) values('Kendall')"]
-#         )
-
-#     def test_insert_mode(self):
-#         insert_node = InsertNode(
-#             table,
-#             firstname='Kendall'
-#         )
-#         self.assertListEqual(
-#             insert_node.as_sql(table.backend),
-#             ["insert into test_table (firstname) values('Kendall')"]
-#         )
+class TestViewNode(LorelieTestCase):
+    def test_structure(self):
+        db = self.create_database()
+        node = ViewNode('my_view', db.objects.all('celebrities'))
+        result = node.as_sql(db.get_table('celebrities').backend)
+        self.assertListEqual(
+            result,
+            [
+                "create view if not exists my_view as select * from celebrities;"
+            ]
+        )

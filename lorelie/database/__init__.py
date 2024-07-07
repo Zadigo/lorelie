@@ -7,6 +7,7 @@ from dataclasses import field
 # signals that get called when the database accomplishes
 # a certain action e.g. pre save, post save, post delete etc
 
+
 @dataclasses.dataclass
 class TriggersMap:
     container: list = field(default_factory=list)
@@ -69,7 +70,7 @@ class MasterRegistry:
 
     def register_database(self, database):
         from lorelie.database.base import Database
-        
+
         if not isinstance(database, Database):
             raise ValueError(f"'{database}' should be an instance of database")
 

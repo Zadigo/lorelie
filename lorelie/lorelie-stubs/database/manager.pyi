@@ -5,12 +5,11 @@ from typing import (Any, ClassVar, Dict, Literal, NamedTuple, Optional,
 
 import pandas
 
-from lorelie.aggregation import Avg, Count, Sum
 from lorelie.backends import BaseRow
 from lorelie.database.base import Database, RelationshipMap
+from lorelie.database.functions.aggregation import Avg, Count, Sum
 from lorelie.queries import Query, QuerySet, ValuesIterable
 from lorelie.tables import Table
-
 
 class DataclassProtocol(Protocol):
     __dataclass_fields__: ClassVar[Dict[str, Any]]
@@ -72,8 +71,12 @@ class DatabaseManager:
     def annotate(self, table: str, *args, **kwargs) -> QuerySet[BaseRow]: ...
     def values(self, table: str, *fields: str) -> ValuesIterable: ...
     def dataframe(self, table: str, *fields) -> pandas.DataFrame: ...
-    def bulk_create(self, table: str,
-                    objs: list[DataclassProtocol]) -> QuerySet[BaseRow]: ...
+    
+    def bulk_create(
+        self, 
+        table: str,
+        objs: list[DataclassProtocol]
+    ) -> QuerySet[BaseRow]: ...
 
     def order_by(self, table: str, *fields: str) -> QuerySet[BaseRow]: ...
     def count(self, table: str) -> int: ...

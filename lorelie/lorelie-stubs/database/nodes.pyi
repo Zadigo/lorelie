@@ -3,10 +3,12 @@ from typing import Any, Callable, Dict, Literal, Tuple, Union, override
 
 from database.base import RelationshipMap
 from expressions import Q
+from lorelie.queries import QuerySet
 from tables import Table
 
 from lorelie.backends import SQLiteBackend
-from lorelie.database.functions import Functions
+from lorelie.database.functions.base import Functions
+
 
 @dataclasses.dataclass
 class SelectMap:
@@ -85,6 +87,7 @@ class SelectNode(BaseNode):
         table: Table,
         *fields: str,
         distinct: bool = Literal[False],
+        limit: int = None
     ) -> None: ...
 
     @override
@@ -151,4 +154,17 @@ class JoinNode(BaseNode):
         table: str,
         relationship_map: RelationshipMap,
         join_type: str = ...
+    ) -> None: ...
+
+
+class IntersectNode(BaseNode):
+    def __init__(self, left_select: str, right_select: str) -> None: ...
+
+
+class ViewNode(BaseNode):
+    def __init__(
+        self,
+        name: str,
+        queryset: QuerySet,
+        temporary: bool = ...
     ) -> None: ...

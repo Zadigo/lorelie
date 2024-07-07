@@ -35,19 +35,19 @@ class LorelieTestCase(unittest.TestCase):
             CharField('name', unique=True, validators=[validate_name]),
             IntegerField('age', null=True),
             IntegerField('height', min_value=150, max_value=212),
-            FloatField('followers', default=0),
+            FloatField('followers', default=0.0),
             BooleanField('is_active', default=True),
             DateTimeField('created_on', auto_add=True)
         ])
         return table
 
-    def create_database(self, using=None):
+    def create_database(self, using=None, log_queries=False):
         if using is not None:
             table = using
         else: 
             table = self.create_table()
             
-        db = Database(table)
+        db = Database(table, log_queries=log_queries)
         db.migrate()
         return db
 
@@ -104,3 +104,22 @@ class LorelieTestCase(unittest.TestCase):
         db.foreign_key('followers', table1, table2)
         db.migrate()
         return db
+
+
+class AsyncLorelieTestCase(unittest.IsolatedAsyncioTestCase):
+    async def create_database(self, using=None):
+        if using is not None:
+            table = using
+        else:
+            table = await self.create_table()
+
+        db = Database(table)
+        db.migrate()
+        return db
+
+    async def create_table(self):
+        table = Table('celebrities', fields=[
+            CharField('name'),
+            IntegerField('height', min_value=150, default=150)
+        ])
+        return table

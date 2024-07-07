@@ -19,8 +19,7 @@ import dataclasses
 import re
 from collections import defaultdict
 
-from expressions import Value
-from lorelie.expressions import CombinedExpression, Q
+from lorelie.expressions import CombinedExpression, Q, Value
 
 
 @dataclasses.dataclass
@@ -240,7 +239,7 @@ class WhereNode(BaseNode):
         joined_resolved = backend.operator_join(resolved)
         if self.invert:
             joined_resolved = f'not {joined_resolved}'
-            
+
         where_clause = self.template_sql.format(params=joined_resolved)
         return [where_clause]
 
@@ -383,13 +382,13 @@ class InsertNode(BaseNode):
 
         if self.batch_values:
             columns = self.batch_values[0].keys()
-        
+
             values = []
             for item in self.batch_values:
                 quoted_values = backend.quote_values(item.values())
                 joined = backend.comma_join(quoted_values)
                 values.append(f"({joined})")
-        
+
             joined_values = backend.comma_join(values)
             template = self.bactch_insert_sql
         else:
@@ -408,3 +407,48 @@ class InsertNode(BaseNode):
         else:
             sql.append('returning id')
         return sql
+
+
+class JoinNode(BaseNode):
+    """Node used to create the SQL statement
+    that allows foreign key joins"""
+
+    template_sql = '{join_type} join {table} on {condition}'
+
+    cross_join = 'cross join {field}'
+    full_outer_join = 'full outer join {table} using({field})'
+
+    def __init__(self, table, relationship_map, join_type='inner'):
+        super().__init__()
+
+        accepted_joins = ['inner', 'left', 'right', 'cross']
+        if join_type not in accepted_joins:
+            raise ValueError('Join type is not valid')
+
+        self.join_type = join_type
+        self.table = table
+        self.relationship_map = relationship_map
+
+    def as_sql(self, backend):
+        # if isinstance(self.expression, dict):
+        #     tokens = backend.decompose_filters(**self.expression)
+        # elif isinstance(self.expression, str):
+        #     tokens = backend.decompose_filters_from_string(self.expression)
+        # dot_notations = backend.build_dot_notation(tokens)
+        # print(dot_notations)
+
+        # if self.join_type == 'cross':
+        #     return []
+
+        # if self.join_type == 'full':
+        #     return []
+
+        condition = self.relationship_map.get_relationship_condition(self.table)
+        condition = ' = '.join(condition)
+
+        join_sql = self.template_sql.format_map({
+            'join_type': self.join_type,
+            'table': self.table,
+            'condition': condition
+        })
+        return [join_sql]

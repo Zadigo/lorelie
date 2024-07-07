@@ -164,36 +164,6 @@ class DatabaseManager:
         query.add_sql_node(insert_node)
         return QuerySet(query)[0]
 
-        # fields, values = selected_table.backend.dict_to_sql(
-        #     kwargs,
-        #     quote_values=False
-        # )
-        # values, _ = selected_table.validate_values(fields, values)
-
-        # # pre_saved_values = self.pre_save(selected_table, fields, values)
-        # joined_fields = selected_table.backend.comma_join(fields)
-        # joined_values = selected_table.backend.comma_join(values)
-
-        # query = self.database.query_class(table=selected_table)
-        # # insert_node = InsertNode(selected_table, insert_values=kwargs)
-        # insert_sql = selected_table.backend.INSERT.format(
-        #     table=selected_table.name,
-        #     fields=joined_fields,
-        #     values=joined_values
-        # )
-
-        # # See: https://www.sqlitetutorial.net/sqlite-returning/
-        # return_fields = selected_table.backend.comma_join(
-        #     selected_table.field_names
-        # )
-        # query.add_sql_nodes([insert_sql, f'returning {return_fields}'])
-        # # query.run(commit=True)
-        # # TODO: This raises a sqlite3.OperationalError: cannot
-        # # commit transaction - SQL statements in progress
-        # queryset = QuerySet(query)
-        # queryset.use_commit = True
-        # return list(queryset)[-0]
-
     def filter(self, table, *args, **kwargs):
         """Filter the data in the database based on
         a set of criteria using filter keyword arguments
@@ -353,7 +323,7 @@ class DatabaseManager:
 
         if selected_table.ordering:
             orderby_node = OrderByNode(
-                selected_table, 
+                selected_table,
                 *selected_table.ordering
             )
             query.add_sql_node(orderby_node)
@@ -803,7 +773,7 @@ class ForeignTablesManager:
         if self.reverse:
             direction = '<-'
         return f'<{self.__class__.__name__} [from {direction} to]>'
-    
+
     # def __getattribute__(self, name):
     #     manager = DatabaseManager.as_manager()
     #     if hasattr(manager, name):

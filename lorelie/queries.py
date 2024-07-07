@@ -1,8 +1,9 @@
+import datetime
 import sqlite3
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
 
-from lorelie import log_queries
+from lorelie import log_queries, lorelie_logger
 from lorelie.database.functions.aggregation import Count
 from lorelie.database.nodes import BaseNode, OrderByNode, SelectMap, WhereNode
 
@@ -82,6 +83,20 @@ class Query:
             instance.is_evaluated = True
         finally:
             log_queries.append(script, table=table, backend=backend)
+
+            # Logging should not be set to True
+            #  in a production environment since there
+            # could be sensitive data passed in the queries
+            # to the log. Warn the user about this
+            if instance.backend.log_queries:
+                lorelie_logger.warning(
+                    "Logging queries in a production environment is high risk "
+                    "and should be disabled. Logging sensitive data in to a log"
+                    "file can cause severe security issues to you data"
+                )
+                for query in log_queries:
+                    lorelie_logger.info(f"\"{query}\"")
+
             return instance
 
     @property
@@ -168,6 +183,19 @@ class Query:
                 table=self.table,
                 backend=self.backend
             )
+
+            # Logging should not be set to True
+            #  in a production environment since there
+            # could be sensitive data passed in the queries
+            # to the log. Warn the user about this
+            if self.backend.log_queries:
+                lorelie_logger.warning(
+                    "Logging queries in a production environment is high risk "
+                    "and should be disabled. Logging sensitive data in to a log"
+                    "file can cause severe security issues to you data"
+                )
+                for query in log_queries:
+                    lorelie_logger.info(f"\"{query}\"")
 
     def transform_to_python(self):
         """Transforms the values returned by the

@@ -452,7 +452,7 @@ class DatabaseManager:
             )
 
         aggregate_sqls = []
-        annotation_map = selected_table.backend.build_annotation(**kwargs)
+        annotation_map = selected_table.backend.build_annotation(kwargs)
         aggregate_sqls.extend(annotation_map.joined_final_sql_fields)
 
         select_node = SelectNode(selected_table, *aggregate_sqls)

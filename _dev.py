@@ -12,6 +12,7 @@ from lorelie.expressions import Case, F, Q, When
 from lorelie.fields.base import CharField, DateTimeField, IntegerField
 from lorelie.tables import Table
 from lorelie.database.functions import Count
+from lorelie.database.views import View
 
 table = Table('products', fields=[
     CharField('name'),
@@ -23,7 +24,9 @@ table = Table('products', fields=[
 db = Database(table, name='products', log_queries=True)
 db.migrate()
 
-db.objects.all('products')
+view = View('my_view', db.objects.all('products'))
+qs = view(table)
+print(qs.filter(id=1))
 
 # db.objects.create('products', name='Jupe')
 # item = db.objects.first('products')

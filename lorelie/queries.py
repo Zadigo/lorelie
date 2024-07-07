@@ -5,7 +5,7 @@ from sqlite3 import IntegrityError, OperationalError
 
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.functions.aggregation import Count
-from lorelie.database.nodes import BaseNode, OrderByNode, SelectMap, WhereNode
+from lorelie.database.nodes import BaseNode, OrderByNode, SelectMap, SelectNode, WhereNode
 
 
 class Query:
@@ -272,7 +272,7 @@ class QuerySet:
 
     def __init__(self, query, skip_transform=False):
         if not isinstance(query, Query):
-            raise ValueError(f"{query} should be an instance of Query")
+            raise ValueError(f"'{query}' should be an instance of Query")
 
         self.query = query
         self.result_cache = []
@@ -288,6 +288,15 @@ class QuerySet:
         # to the QuerySet that commits needs to be
         # set to True
         self.use_commit = False
+        # Flag which can be used to indicate
+        # to the QuerySet to use an alias view
+        # to query items from the database as
+        # oppposed to using the table name
+        self.alias_view_name = None
+        # Despite existing data in the cache,
+        # force the cache to be reloaded from
+        # the existing database
+        self.force_reload_cache = False
 
     def __repr__(self):
         self.load_cache()
@@ -330,8 +339,27 @@ class QuerySet:
     def sql_statement(self):
         return self.query.sql
 
+    def check_alias_view_name(self):
+        if self.alias_view_name is not None:
+            # Replace the previous SelectNode
+            # with the new one by using the
+            # previous parameters of the
+            # previous SelectNode
+            old_select = self.query.select_map.select
+            new_node = SelectNode(
+                self.query.table,
+                *old_select.fields,
+                distinct=old_select.distinct,
+                limit=old_select.limit,
+                view_name=self.alias_view_name
+            )
+            self.query.select_map.select = new_node
+            self.force_reload_cache = True
+            return True
+        return False
+
     def load_cache(self):
-        if not self.result_cache:
+        if self.force_reload_cache or not self.result_cache:
             self.query.run(commit=self.use_commit)
             if not self.skip_transform:
                 self.query.transform_to_python()
@@ -348,6 +376,7 @@ class QuerySet:
         return self
 
     def all(self):
+        self.check_alias_view_name()
         return self
 
     def filter(self, *args, **kwargs):
@@ -355,6 +384,7 @@ class QuerySet:
         filters = backend.decompose_filters(**kwargs)
         build_filters = backend.build_filters(filters, space_characters=False)
 
+        self.check_alias_view_name()
         if self.query.select_map.should_resolve_map:
             try:
                 # Try to update and existing where

@@ -19,6 +19,9 @@ class BaseConstraint:
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.generated_name}>'
 
+    def __hash__(self):
+        return hash((self.name))
+
     @property
     def generated_name(self):
         random_string = secrets.token_hex(nbytes=5)

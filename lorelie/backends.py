@@ -352,6 +352,12 @@ class SQL:
         if value is None:
             return "''"
 
+        if callable(value):
+            value = value()
+
+        if isinstance(value, (list, tuple)):
+            value = str(value)
+
         if isinstance(value, (int, float)):
             return value
 

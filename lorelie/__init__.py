@@ -1,7 +1,6 @@
-from collections import defaultdict, deque
+import logging
 import pathlib
-import re
-
+from collections import defaultdict, deque
 
 PROJECT_PATH = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -54,3 +53,32 @@ class LogQueries:
 
 
 log_queries = LogQueries()
+
+
+class LorelieLogger:
+    def __init__(self):
+        logger = logging.getLogger('lorelie')
+
+        handler = logging.FileHandler('queries.log')
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
+
+        log_format = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s: %(message)s',
+            datefmt='%Y-%m-%d %H:%M'
+        )
+        handler.setFormatter(log_format)
+
+        self.logger = logger
+    
+    def debug(self, message, *args, **kwargs):
+        self.logger.debug(message, *args, **kwargs)
+
+    def info(self, message, *args, **kwargs):
+        self.logger.info(message, *args, **kwargs)
+
+    def warning(self, message, *args, **kwargs):
+        self.logger.warning(message, *args, **kwargs)
+
+
+lorelie_logger = LorelieLogger()

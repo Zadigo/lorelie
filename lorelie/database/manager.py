@@ -253,10 +253,11 @@ class DatabaseManager:
         return list(queryset)[-0]
 
     def annotate(self, table, *args, **kwargs):
-        """method allows the usage of advanced functions or expressions in a query to 
-        add additional fields to your querysets based on the values of existing fields
+        """The annotate method allows the usage of advanced functions or expressions in 
+        a query by adding additional fields to your querysets based on the values 
+        of existing fields
 
-        Returning each values of the name in lower or uppercase:
+        For example, returning each values of the name in lower or uppercase:
 
         >>> db.objects.annotate('celebrities', lowered_name=Lower('name'))
         ... db.objects.annotate('celebrities', uppered_name=Upper('name'))
@@ -265,7 +266,7 @@ class DatabaseManager:
 
         >>> database.objects.annotate(year=ExtractYear('created_on'))
 
-        We can also run cases. For example, when a price is equals to 1,
+        We can also run cases. For example, when a price is equal to 1,
         then create temporary column named custom price with either 2 or 3:
 
         >>> condition = When('price=1', 2)
@@ -352,55 +353,11 @@ class DatabaseManager:
 
         if selected_table.ordering:
             orderby_node = OrderByNode(
-                selected_table, *selected_table.ordering)
+                selected_table, 
+                *selected_table.ordering
+            )
             query.add_sql_node(orderby_node)
         return QuerySet(query)
-
-        # for func in args:
-        #     if not isinstance(func, (Functions, BaseExpression)):
-        #         raise ValueError(
-        #             'Func should be an instnae of Functions or BaseExpression')
-
-        #     if isinstance(func, CombinedExpression):
-        #         raise ValueError('CombinedExpressions require an alias name')
-
-        #     kwargs.update({func.alias_field_name: func})
-
-        # if not kwargs:
-        #     return self.all(table)
-
-        # alias_fields = list(kwargs.keys())
-
-        # for field in alias_fields:
-        #     # Combined expressions alias field names
-        #     # are added afterwards once the user sets
-        #     # the name for the expression
-        #     if isinstance(kwargs[field], CombinedExpression):
-        #         kwargs[field].alias_field_name = field
-
-        # annotation_map = selected_table.backend.build_annotation(**kwargs)
-        # annotated_sql_fields = selected_table.backend.comma_join(
-        #     annotation_map.joined_final_sql_fields
-        # )
-        # return_fields = ['*', annotated_sql_fields]
-
-        # select_node = SelectNode(selected_table, *return_fields)
-
-        # query = self.database.query_class(table=selected_table)
-        # query.add_sql_nodes([select_node])
-
-        # if annotation_map.requires_grouping:
-        #     # grouping_fields = set(annotation_map.field_names)
-        #     # groupby_sql = selected_table.backend.GROUP_BY.format_map({
-        #     #     'conditions': selected_table.backend.comma_join(grouping_fields)
-        #     # })
-        #     groupby_sql = selected_table.backend.GROUP_BY.format_map({
-        #         'conditions': 'id'
-        #     })
-        #     query.select_map.groupby = groupby_sql
-
-        # query.alias_fields = list(alias_fields)
-        # return QuerySet(query)
 
     def values(self, table, *fields):
         """Returns data from the database as a list
@@ -846,6 +803,15 @@ class ForeignTablesManager:
         if self.reverse:
             direction = '<-'
         return f'<{self.__class__.__name__} [from {direction} to]>'
+    
+    # def __getattribute__(self, name):
+    #     manager = DatabaseManager.as_manager()
+    #     if hasattr(manager, name):
+    #         func = getattr(manager, name)
+    #         if func is None:
+    #             raise AttributeError()
+    #         return func
+    #     return super().__getattribute__(name)
 
     # def __getattr__(self, name):
     #     methods = {}
@@ -862,52 +828,52 @@ class ForeignTablesManager:
     #     else:
     #         return partial(method, table=self.right_table.name)
 
-    def all(self):
-        select_node = SelectNode(self.right_table)
-        query = Query(table=self.right_table)
-        query.add_sql_node(select_node)
-        return QuerySet(query)
+    # def all(self):
+    #     select_node = SelectNode(self.right_table)
+    #     query = Query(table=self.right_table)
+    #     query.add_sql_node(select_node)
+    #     return QuerySet(query)
 
-    def last(self):
-        select_node = SelectNode(self.right_table)
-        orderby_node = OrderByNode(self.right_table, '-id')
+    # def last(self):
+    #     select_node = SelectNode(self.right_table)
+    #     orderby_node = OrderByNode(self.right_table, '-id')
 
-        query = self.right_table.database.query_class(table=self.right_table)
-        query.add_sql_nodes([select_node, orderby_node])
-        queryset = QuerySet(query)
-        return queryset[-0]
+    #     query = self.right_table.database.query_class(table=self.right_table)
+    #     query.add_sql_nodes([select_node, orderby_node])
+    #     queryset = QuerySet(query)
+    #     return queryset[-0]
 
-    def create(self, **kwargs):
-        fields, values = self.right_table.backend.dict_to_sql(
-            kwargs,
-            quote_values=False
-        )
-        values = self.right_table.validate_values(fields, values)
+    # def create(self, **kwargs):
+    #     fields, values = self.right_table.backend.dict_to_sql(
+    #         kwargs,
+    #         quote_values=False
+    #     )
+    #     values = self.right_table.validate_values(fields, values)
 
-        # pre_saved_values = self.pre_save(self.right_table, fields, values)
+    #     # pre_saved_values = self.pre_save(self.right_table, fields, values)
 
-        # TODO: Create functions for datetimes and timezones
-        current_date = datetime.datetime.now(tz=pytz.UTC)
-        if self.right_table.auto_add_fields:
-            for field in self.right_table.auto_add_fields:
-                fields.append(field)
-                date = self.right_table.backend.quote_value(str(current_date))
-                values.append(date)
+    #     # TODO: Create functions for datetimes and timezones
+    #     current_date = datetime.datetime.now(tz=pytz.UTC)
+    #     if self.right_table.auto_add_fields:
+    #         for field in self.right_table.auto_add_fields:
+    #             fields.append(field)
+    #             date = self.right_table.backend.quote_value(str(current_date))
+    #             values.append(date)
 
-        fields.insert(0, self.relationship.backward_related_field)
-        values.insert(0, self.current_row.id)
+    #     fields.insert(0, self.relationship.backward_related_field)
+    #     values.insert(0, self.current_row.id)
 
-        joined_fields = self.right_table.backend.comma_join(fields)
-        joined_values = self.right_table.backend.comma_join(values)
+    #     joined_fields = self.right_table.backend.comma_join(fields)
+    #     joined_values = self.right_table.backend.comma_join(values)
 
-        query = self.right_table.database.query_class(table=self.right_table)
+    #     query = self.right_table.database.query_class(table=self.right_table)
 
-        insert_sql = self.right_table.backend.INSERT.format(
-            table=self.right_table.name,
-            fields=joined_fields,
-            values=joined_values
-        )
+    #     insert_sql = self.right_table.backend.INSERT.format(
+    #         table=self.right_table.name,
+    #         fields=joined_fields,
+    #         values=joined_values
+    #     )
 
-        query.add_sql_nodes([insert_sql])
-        query.run(commit=True)
-        return self.last()
+    #     query.add_sql_nodes([insert_sql])
+    #     query.run(commit=True)
+    #     return self.last()

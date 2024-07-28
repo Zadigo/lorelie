@@ -1,8 +1,42 @@
 from dataclasses import dataclass, field
-from typing import Iterator, Union
+from typing import Dict, Iterator, Union, List, Tuple
 
 from lorelie.backends import SQLiteBackend
 from lorelie.tables import Table
+from functools import cached_property
+
+
+class ExpressionFiltersMixin:
+    base_filters: Dict[str, str] = ...
+
+    @cached_property
+    def list_of_operators(self) -> list[str]: ...
+
+    def is_query_filter(self, value_or_values: Union[list, str]) -> bool: ...
+
+    def translate_operator_from_tokens(
+        self,
+        tokens: List[str]
+    ) -> list[str]: ...
+
+    def translate_operators_from_tokens(
+        self,
+        tokens: List[List[str]]
+    ) -> list[list[str]]: ...
+
+    def decompose_filters_columns(
+        self,
+        value: Union[str, dict]
+    ) -> list[str]: ...
+
+    def decompose_filters_from_string(self, value: str) -> str: ...
+    def decompose_filters(self, **kwargs) -> List[Tuple[str]]: ...
+
+    def build_filters(
+        self,
+        items: List[Tuple[str]],
+        space_characters: bool = ...
+    ) -> List[str]: ...
 
 
 @dataclass
@@ -21,7 +55,7 @@ class ExpressionMap:
     def __hash__(self) -> int: ...
 
 
-class ExpressionFilter:
+class ExpressionFilter(ExpressionFiltersMixin):
     parsed_expressions: list[str] = ...
     table: Union[str, Table] = ...
     expressions_maps: list[ExpressionMap] = ...
@@ -29,7 +63,6 @@ class ExpressionFilter:
     def __init__(
         self,
         expression: Union[dict, str, list[Union[list[str], tuple[str]]]],
-        connection: SQLiteBackend,
         table: Union[str, Table] = ...
     ) -> None: ...
 

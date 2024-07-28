@@ -23,7 +23,7 @@ class LorelieTestCase(unittest.TestCase):
     @cached_property
     def create_empty_database(self):
         return Database()
-    
+
     def create_complex_table(self):
         def validate_name(value):
             if value == 'Taylor Swift':
@@ -44,9 +44,9 @@ class LorelieTestCase(unittest.TestCase):
     def create_database(self, using=None, log_queries=False):
         if using is not None:
             table = using
-        else: 
+        else:
             table = self.create_table()
-            
+
         db = Database(table, log_queries=log_queries)
         db.migrate()
         return db
@@ -54,13 +54,14 @@ class LorelieTestCase(unittest.TestCase):
     def create_table(self):
         table = Table('celebrities', fields=[
             CharField('name'),
-            IntegerField('height', min_value=150, default=150)
+            IntegerField('height', min_value=150, default=150),
+            DateTimeField('created_on', auto_add=True)
         ])
         return table
 
     def create_constrained_table(self):
         table = Table(
-            'celebrities', 
+            'celebrities',
             fields=[
                 CharField('name', null=True),
                 IntegerField('height', null=True)
@@ -74,7 +75,7 @@ class LorelieTestCase(unittest.TestCase):
 
     def create_unique_constrained_table(self):
         table = Table(
-            'celebrities', 
+            'celebrities',
             fields=[
                 CharField('name', null=True),
                 IntegerField('height', null=True)

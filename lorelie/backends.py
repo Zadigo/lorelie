@@ -267,7 +267,7 @@ class AnnotationMap:
         ])
 
 
-class SQL:
+class SQL(ExpressionFiltersMixin):
     """Base SQL compiler"""
 
     ALTER_TABLE = 'alter table {table} add column {params}'
@@ -302,12 +302,7 @@ class SQL:
 
     ORDER_BY = 'order by {conditions}'
     GROUP_BY = 'group by {conditions}'
-
-    # LOWER = 'lower({field})'
-    # UPPER = 'upper({field})'
-    # LENGTH = 'length({field})'
-    # MAX = 'max({field})'
-    # MIN = 'min({field})'
+    
     AVERAGE = 'avg({field})'
     COUNT = 'count({field})'
     STRFTIME = 'strftime({format}, {value})'
@@ -322,30 +317,6 @@ class SQL:
     SQL_REGEXES = [
         re.compile(r'^select\s(.*)\sfrom\s(.*)\s(where)?\s(.*);?$')
     ]
-
-    base_filters = {
-        'eq': '=',
-        'lt': '<',
-        'gt': '>',
-        'lte': '<=',
-        'gte': '>=',
-        'contains': 'like',
-        'startswith': 'startswith',
-        'endswith': 'endswith',
-        'range': 'between',
-        'ne': '!=',
-        'in': 'in',
-        'isnull': 'isnull',
-        'regex': 'regexp',
-        'day': '',
-        'month': '',
-        'iso_year': '',
-        'year': '',
-        'minute': '',
-        'second': '',
-        'hour': '',
-        'time': ''
-    }
 
     @staticmethod
     def quote_value(value):
@@ -454,7 +425,7 @@ class SQL:
                 raise ValueError(
                     f"Expected list or array. Got: {sub_items}"
                 )
-            
+
             # The tuple needs exactly four
             # elements in order to create a
             # valid notation: el1.el2=el4
@@ -482,23 +453,11 @@ class SQL:
                 dot_notation.append(sub_value)
 
             final_notation = self.simple_join(
-                dot_notation, 
+                dot_notation,
                 space_characters=False
             )
             notations.append(final_notation)
         return notations
-
-    def is_query_filter(self, value_or_values):
-        """Checks that the last value or that a single
-        value is a query filtering value. For example
-        `eq` in `['name', 'eq']`
-
-        >>> self.is_query_filter(['name', 'eq'])
-        ... True
-        """
-        if isinstance(value_or_values, list):
-            value_or_values = value_or_values[-1]
-        return value_or_values in list(self.base_filters.keys())
 
     def parameter_join(self, data):
         """Takes a list of fields and values
@@ -568,190 +527,6 @@ class SQL:
 
     def build_script(self, *sqls):
         return '\n'.join(map(lambda x: self.finalize_sql(x), sqls))
-
-    def decompose_filters_columns(self, value):
-        """Return only the column parts of the filters
-        that were passed
-
-        >>> self.decompose_filters_from_string('rowid__eq')
-        ... ['rowid']
-        """
-        if isinstance(value, str):
-            result = self.decompose_filters_from_string(value)
-        elif isinstance(value, dict):
-            result = self.decompose_filters(**value)
-        return list(map(lambda x: x[0], result))
-
-    def decompose_filters_from_string(self, value):
-        """Decompose a set of filters to a list of
-        key, operator and value list from a filter 
-        passed as a string
-
-        >>> self.decompose_filters_from_string('rowid__eq=1')
-        ... [('rowid', '=', '1')]
-        """
-        identified_operator = False
-        operators = self.base_filters.keys()
-        for operator in operators:
-            operator_to_identify = f'__{operator}='
-            if operator_to_identify in value:
-                identified_operator = True
-                break
-
-        if not identified_operator:
-            # Use regex to identify the unique
-            # possible existing pattern if the
-            # user does not use a "__" filter
-            result = re.match(r'\w+\=', value)
-            if not result:
-                raise ValueError(
-                    "Could not identify the operator "
-                    "to use for the provided filter"
-                )
-
-        tokens = value.split('=')
-        return self.decompose_filters(**{tokens[0]: tokens[1]})
-
-    def decompose_filters(self, **kwargs):
-        """Decompose a set of filters to a list of
-        key, operator and value list from a dictionnary
-
-        >>> self.decompose_filters(id__eq=1)
-        ... [('id', '=', '1')]
-
-        >>> self.decompose_filters(followers__users__id__eq=1)
-        ... [('followers', 'users', 'id', '=', 1)]
-        """
-        filters_map = []
-        for key, value in kwargs.items():
-            tokens = key.split('__')
-            if not self.is_query_filter(tokens):
-                # Case for rowid=1 which should
-                # be by default: rowid__eq
-                tokens.append('eq')
-
-            if len(tokens) == 2:
-                # Normal sequence: rowid__eq
-                lhv, rhv = tokens
-
-                operator = self.base_filters.get(rhv)
-                if operator is None:
-                    raise ValueError(
-                        f'Operator is not recognized. Got: {key}'
-                    )
-                filters_map.append((lhv, operator, value))
-            elif len(tokens) > 2:
-                # Foreign key sequence:
-                # foreignkeyfield__field__eq=1
-                # foreignkeyfield1__foreignkeyfield2__field__eq=1
-                rebuilt_tokens = []
-                for token in tokens:
-                    if self.is_query_filter(token):
-                        operator = self.base_filters.get(token)
-                        rebuilt_tokens.append(operator)
-                        continue
-                    rebuilt_tokens.append(token)
-                rebuilt_tokens.append(value)
-                filters_map.append(tuple(rebuilt_tokens))
-        return filters_map
-
-    def build_filters(self, items, space_characters=True):
-        """Tranform a list of decomposed filters to
-        usable string conditions for an sql statement
-
-        >>> self.build_filters([('rowid', '=', '1')])
-        ... ["rowid = '1'"]
-
-        >>> self.build_filters([('rowid', 'startswith', '1')])
-        ... ["rowid like '1%'"]
-
-
-        >>> self.build_filters([('url', '=', Lower('url')])
-        ... ["lower(url)"]
-        """
-        built_filters = []
-        for item in items:
-            field, operator, value = item
-
-            # TODO: Implement a check tha raises an
-            # error if the operator is not a valid
-            # existing one aka: =,!=, <,>,<=,>=,in,
-            # endswith, startswith, between, isnull, like
-
-            if operator == 'in':
-                # TODO: Allow the user to check that a
-                # value would also exist in a queryset or
-                # an iterable in general
-                if not isinstance(value, (tuple, list)):
-                    raise ValueError(
-                        'The value when using "in" '
-                        f'should be a tuple or a list. Got: {value}'
-                    )
-
-                quoted_list_values = (self.quote_value(item) for item in value)
-                operator_and_value = self.IN.format_map({
-                    'field': field,
-                    'values': self.comma_join(quoted_list_values)
-                })
-                built_filters.append(operator_and_value)
-                continue
-
-            if operator == 'like':
-                operator_and_value = self.LIKE.format_map({
-                    'field': field,
-                    'conditions': self.quote_like(value)
-                })
-                built_filters.append(operator_and_value)
-                continue
-
-            if operator == 'startswith':
-                operator_and_value = self.LIKE.format_map({
-                    'field': field,
-                    'conditions': self.quote_startswith(value)
-                })
-                built_filters.append(operator_and_value)
-                continue
-
-            if operator == 'endswith':
-                operator_and_value = self.LIKE.format_map({
-                    'field': field,
-                    'conditions': self.quote_endswith(value)
-                })
-                built_filters.append(operator_and_value)
-                continue
-
-            if operator == 'between':
-                if not isinstance(value, (list, tuple)):
-                    raise ValueError(
-                        'The value when using "between" '
-                        f'should be a tuple or a list. Got: {value}'
-                    )
-                lhv, rhv = value
-                operator_and_value = self.BETWEEN.format_map({
-                    'field': field,
-                    'lhv': lhv,
-                    'rhv': rhv
-                })
-                built_filters.append(operator_and_value)
-                continue
-
-            if operator == 'isnull':
-                if value:
-                    operator_and_value = f'{field} is null'
-                else:
-                    operator_and_value = f'{field} is not null'
-                built_filters.append(operator_and_value)
-                continue
-
-            value = self.quote_value(value)
-            built_filters.append(
-                self.simple_join(
-                    (field, operator, value),
-                    space_characters=space_characters
-                )
-            )
-
-        return built_filters
 
     def build_annotation(self, conditions):
         """For each database function, creates a special

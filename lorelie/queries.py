@@ -5,7 +5,8 @@ from sqlite3 import IntegrityError, OperationalError
 
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.functions.aggregation import Count
-from lorelie.database.nodes import BaseNode, OrderByNode, SelectMap, SelectNode, WhereNode
+from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
+                                    SelectNode, WhereNode)
 
 
 class Query:

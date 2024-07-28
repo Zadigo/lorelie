@@ -146,9 +146,8 @@ class Table(AbstractTable):
 
         non_authorized_names = ['rowid', 'id']
         for field in fields:
-            # TODO: This does not work
-            # if not issubclass(field.__class__, Field):
-            #     raise ValueError(f'{field} should be an instance of Field')
+            if not hasattr(field, 'prepare'):
+                raise ValueError(f"{field} should be an instance of Field")
 
             if field.name in non_authorized_names:
                 raise ValueError(
@@ -175,12 +174,13 @@ class Table(AbstractTable):
             # since this will just override the first
             # apparition of the duplicate field multiple
             # times in the map
+            # TODO: Delegate this section to the prepare
+            # method of the field directly
             self.fields_map[field.name] = field
 
         # Automatically create an ID field and set
         # it up with the table and backend
         id_field = AutoField()
-        # TODO: Call load_current_connection
         id_field.prepare(self)
         self.fields_map['id'] = id_field
 

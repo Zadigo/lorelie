@@ -3,10 +3,8 @@ import dataclasses
 import datetime
 from dataclasses import is_dataclass
 
-import pytz
 from asgiref.sync import sync_to_async
 
-from lorelie.database import registry
 from lorelie.database.functions.aggregation import (Avg,
                                                     CoefficientOfVariation,
                                                     Count, Max,
@@ -16,7 +14,7 @@ from lorelie.database.nodes import (InsertNode, OrderByNode, SelectNode,
                                     UpdateNode, WhereNode)
 from lorelie.exceptions import (FieldExistsError, MigrationsExistsError,
                                 TableExistsError)
-from lorelie.queries import EmptyQuerySet, Query, QuerySet, ValuesIterable
+from lorelie.queries import QuerySet, ValuesIterable
 
 
 class DatabaseManager:

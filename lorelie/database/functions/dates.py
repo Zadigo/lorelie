@@ -1,7 +1,6 @@
 from lorelie.database.functions.base import Functions
 
 
-# Extract,
 # ExtractIsoWeekDay,
 # ExtractIsoYear,
 # ExtractQuarter,
@@ -29,6 +28,30 @@ class ExtractDatePartsMixin(Functions):
             'format': backend.quote_value(self.date_part),
             'value': self.field_name
         })
+    
+
+class Extract(ExtractDatePartsMixin):
+    """Extracts the part of a given date
+
+    >>> db.objects.annotate('celebrities', year=Extract('date_of_birth', 'year'))
+
+    Or filter data based on the return value of the function
+
+    >>> db.objects.filter('celebrities', year__gte=Extract('date_of_birth', 'year))
+    """
+    def __init__(self, field_name, part):
+        super().__init__(field_name)
+
+        parts = {
+            'year': '%Y',
+            'month': '%m',
+            'date': '%d'
+        }
+
+        result = parts.get(part)
+        if result is None:
+            raise ValueError(f"{part} is not a valid date part")
+        self.date_part = result
 
 
 class ExtractYear(ExtractDatePartsMixin):

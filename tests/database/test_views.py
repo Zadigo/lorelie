@@ -10,8 +10,13 @@ class TestView(LorelieTestCase):
         view = View('my_view', db.objects.all('celebrities'))
         qs = view(db.get_table('celebrities'))
         self.assertIsInstance(qs, QuerySet)
-        
+
         list(qs.all())
+
+        self.assertEqual(
+            qs.alias_view_name,
+            'my_view'
+        )
 
         self.assertEqual(
             qs.query.sql,

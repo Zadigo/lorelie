@@ -29,6 +29,18 @@ class TestField(LorelieTestCase):
         with self.assertRaises(ValidationError):
             field.run_validators('Kendall')
 
+    def test_to_database(self):
+        field = Field('name')
+
+        values = [
+            ('Kendall', 'Kendall'),
+            ('1', '1')
+        ]
+        for value, expected in values:
+            with self.subTest(value=value):
+                result = field.to_database(value)
+                self.assertEqual(result, expected)
+
     def test_field_parameters_dictionnary(self):
         f1 = Field('name')
         self.assertDictEqual(
@@ -118,13 +130,13 @@ class TestBooleanField(LorelieTestCase):
         f = BooleanField('is_active')
         self.assertEqual(f.to_database(True), 1)
         self.assertEqual(f.to_database(False), 0)
-        
+
         self.assertEqual(f.to_database(1), 1)
         self.assertEqual(f.to_database(0), 0)
 
         self.assertEqual(f.to_database('1'), 1)
         self.assertEqual(f.to_database('0'), 0)
-        
+
         self.assertEqual(f.to_database('t'), 1)
         self.assertEqual(f.to_database('f'), 0)
 

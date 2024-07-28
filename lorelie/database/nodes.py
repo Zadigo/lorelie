@@ -175,7 +175,7 @@ class BaseNode:
 class SelectNode(BaseNode):
     template_sql = 'select {fields} from {table}'
 
-    def __init__(self, table, *fields, distinct=False, limit=None):
+    def __init__(self, table, *fields, distinct=False, limit=None, view_name=None):
         super().__init__(table=table, fields=fields)
         self.distinct = distinct
         self.limit = limit

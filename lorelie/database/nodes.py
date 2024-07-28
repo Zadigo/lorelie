@@ -200,6 +200,18 @@ class SelectNode(BaseNode):
 
 
 class WhereNode(BaseNode):
+    """
+    >>> node = WhereNode(name='Kendall')
+    ... node.as_sql(connection)
+    ... "where name='Kendall'"
+
+    `args` accepts a `Q` functions as arguments:
+
+    >>> node = WhereNode(Q(name='Kendall'))
+    ... node.as_sql(connection)
+    ... "where name='Kendall'"
+    """
+
     template_sql = 'where {params}'
 
     def __init__(self, *args, **expressions):

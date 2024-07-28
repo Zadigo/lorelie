@@ -616,8 +616,8 @@ class SQL:
         """Decompose a set of filters to a list of
         key, operator and value list from a dictionnary
 
-        >>> self.decompose_filters(rowid__eq=1)
-        ... [('rowid', '=', '1')]
+        >>> self.decompose_filters(id__eq=1)
+        ... [('id', '=', '1')]
 
         >>> self.decompose_filters(followers__users__id__eq=1)
         ... [('followers', 'users', 'id', '=', 1)]

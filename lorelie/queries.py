@@ -195,7 +195,10 @@ class Query:
                     "file can cause severe security issues to you data"
                 )
                 for query in log_queries:
-                    lorelie_logger.info(f"\"{query}\"")
+                    try:
+                        lorelie_logger.info(f"\"{query}\"")
+                    except:
+                        lorelie_logger.warning('Could not log query')
 
     def transform_to_python(self):
         """Transforms the values returned by the

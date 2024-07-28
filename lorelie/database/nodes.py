@@ -332,9 +332,24 @@ class UpdateNode(BaseNode):
     """To update existing data in a table, 
     you use SQLite UPDATE statement. The following illustrates 
     the syntax of the UPDATE statement:
+
+    >>> node = UpdateNode(table, {'name': 'Kendall'}, name='Kylie')
+    ... node.as_sql(connection)
+    ... ["update celebrities set name='Kendall'", "where name='Kylie'"]
+
+    `where_args` accepts a `Q` functions as arguments:
+
+    >>> node = UpdateNode(table, {'name': 'Kendall'}, Q(name='Kylie'))
+    ... node.as_sql(connection)
+    ... ["update celebrities set name='Kendall'", "where name='Kylie'"]
+
+    If both `where_args` and `where_expressions` are provided:
+
+    >>> ["update celebrities set name='Kendall'", "where name='Kylie' and name='Julie'"]
+
+    Note: https://www.sqlitetutorial.net/sqlite-update/
     """
 
-    # https://www.sqlitetutorial.net/sqlite-update/
     template_sql = 'update {table} set {fields}'
 
     def __init__(self, table, update_defaults, *where_args, **where_expressions):

@@ -172,7 +172,7 @@ class Database:
         # Create a connection to populate the
         # connection pool for the rest of the
         # operations
-        self.backend_class(database_name=name)
+        self.backend_class(database_name=name, log_queries=log_queries)
 
         self.table_map = {}
         for table in tables:

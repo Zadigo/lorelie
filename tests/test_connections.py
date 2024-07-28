@@ -1,23 +1,14 @@
-# import unittest
-
-# from lorelie.backends import SQLiteBackend, connections
-
-
-# class TestConnections(unittest.TestCase):
-#     def setUp(self):
-#         backend = SQLiteBackend()
-#         connections.register(backend)
-
-#     def test_get_last_connection(self):
-#         backend = connections.get_last_connection()
-#         self.assertIsInstance(backend, SQLiteBackend)
-
-#     def test_connection_keys(self):
-#         values = connections.connections_map.keys()
-#         # TODO: Should have one connection which is
-#         # the initial created one
-#         self.assertListEqual(values, ['default'])
+from lorelie.backends import connections
+from lorelie.test.testcases import LorelieTestCase
 
 
-# if __name__ == '__main__':
-#     unittest.main()
+class TestSQLiteConnection(LorelieTestCase):
+    def setUp(self):
+        self.connection = self.create_connection()
+
+    def test_structure(self):
+        pass
+
+    def test_connections(self):
+        conn = connections.get_last_connection()
+        self.assertEqual(conn, self.connection)

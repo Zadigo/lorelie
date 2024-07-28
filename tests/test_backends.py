@@ -177,6 +177,16 @@ class TestSQLiteBackend(LorelieTestCase):
                 self.assertIsInstance(result, list)
                 self.assertListEqual(result, rhv)
 
+    def test_decompose_foreign_key_filters(self):
+        connection = self.create_connection()
+        result = connection.decompose_filters(celebrities__name__eq='Kendall')
+        self.assertListEqual(result, [('celebrities', 'name', '=', 'Kendall')])
+
+        result = connection.decompose_filters_from_string(
+            "celebrities__name__eq=Kendall"
+        )
+        self.assertListEqual(result, [('celebrities', 'name', '=', 'Kendall')])
+
 #     @unittest.expectedFailure
 #     def test_failed_build_filters(self):
 #         # TODO: If an operator is not found we should not

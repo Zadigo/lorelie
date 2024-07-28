@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Iterator, Union
 
+from lorelie.backends import SQLiteBackend
 from lorelie.tables import Table
 
 
@@ -21,13 +22,14 @@ class ExpressionMap:
 
 
 class ExpressionFilter:
-    expressions: list[str] = ...
+    parsed_expressions: list[str] = ...
     table: Union[str, Table] = ...
     expressions_maps: list[ExpressionMap] = ...
 
     def __init__(
         self,
-        expression: Union[dict, str],
+        expression: Union[dict, str, list[Union[list[str], tuple[str]]]],
+        connection: SQLiteBackend,
         table: Union[str, Table] = ...
     ) -> None: ...
 

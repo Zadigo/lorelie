@@ -1,13 +1,14 @@
 import dataclasses
 import pathlib
 from collections import OrderedDict
-from functools import wraps, cached_property
+from functools import cached_property, wraps
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database import registry
 from lorelie.database.manager import DatabaseManager, ForeignTablesManager
 from lorelie.database.migrations import Migrations
 from lorelie.exceptions import TableExistsError
+from lorelie.fields import IntegerField
 from lorelie.fields.relationships import ForeignKeyField
 from lorelie.queries import Query
 from lorelie.tables import Table
@@ -364,20 +365,28 @@ class Database:
             field
         )
 
-    def many_to_many(self, left_table, right_table, primary_key=True, related_name=None):
-        # Create an intermediate junction table that
+    def many_to_many(self, name, left_table, right_table):
+        # TODO: Create an intermediate junction table that
         # will serve to query many to many fields
         # junction_name = f'{left_table.name}_{right_table.name}'
-        # table = Table(junction_name, fields=[
-        #     IntegerField(f'{left_table.name}_id'),
-        #     IntegerField(f'{right_table.name}_id'),
-        # ])
-        # self._add_table(table)
+        relationship_map = self._prepare_relationship_map(right_table, left_table)
+        relationship_map.relationship_type = 'many'
+        
+        junction_table = Table(relationship_map.relationship_name, fields=[
+            IntegerField(f'{left_table.name}_id'),
+            IntegerField(f'{right_table.name}_id'),
+        ])
+        junction_table.prepare(self)
+        self._add_table(junction_table)
 
-        # relationship_map = RelationshipMap(left_table, right_table)
-        # relationship_map.junction_table = table
-        # self.relationships[relationship_map.relationship_field_name] = relationship_map
-        return NotImplemented
+        self.foreign_key(name, relationship_map.foreign_forward_related_field_name, left_table, junction_table)
+        self.foreign_key(name, relationship_map.foreign_forward_related_field_name, right_table, junction_table)
 
-    def one_to_one_key(self, left_table, right_table, on_delete=None, related_name=None):
-        return NotImplemented
+    def one_to_one_key(self, name, left_table, right_table, on_delete=None):
+        relationship_map = self._prepare_relationship_map(
+            right_table,
+            left_table
+        )
+        relationship_map.relationship_type = 'one'
+        self.relationships[name] = ForeignTablesManager(relationship_map)
+        relationship_map.left_table.is_foreign_key_table = True

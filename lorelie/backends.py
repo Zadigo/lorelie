@@ -10,6 +10,7 @@ import pytz
 
 from lorelie import converters
 from lorelie.database import registry
+from lorelie.database.expression_filters import ExpressionFiltersMixin
 from lorelie.database.functions.aggregation import (CoefficientOfVariation,
                                                     MeanAbsoluteDifference,
                                                     StDev, Variance)
@@ -302,7 +303,7 @@ class SQL(ExpressionFiltersMixin):
 
     ORDER_BY = 'order by {conditions}'
     GROUP_BY = 'group by {conditions}'
-    
+
     AVERAGE = 'avg({field})'
     COUNT = 'count({field})'
     STRFTIME = 'strftime({format}, {value})'

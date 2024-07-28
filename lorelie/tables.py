@@ -76,9 +76,12 @@ class AbstractTable(metaclass=BaseTable):
         return self.validate_values(fields, values)
 
     def validate_values(self, fields, values):
-        """Validate a set of values that the
-        user is trying to insert or update in
-        the database"""
+        """Validate a set of values that the user is 
+        trying to insert or update in the database
+        
+        >>> validate_values(['name'], ['Kendall'])
+        ... (["'Kendall'"], {'name': "'Kendall'"})
+        """
         validated_values = []
         for i, field in enumerate(fields):
             # TODO: Allow creation with id field

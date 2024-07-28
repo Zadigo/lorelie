@@ -127,31 +127,6 @@ class Field:
         self.run_validators(data)
         return data
 
-        # if callable(data):
-        #     return self.to_python(str(data()))
-
-        # if data is None:
-        #     return ''
-
-        # if not isinstance(data, self.python_type):
-        #     raise ValueError(
-        #         f"{type(data)} for column '{self.name}' "
-        #         f"should be an instance of {self.python_type}"
-        #     )
-
-        # self.run_validators(data)
-        # try:
-        #     # return self.to_python(data)
-
-        #     # TODO: Why convert this to python
-        #     # value for the database?
-        #     return self.to_python(data)
-        # except (TypeError, ValueError):
-        #     raise ValidationError(
-        #         "The value for {name} is not valid",
-        #         name=self.name
-        #     )
-
     def field_parameters(self):
         """Adapts the python function parameters passed within
         the fields to usable SQL text statements:

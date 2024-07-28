@@ -17,14 +17,13 @@ multiple nodes together
 
 import dataclasses
 import re
-from collections import defaultdict
 
-from lorelie.expressions import CombinedExpression, Q, Value
+from lorelie.expressions import CombinedExpression, Q
 
 
 @dataclasses.dataclass
 class SelectMap:
-    """A node map that resolves the correct
+    """A map that resolves the correct
     positions for the different parameters
     for the select sql statemment"""
 
@@ -130,7 +129,6 @@ class ComplexNode:
         return node in self.nodes
 
     def as_sql(self, backend):
-        # return [node.as_sql(backend) for node in self.nodes]
         return RawSQL(backend, *self.nodes)
 
 
@@ -188,15 +186,13 @@ class SelectNode(BaseNode):
     @property
     def node_name(self):
         return 'select'
-
-    def __call__(self, *fields):
-        new_fields = self.fields.extend(fields)
-        return self.__class__(self.table, *new_fields, distinct=self.distinct)
-
+    
     def as_sql(self, backend):
         select_sql = self.template_sql.format_map({
             'fields': backend.comma_join(self.fields),
-            'table': self.table.name
+            # We can query a table or view that was previously
+            # created in the current database using View
+            'table': self.view_name or self.table.name
         })
 
         if self.distinct:
@@ -210,7 +206,7 @@ class WhereNode(BaseNode):
     ... node.as_sql(connection)
     ... "where name='Kendall'"
 
-    `args` accepts a `Q` functions as arguments:
+    `args` accepts a `Q` function as arguments:
 
     >>> node = WhereNode(Q(name='Kendall'))
     ... node.as_sql(connection)
@@ -462,20 +458,15 @@ class JoinNode(BaseNode):
         self.relationship_map = relationship_map
 
     def as_sql(self, backend):
-        # if isinstance(self.expression, dict):
-        #     tokens = backend.decompose_filters(**self.expression)
-        # elif isinstance(self.expression, str):
-        #     tokens = backend.decompose_filters_from_string(self.expression)
-        # dot_notations = backend.build_dot_notation(tokens)
-        # print(dot_notations)
-
         # if self.join_type == 'cross':
         #     return []
 
         # if self.join_type == 'full':
         #     return []
 
-        condition = self.relationship_map.get_relationship_condition(self.table)
+        condition = self.relationship_map.get_relationship_condition(
+            self.table
+        )
         condition = ' = '.join(condition)
 
         join_sql = self.template_sql.format_map({
@@ -484,3 +475,45 @@ class JoinNode(BaseNode):
             'condition': condition
         })
         return [join_sql]
+
+
+class IntersectNode(BaseNode):
+    template_sql = '{0} intersect {1}'
+
+    def __init__(self, left_select, right_select):
+        self.left_select = left_select
+        self.right_select = right_select
+
+    def as_sql(self, backend):
+        lhv = self.left_select.as_sql(backend)
+        rhv = self.right_select.as_sql(backend)
+        sql = self.template_sql.format(lhv[0], rhv[0])
+        return [sql]
+
+
+class ViewNode(BaseNode):
+    template_sql = 'create view if not exists {name} as {select_node}'
+
+    def __init__(self, name, queryset, temporary=False):
+        self.name = name
+        self.temporary = temporary
+        self.queryset = queryset
+
+    def as_sql(self, backend):
+        if not hasattr(self.queryset, 'load_cache'):
+            raise ValueError(
+                f"ViewNode expects a Queryset. Got: {self.queryset}")
+
+        template_sql = self.template_sql
+        if self.temporary:
+            template_sql = self.template_sql.replace('view', 'temp view')
+
+        # We need to evaluate the queryset
+        # in order to get underlying sql query
+        # that will be used to create the view
+        self.queryset.load_cache()
+        sql = template_sql.format_map({
+            'name': self.name,
+            'select_node': self.queryset.query.sql
+        })
+        return [sql]

@@ -179,6 +179,11 @@ class SelectNode(BaseNode):
         super().__init__(table=table, fields=fields)
         self.distinct = distinct
         self.limit = limit
+        self.view_name = view_name
+
+    def __call__(self, *fields, **kwargs):
+        new_fields = self.fields.extend(fields)
+        return self.__class__(self.table, *new_fields, **kwargs)
 
     @property
     def node_name(self):

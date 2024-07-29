@@ -21,12 +21,12 @@ table = Table('products', fields=[
     index=[Index('my_index', fields=['name'], condition=Q(name='Kendall'))]
 )
 
-db = Database(table, name='products', log_queries=True)
-db.migrate()
+# db = Database(table, name='products', log_queries=True)
+# db.migrate()
 
-view = View('my_view', db.objects.all('products'))
-qs = view(table)
-print(qs.filter(id=1))
+# view = View('my_view', db.objects.all('products'))
+# qs = view(table)
+# print(qs.filter(id=1))
 
 # db.objects.create('products', name='Jupe')
 # item = db.objects.first('products')

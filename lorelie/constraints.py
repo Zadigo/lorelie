@@ -8,7 +8,7 @@ class BaseConstraint:
     prefix = None
     base_errors = {
         'integer': (
-            "Limit for {klass} should "
+            "Limit for {klass} should be "
             "an integer field"
         )
     }
@@ -84,6 +84,13 @@ class UniqueConstraint(BaseConstraint):
 
 
 class MaxLengthConstraint(BaseConstraint):
+    """The `MaxLengthConstraint` class is a custom database constraint 
+    used to enforce a maximum length on a specified field within a table. 
+    This constraint ensures that the length of the field's value does not 
+    exceed a defined limit. If the value's length surpasses this limit, 
+    the constraint will be violated, thus maintaining data integrity by 
+    restricting the length of the input data"""
+
     template_sql = 'check({condition})'
     length_sql = 'length({column})'
 

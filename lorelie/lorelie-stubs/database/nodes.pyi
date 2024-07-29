@@ -1,14 +1,14 @@
 import dataclasses
-from typing import Any, Callable, Dict, Literal, Tuple, Union, override
+from typing import (Any, Callable, Dict, Literal, Optional, Tuple, Union,
+                    override)
 
 from database.base import RelationshipMap
 from expressions import Q
-from lorelie.queries import QuerySet
 from tables import Table
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database.functions.base import Functions
-
+from lorelie.queries import QuerySet
 
 @dataclasses.dataclass
 class SelectMap:
@@ -63,8 +63,8 @@ class BaseNode:
 
     def __init__(
         self,
-        table: Table = ...,
-        fields: list[str] = ...
+        table: Optional[Table] = ...,
+        fields: Optional[list[str]] = ...
     ) -> None: ...
 
     def __repr__(self) -> str: ...
@@ -86,8 +86,8 @@ class SelectNode(BaseNode):
         self,
         table: Table,
         *fields: str,
-        distinct: bool = Literal[False],
-        limit: int = None
+        distinct: Optional[bool] = ...,
+        limit: Optional[int] = ...
     ) -> None: ...
 
     @override
@@ -99,6 +99,7 @@ class WhereNode(BaseNode):
     func_expressions: list[Functions] = ...
 
     def __init__(self, *args: Functions, **expressions) -> None: ...
+
     @override
     def __call__(self, *args: Functions, **expressions) -> WhereNode: ...
 
@@ -110,13 +111,13 @@ class OrderByNode(BaseNode):
 
     def __init__(self, table: Table, *fields: str) -> None: ...
     def __hash__(self) -> int: ...
-    def __and__(self, node) -> OrderByNode: ...
+    def __and__(self, node: OrderByNode) -> OrderByNode: ...
 
     @staticmethod
     def construct_sql(
         backend: SQLiteBackend,
         field: str,
-        ascending: bool = Literal[True]
+        ascending: Optional[bool] = ...
     ) -> Union[str, None]: ...
 
 
@@ -142,9 +143,9 @@ class InsertNode(BaseNode):
     def __init__(
         self,
         table: Table,
-        batch_values: list[dict[str, Any]] = ...,
-        insert_values: dict[str, Any] = ...,
-        returning: list[str] = ...
+        batch_values: Optional[list[dict[str, Any]]] = ...,
+        insert_values: Optional[dict[str, Any]] = ...,
+        returning: Optional[list[str]] = ...
     ) -> None: ...
 
 
@@ -153,7 +154,7 @@ class JoinNode(BaseNode):
         self,
         table: str,
         relationship_map: RelationshipMap,
-        join_type: str = ...
+        join_type: Optional[str] = ...
     ) -> None: ...
 
 
@@ -166,5 +167,5 @@ class ViewNode(BaseNode):
         self,
         name: str,
         queryset: QuerySet,
-        temporary: bool = ...
+        temporary: Optional[bool] = ...
     ) -> None: ...

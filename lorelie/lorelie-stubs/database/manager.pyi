@@ -8,8 +8,9 @@ import pandas
 from lorelie.backends import BaseRow
 from lorelie.database.base import Database, RelationshipMap
 from lorelie.database.functions.aggregation import Avg, Count, Sum
-from lorelie.queries import Query, QuerySet, ValuesIterable
+from lorelie.queries import QuerySet, ValuesIterable
 from lorelie.tables import Table
+
 
 class DataclassProtocol(Protocol):
     __dataclass_fields__: ClassVar[Dict[str, Any]]
@@ -40,13 +41,13 @@ class DatabaseManager:
         self,
         table: Table,
         params: dict[str, str],
-        update_only: bool = ...
+        update_only: Optional[bool] = ...
     ) -> dict[str, str]: ...
 
     def _get_select_sql(
         self,
         selected_table: Table,
-        columns: list = ...
+        columns: Optional[list] = ...
     ) -> list[str]: ...
 
     def _get_first_or_last_sql(
@@ -71,9 +72,9 @@ class DatabaseManager:
     def annotate(self, table: str, *args, **kwargs) -> QuerySet[BaseRow]: ...
     def values(self, table: str, *fields: str) -> ValuesIterable: ...
     def dataframe(self, table: str, *fields) -> pandas.DataFrame: ...
-    
+
     def bulk_create(
-        self, 
+        self,
         table: str,
         objs: list[DataclassProtocol]
     ) -> QuerySet[BaseRow]: ...
@@ -93,8 +94,8 @@ class DatabaseManager:
         self,
         table: str,
         field: str,
-        field_to_sort=Literal['year'],
-        ascending=Literal[True]
+        field_to_sort: Optional[str] = ...,
+        ascending: Optional[bool] = ...
     ) -> list[datetime.datetime]: ...
 
     def difference(self, table: str, *qs: QuerySet) -> QuerySet[BaseRow]: ...
@@ -108,7 +109,7 @@ class DatabaseManager:
     def get_or_create(
         self,
         table: str,
-        create_defaults: dict[str, Any] = ...,
+        create_defaults: Optional[dict[str, Any]] = ...,
         **kwargs
     ) -> BaseRow: ...
 
@@ -119,7 +120,7 @@ class DatabaseManager:
     def update_or_create(
         self,
         table: str,
-        create_defaults: dict[str, Any] = ...,
+        create_defaults: Optional[dict[str, Any]] = ...,
         **kwargs
     ) -> BaseRow: ...
 
@@ -155,7 +156,7 @@ class ForeignTablesManager:
     def __init__(
         self,
         relationship_map: RelationshipMap,
-        reverse: bool = ...
+        reverse: Optional[bool] = ...
     ) -> None: ...
 
     def __repr__(self) -> None: ...

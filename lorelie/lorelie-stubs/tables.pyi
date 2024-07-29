@@ -1,4 +1,5 @@
-from typing import Any, List, Literal, OrderedDict, Tuple, Type, override
+from typing import (Any, List, Literal, Optional, OrderedDict, Tuple, Type,
+                    override)
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint
@@ -6,7 +7,6 @@ from lorelie.database.base import Database
 from lorelie.database.indexes import Index
 from lorelie.fields.base import Field
 from lorelie.queries import Query
-
 
 class BaseTable(type):
     def __new__(
@@ -35,9 +35,23 @@ class AbstractTable(metaclass=BaseTable):
     @staticmethod
     def validate_table_name(name: str) -> str: ...
 
-    def validate_values_from_list(self, fields, values) -> List[Tuple[list[str], dict[str, Any]]]: ...
-    def validate_values_from_dict(self, fields, values) -> Tuple[list[str], dict[str, Any]]: ...
-    def validate_values(self, fields, values) -> Tuple[list[str], dict[str, Any]]: ...
+    def validate_values_from_list(
+        self,
+        fields: List[str],
+        values: List[Any]
+    ) -> List[Tuple[list[str], dict[str, Any]]]: ...
+
+    def validate_values_from_dict(
+        self,
+        fields: List[str],
+        values: List[Any]
+    ) -> Tuple[list[str], dict[str, Any]]: ...
+
+    def validate_values(
+        self,
+        fields: List[str],
+        values: List[Any]
+    ) -> Tuple[list[str], dict[str, Any]]: ...
 
 
 class Table(AbstractTable):
@@ -61,11 +75,11 @@ class Table(AbstractTable):
         self,
         name: str,
         *,
-        fields: list[Field] = ...,
-        index: list[Index] = ...,
-        constraints: list[CheckConstraint] = ...,
-        ordering: list[str] = ...,
-        str_field: str = Literal['id']
+        fields: Optional[list[Field]] = ...,
+        index: Optional[list[Index]] = ...,
+        constraints: Optional[list[CheckConstraint]] = ...,
+        ordering: Optional[list[str]] = ...,
+        str_field: Optional[str] = ...
     ) -> None: ...
 
     @override

@@ -300,6 +300,7 @@ class Database:
         """
         return NotImplemented
 
+    # TODO: Remove this line
     def create_view(self, name, queryset, temporary=True):
         return NotImplemented
 

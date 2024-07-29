@@ -2,6 +2,15 @@ from lorelie.database.functions.base import Functions
 
 
 class Window(Functions):
+    """The Window class provides a way to utilize SQL window 
+    functions within your database operations. Window functions perform 
+    calculations across a set of table rows that are somehow related to 
+    the current row. This is similar to aggregate functions, but window 
+    functions do not cause rows to become grouped into a single output row. 
+    Instead, rows retain their separate identities
+
+    >>> db.objects.annotate(alias_name=Window(...))
+    """
     template_sql = '{function_name} {over_clause}'
 
     def __init__(self, function, partition_by=None, order_by=None):
@@ -27,8 +36,7 @@ class Window(Functions):
 
         return self.template_sql.format(**{
             'function_name': function_name,
-            'over_clause': self.function.as_sql(backend),
-            # 'alias_name': self.alias_field_name
+            'over_clause': self.function.as_sql(backend)
         })
 
 

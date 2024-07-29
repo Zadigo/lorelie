@@ -371,7 +371,7 @@ class F(BaseExpression):
 
     These operations will translate directly to database
     operations in such as `price * 1.2` where the value
-    in the price column will be multiplied by 1.2
+    in the price column will be multiplied by `1.2`
     """
 
     ADD = '+'

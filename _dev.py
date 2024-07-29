@@ -14,7 +14,7 @@ from lorelie.tables import Table
 from lorelie.database.functions import Count
 from lorelie.database.views import View
 
-table = Table('products', fields=[
+table = Table('products google', fields=[
     CharField('name'),
     DateTimeField('created_on', auto_add=True)
 ],

@@ -1,12 +1,9 @@
 import datetime
-import unittest
 
-import pytz
-
-from lorelie.backends import SQLiteBackend
 from lorelie.exceptions import ValidationError
-from lorelie.fields.base import (AutoField, BooleanField, FloatField, CharField, DateField,
-                                 DateTimeField, Field, IntegerField, JSONField)
+from lorelie.fields.base import (BooleanField, CharField, DateField,
+                                 DateTimeField, Field, FloatField,
+                                 IntegerField, JSONField)
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -76,6 +73,7 @@ class TestCharField(LorelieTestCase):
         self.assertEqual(f.to_database(1), '1')
         self.assertEqual(f.to_database(1.0), '1.0')
         self.assertEqual(f.to_database(lambda: {'a': 1}), "{'a': 1}")
+        self.assertEqual(f.to_database(lambda: 1), '1')
 
 
 class TestIntegerField(LorelieTestCase):

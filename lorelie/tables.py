@@ -62,9 +62,7 @@ class AbstractTable(metaclass=BaseTable):
 
         result = re.search(r'\s+', name)
         if result:
-            raise ValueError(
-                "Table name contains invalid spaces"
-            )
+            raise ValueError("Table name contains invalid spaces")
         return name.lower()
 
     def validate_values_from_list(self, values):
@@ -78,7 +76,7 @@ class AbstractTable(metaclass=BaseTable):
     def validate_values(self, fields, values):
         """Validate a set of values that the user is 
         trying to insert or update in the database
-        
+
         >>> validate_values(['name'], ['Kendall'])
         ... (["'Kendall'"], {'name': "'Kendall'"})
         """
@@ -107,18 +105,15 @@ class AbstractTable(metaclass=BaseTable):
 
 
 class Table(AbstractTable):
-    """Represents a table in the database. This class
-    can be used independently but would require creating
-    and managing table creation
+    """To create a table in the SQLite database, you first need to 
+    create an instance of the Table class and then use it with the 
+    Database class, which represents the actual database. The make_migrations 
+    function can be called to generate a JSON file that contains all 
+    the historical changes made to the database.
 
-    To create a table without using `Database`:
-
-    >>> table = Table('my_table', 'my_database', fields=[Field('url')])
-    ... table.prepare()
-    ... table.create(url='http://example.come')
-
-    However, if you wish to manage a migration file and other table related
-    tasks, wrapping tables in `Database` is the best option:
+    Represents a table in your database which is managed within a Database class. 
+    This setup allows you to handle migration files and perform various 
+    table-related tasks:
 
     >>> table = Table('my_table', 'my_database', fields=[Field('url')])
     ... database = Database('my_database', table)
@@ -211,11 +206,7 @@ class Table(AbstractTable):
 
     def __setattr__(self, name, value):
         if name == 'name':
-            if re.search(r'\W', value):
-                raise ValueError(
-                    "The table name should not contain carachters "
-                    "such as _, -, @ or %"
-                )
+            pass
         return super().__setattr__(name, value)
 
     def __getattribute__(self, name):
@@ -225,7 +216,8 @@ class Table(AbstractTable):
                 raise ImproperlyConfiguredError(
                     self,
                     "You are trying to use a table outside of a Database "
-                    "and therefore calling it without a backend being set"
+                    "and therefore calling it without the backend being set "
+                    "on the table instance"
                 )
         return super().__getattribute__(name)
 

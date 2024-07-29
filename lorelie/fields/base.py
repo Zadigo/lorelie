@@ -428,13 +428,18 @@ class DateField(DateFieldMixin, Field):
 
 
 class DateTimeField(DateFieldMixin, Field):
-    """
+    """The `DateTimeField` class is a specialized field for 
+    handling date and time data in your database models. It extends 
+    `DateFieldMixin` and Field, providing additional functionality 
+    specifically for date and time fields.
+
     * `auto_add` will update the field with the
       current date every time a value is created
 
     * `auto_update` will update the field with the
       current date every time a value is updated
     """
+    
     date_format = '%Y-%m-%d %H:%M:%S.%f%z'
 
     @property

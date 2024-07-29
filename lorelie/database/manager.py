@@ -297,6 +297,12 @@ class DatabaseManager:
         alias_fields = list(kwargs.keys())
 
         for alias, func in kwargs.items():
+            if selected_table.has_field(alias):
+                raise ValueError(
+                    "Alias field names cannot override table "
+                    f"columns: {alias} -> {selected_table.field_names}"
+                )
+
             internal_type = getattr(func, 'internal_type')
             if internal_type == 'expression':
                 func.alias_field_name = alias

@@ -1,4 +1,3 @@
-import unittest
 from sqlite3 import IntegrityError
 
 from lorelie.constraints import CheckConstraint
@@ -22,8 +21,8 @@ class TestConstraints(LorelieTestCase):
             fields=[CharField('name')], 
             constraints=[constraint]
         )
-        db = Database()(table)
-        table.prepare(db)
+        db = Database(table)
+        db.migrate()
 
     def test_create_table_constraints(self):
         table = self.create_constrained_table()

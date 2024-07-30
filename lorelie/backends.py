@@ -691,6 +691,18 @@ class SQLiteBackend(SQL):
         elif self.current_table != table:
             self.current_table = table
 
+    def set_current_table_from_row(self, row):
+        """Sets the current table using the table name that
+        is attached to the row if current table is None 
+        otherwhise skip this action"""
+        if self.current_table is None:
+            if 'sqlite_' in row.linked_to_table:
+                return
+
+            self.current_table = self.database_instance.get_table(
+                row.linked_to_table
+            )
+
     def list_table_columns(self, table):
         sql = f'pragma table_info({table.name})'
         # query = Query([sql], table=table)

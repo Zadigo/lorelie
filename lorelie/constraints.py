@@ -83,7 +83,17 @@ class UniqueConstraint(BaseConstraint):
         return self.template_sql.format(fields=fields)
 
 
-class MaxLengthConstraint(BaseConstraint):
+class MinMaxMixin:
+    def __init__(self, limit, field):
+        if not isinstance(limit, int):
+            error = self.base_errors['integer']
+            raise ValueError(error.format(klass=self.__class__.__name__))
+
+        self.limit = limit
+        self.field = field
+
+
+class MaxLengthConstraint(MinMaxMixin, BaseConstraint):
     """The `MaxLengthConstraint` class is a custom database constraint 
     used to enforce a maximum length on a specified field within a table. 
     This constraint ensures that the length of the field's value does not 

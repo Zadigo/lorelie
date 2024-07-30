@@ -1,13 +1,9 @@
 import dataclasses
 import sqlite3
 import unittest
-from collections import defaultdict
 
-from lorelie.backends import SQLiteBackend
-from lorelie.database.base import Database
+from lorelie.backends import BaseRow, connections
 from lorelie.database.functions.aggregation import Count
-from lorelie.fields.base import CharField
-from lorelie.tables import Table
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -240,17 +236,43 @@ class TestSQLiteBackend(LorelieTestCase):
 #         print(bits)
 
 
-# class TestCore(unittest.TestCase):
-#     def setUp(self):
-#         table = Table('celebrities')
-#         db = Database(table)
-#         db.migrate()
-#         self.db = db
+class TestBaseRow(LorelieTestCase):
+    def setUp(self):
+        backend = self.create_connection()
+        row = BaseRow(
+            ['name'],
+            {'id': 1, 'name': 'Kendall'},
+            backend.connection.cursor()
+        )
+        row.linked_to_table = 'sqlite_'
+        self.row = row
 
-#     def test_list_table_columns_sql(self):
-#         table = self.db.get_table('celebrities')
-#         query = table.backend.list_table_columns_sql(table)
-#         print(query)
+    def test_structure(self):
+        self.assertEqual(self.row.pk, 1)
+
+    def test_contains(self):
+        self.assertIn('Kendall', self.row)
+        self.assertIn(1, self.row)
+
+    @unittest.expectedFailure
+    def test_does_not_contain(self):
+        self.assertIn('Julie', self.row)
+
+
+class TestBackendCoreFunctions(LorelieTestCase):
+    def test_list_all_tables(self):
+        self.create_database()
+        conn = connections.get_last_connection()
+        result = conn.list_all_tables()
+        self.assertIn('celebrities', result)
+
+    def test_list_table_columns_sql(self):
+        db = self.create_database()
+        table = db.get_table('celebrities')
+        conn = connections.get_last_connection()
+        result = conn.list_table_columns(table)
+        print(vars(result[1]))
+        print(result)
 
 #     @unittest.expectedFailure
 #     def test_drop_indexes_sql(self):
@@ -268,29 +290,42 @@ class TestSQLiteBackend(LorelieTestCase):
 #         result = table.backend.list_tables_sql()
 #         print(result)
 
-#     def test_list_database_indexes(self):
-#         table = self.db.get_table('celebrities')
-#         result = table.backend.list_database_indexes()
-#         print(result)
+    def test_list_database_indexes(self):
+        self.create_database()
+        conn = connections.get_last_connection()
+        result = conn.list_database_indexes()
+        print(result)
+        print(vars(result[0]))
 
-#     def test_list_table_indexes(self):
-#         table = self.db.get_table('celebrities')
-#         result = table.backend.list_table_indexes(table)
-#         print(result)
+    def test_list_table_indexes(self):
+        db = self.create_database()
+        table = db.get_table('celebrities')
+        conn = connections.get_last_connection()
+        result = conn.list_table_indexes(table)
+        print(result)
 
-#     def test_save_row_object(self):
-#         row = self.db.objects.create('celebrities', firstname='Kendall')
-#         row['firstname'] = 'Kylie'
-#         table = self.db.get_table('celebrities')
-#         query = table.backend.save_row_object(row)
-#         print(query)
+    def test_save_row_object(self):
+        db = self.create_database()
+        row = db.objects.create(
+            'celebrities',
+            name='Kendall Jenner',
+            height=170
+        )
 
-#     def test_save_row_object(self):
-#         row = self.db.objects.create('celebrities', firstname='Kendall')
-#         table = self.db.get_table('celebrities')
-#         query = table.backend.delete_row_object(row)
-#         print(query)
+        row['name'] = 'Kylie Jenner'
+        row.save()
 
+        self.assertEqual(row['name'], 'Kylie Jenner')
 
-# if __name__ == '__main__':
-#     unittest.main()
+    def test_delete_row_object(self):
+        db = self.create_database()
+        row = db.objects.create(
+            'celebrities',
+            name='Kendall Jenner',
+            height=170
+        )
+
+        row['name'] = 'Kylie Jenner'
+        row.delete()
+
+        self.assertFalse(db.objects.all('celebrities').exists())

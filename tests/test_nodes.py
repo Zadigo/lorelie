@@ -1,6 +1,6 @@
 import unittest
 
-from lorelie.database.nodes import (BaseNode, ComplexNode, InsertNode, IntersectNode, JoinNode,
+from lorelie.database.nodes import (BaseNode, ComplexNode, DeleteNode, InsertNode, IntersectNode, JoinNode,
                                     OrderByNode, SelectNode, UpdateNode, ViewNode,
                                     WhereNode)
 from lorelie.expressions import Q
@@ -132,7 +132,8 @@ class TestWhereNode(LorelieTestCase):
     def test_arguments_and_expressions(self):
         where = WhereNode(
             Q(lastname='Jenner'),
-            firstname='Kendall', age__gt=40
+            firstname='Kendall',
+            age__gt=40
         )
         self.assertListEqual(
             where.as_sql(self.create_connection()),
@@ -156,6 +157,18 @@ class TestWhereNode(LorelieTestCase):
         self.assertListEqual(
             new_instance.as_sql(backend),
             ["where firstname='Kendall' and lastname='Jenner'"]
+        )
+
+    def test_cannot_use_q_functions(self):
+        node = UpdateNode(
+            self.create_table(),
+            {'name': 'Kendall'},
+            name=Q(name='Kendall')
+        )
+        self.assertRaises(
+            ValueError, 
+            node.as_sql, 
+            self.create_connection()
         )
 
 
@@ -248,6 +261,38 @@ class TestUpdateNode(LorelieTestCase):
                 "update celebrities set name='Kendall'",
                 "where name='Kylie' and name='Julie'"
             ]
+        )
+
+    def test_mixed_q_args(self):
+        node = UpdateNode(
+            self.create_table(),
+            {'name': 'Kendall'},
+            Q(name='Julie'),
+            lastname=Q(lastname='Pauline')
+        )
+        result = node.as_sql(self.create_connection())
+        print(result)
+
+
+class TestDeleteNode(LorelieTestCase):
+    def test_structure(self):
+        delete = DeleteNode(self.create_table())
+        delete.as_sql(self.create_connection())
+
+    def test_with_where_node(self):
+        delete = DeleteNode(self.create_table(), Q(name='Kendall'))
+        result = delete.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            ['delete from celebrities', "where name='Kendall'"]
+        )
+
+    def test_with_multiple_where_node(self):
+        delete = DeleteNode(self.create_table(), Q(name='Kendall'), Q(age=34))
+        result = delete.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            ['delete from celebrities', "where name='Kendall' and age=34"]
         )
 
 

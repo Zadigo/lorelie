@@ -243,6 +243,14 @@ class WhereNode(BaseNode):
             if isinstance(func, (Q, CombinedExpression)):
                 resolved.extend(func.as_sql(backend))
 
+        # WhereNode(firstname=Q(firstname='Kendall')) is a useless
+        # expression since Q already wraps firstname. There's no
+        # sense then to accept Q expressions in the node
+        for _, value in self.expressions.items():
+            if isinstance(value, (Q, CombinedExpression)):
+                raise ValueError(
+                    f'{value} cannot be a Q or CombinedExpression value')
+
         # Resolve base expressions e.g. firstname__eq which
         # are "and" operations which go after the more complexe ones
         filters = backend.decompose_filters(**self.expressions)

@@ -10,6 +10,7 @@ from lorelie.backends import SQLiteBackend
 from lorelie.database.functions.base import Functions
 from lorelie.queries import QuerySet
 
+
 @dataclasses.dataclass
 class SelectMap:
     select: type[SelectNode] = None
@@ -131,8 +132,21 @@ class UpdateNode(BaseNode):
         table: Table,
         update_defaults: Dict[str, Any],
         *where_args: Q,
-        **where_expressions: Union[Any, Q]
+        **where_expressions: str
     ) -> None: ...
+
+
+class DeleteNode(BaseNode):
+    def __init__(
+        self,
+        table: Table,
+        *where_expressions: Q,
+        order_by: Optional[list[str]] = ...,
+        limit: Optional[int] = ...
+    ) -> None: ...
+
+    @override
+    def as_sql(self, backend: SQLiteBackend) -> list[str]: ...
 
 
 class InsertNode(BaseNode):

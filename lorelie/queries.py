@@ -224,6 +224,11 @@ class Query:
         database into Python objects"""
         from lorelie.fields.base import AliasField
         for row in self.result_cache:
+            # The sqlite_schema is not created
+            # locally so no sense to do a transform
+            if self.map_to_sqlite_table:
+                continue
+
             for name in row._fields:
                 value = row[name]
                 if name in self.alias_fields:

@@ -1,8 +1,6 @@
-import unittest
-
 from lorelie.database.base import RelationshipMap
 from lorelie.database.manager import ForeignTablesManager
-from lorelie.fields.relationships import BaseRelationshipField, ForeignKeyField
+from lorelie.fields.relationships import ForeignKeyField
 from lorelie.test.testcases import LorelieTestCase
 
 

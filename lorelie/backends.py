@@ -677,7 +677,10 @@ class SQLiteBackend(SQL):
         self.current_table = None
         self.log_queries = log_queries
 
-        connections.register(self, name=database_name)
+        connections.register(self, name=self.database_name)
+
+    def __hash__(self):
+        return hash((self.database_name))
 
     def set_current_table(self, table):
         """Track the current table that is being updated

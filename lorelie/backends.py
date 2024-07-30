@@ -128,7 +128,11 @@ class BaseRow:
             # when trying to get str_field. So get the
             # first field from the list of fields
             name_to_show = getattr(self, self._fields[-0])
-        return f'<{self._backend.current_table.verbose_name}: {name_to_show}>'
+
+        if 'sqlite_' in self.linked_to_table:
+            return f'<SQLITE: {name_to_show}>'
+
+        return f'<{self.linked_to_table.title()}: {name_to_show}>'
 
     def __setitem__(self, name, value):
         self.mark_for_update = True

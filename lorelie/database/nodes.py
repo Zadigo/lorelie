@@ -186,7 +186,7 @@ class SelectNode(BaseNode):
     @property
     def node_name(self):
         return 'select'
-    
+
     def as_sql(self, backend):
         select_sql = self.template_sql.format_map({
             'fields': backend.comma_join(self.fields),
@@ -338,15 +338,19 @@ class OrderByNode(BaseNode):
 
 
 class UpdateNode(BaseNode):
-    """To update existing data in a table, 
-    you use SQLite UPDATE statement. The following illustrates 
-    the syntax of the UPDATE statement:
+    """To update existing data in a table, you use SQLite 
+    UPDATE statement. The following illustrates the syntax 
+    of the UPDATE statement:
 
     >>> node = UpdateNode(table, {'name': 'Kendall'}, name='Kylie')
     ... node.as_sql(connection)
     ... ["update celebrities set name='Kendall'", "where name='Kylie'"]
 
-    `where_args` accepts a `Q` functions as arguments:
+    `where_expressions` can also be provided a key-value pair:
+
+    >>> node = UpdateNode(table, {'name': 'Kendall'}, name='Kylie')
+
+    `where_args` accepts `Q` functions as arguments:
 
     >>> node = UpdateNode(table, {'name': 'Kendall'}, Q(name='Kylie'))
     ... node.as_sql(connection)

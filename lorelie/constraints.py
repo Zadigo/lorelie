@@ -29,7 +29,7 @@ class BaseConstraint:
 
     def as_sql(self, backend):
         return NotImplemented
-    
+
 
 class CheckConstraint(BaseConstraint):
     """Represents a SQL CHECK constraint that is used 
@@ -113,7 +113,7 @@ class MaxLengthConstraint(MinMaxMixin, BaseConstraint):
         return self.template_sql.format(condition=condition)
 
 
-class MinValueConstraint(BaseConstraint):
+class MinValueConstraint(MinMaxMixin, BaseConstraint):
     template_sql = 'check({condition})'
     operator = '>'
 

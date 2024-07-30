@@ -181,6 +181,7 @@ class Query:
         else:
             if commit:
                 self.backend.connection.commit()
+
             self.result_cache = list(result)
 
             # Since some tables are not created locally,

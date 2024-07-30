@@ -102,12 +102,13 @@ class RelationshipMap:
                 "Cannot create conditions for none "
                 "existing tables"
             )
-        
+
         selected_table = list(filter(lambda x: table == x, tables))
         other_table = list(filter(lambda x: table != x, tables))
-        
+
         lhv = f"{selected_table[-1].name}.id"
-        rhv = f"{other_table[-1].name}.{self.foreign_forward_related_field_name}"
+        rhv = f"{
+            other_table[-1].name}.{self.foreign_forward_related_field_name}"
 
         return lhv, rhv
 
@@ -168,12 +169,19 @@ class Database:
         self.path = pathlib.Path(__name__).parent.absolute()
 
         if path is not None:
+            if isinstance(path, str):
+                path = pathlib.Path(path)
+
             self.path = path
 
         # Create a connection to populate the
         # connection pool for the rest of the
         # operations
-        self.backend_class(database_name=name, log_queries=log_queries)
+        self.backend_class(
+            database_or_name=self,
+            path=self.path,
+            log_queries=log_queries
+        )
 
         self.table_map = {}
         for table in tables:
@@ -350,7 +358,7 @@ class Database:
         ... db.objects.foreign_key('social_media', reverse=True).all()
         """
         relationship_map = self._prepare_relationship_map(
-            right_table, 
+            right_table,
             left_table
         )
         self.relationships[name] = ForeignTablesManager(relationship_map)
@@ -376,9 +384,10 @@ class Database:
         # TODO: Create an intermediate junction table that
         # will serve to query many to many fields
         # junction_name = f'{left_table.name}_{right_table.name}'
-        relationship_map = self._prepare_relationship_map(right_table, left_table)
+        relationship_map = self._prepare_relationship_map(
+            right_table, left_table)
         relationship_map.relationship_type = 'many'
-        
+
         junction_table = Table(relationship_map.relationship_name, fields=[
             IntegerField(f'{left_table.name}_id'),
             IntegerField(f'{right_table.name}_id'),
@@ -386,8 +395,10 @@ class Database:
         junction_table.prepare(self)
         self._add_table(junction_table)
 
-        self.foreign_key(name, relationship_map.foreign_forward_related_field_name, left_table, junction_table)
-        self.foreign_key(name, relationship_map.foreign_forward_related_field_name, right_table, junction_table)
+        self.foreign_key(
+            name, relationship_map.foreign_forward_related_field_name, left_table, junction_table)
+        self.foreign_key(
+            name, relationship_map.foreign_forward_related_field_name, right_table, junction_table)
 
     def one_to_one_key(self, name, left_table, right_table, on_delete=None):
         relationship_map = self._prepare_relationship_map(

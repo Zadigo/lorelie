@@ -27,8 +27,6 @@ db.migrate()
 for i in range(10):
     db.objects.create('products', name=f'Product {i}')
 
-Window(Rank(), order_by=F('age').asc())
-
 # db.objects.create('products', name='Jupe')
 # item = db.objects.first('products')
 # item.refresh_from_database()

@@ -20,7 +20,6 @@ class CustomManager(DatabaseManager):
 
 table = Table('names', fields=[CharField('fullname')])
 db = Database(table)
-db.objects = CustomManager()
 db.migrate()
 
 

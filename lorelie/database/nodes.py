@@ -532,6 +532,10 @@ class IntersectNode(BaseNode):
         self.left_select = left_select
         self.right_select = right_select
 
+    @property
+    def node_name(self):
+        return 'intersect'
+
     def as_sql(self, backend):
         lhv = self.left_select.as_sql(backend)
         rhv = self.right_select.as_sql(backend)
@@ -546,6 +550,10 @@ class ViewNode(BaseNode):
         self.name = name
         self.temporary = temporary
         self.queryset = queryset
+
+    @property
+    def node_name(self):
+        return 'view'
 
     def as_sql(self, backend):
         if not hasattr(self.queryset, 'load_cache'):

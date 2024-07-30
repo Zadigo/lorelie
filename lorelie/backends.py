@@ -777,8 +777,9 @@ class SQLiteBackend(SQL):
         # sql = f'PRAGMA index_list({self.quote_value(table.name)})'
         sql = f'PRAGMA index_list({table.name})'
         query = Query(table=table)
+        query.map_to_sqlite_table = True
         query.add_sql_node(sql)
-        return QuerySet(query, skip_transform=True)
+        return QuerySet(query)
 
     def save_row_object(self, row):
         """Creates the SQL statement required for

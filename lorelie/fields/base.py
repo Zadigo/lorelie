@@ -65,7 +65,7 @@ class Field:
         that allows us then convert the data
         back to its Python representation"""
         return 'text'
-    
+
     @property
     def field_python_name(self):
         return self.__class__.__name__
@@ -338,6 +338,10 @@ class BooleanField(Field):
     truth_types = ['true', 't', 1, '1']
     false_types = ['false', 'f', 0, '0']
 
+    @property
+    def field_type(self):
+        return 'boolean'
+
     def to_database(self, data):
         if data in self.truth_types:
             return super().to_database(1)
@@ -439,7 +443,7 @@ class DateTimeField(DateFieldMixin, Field):
     * `auto_update` will update the field with the
       current date every time a value is updated
     """
-    
+
     date_format = '%Y-%m-%d %H:%M:%S.%f%z'
 
     @property

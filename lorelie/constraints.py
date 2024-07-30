@@ -119,8 +119,8 @@ class MinValueConstraint(BaseConstraint):
 
     def as_sql(self, backend):
         condition = backend.CONDITION.format_map({
-            'field': self.field,
-            'operator': '>',
+            'field': self.field.name,
+            'operator': self.operator,
             'value': self.limit
         })
         return self.template_sql.format(condition=condition)

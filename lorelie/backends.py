@@ -120,7 +120,7 @@ class BaseRow:
 
         # The rowid is not necessarily implemented by default in the
         # created sqlite tables. Hence why we test for the id field
-        name_to_show = getattr(self, str_field, None) or self.pk
+        name_to_show = getattr(self, str_field, None)
         if name_to_show is None:
             # There might be situations where the user
             # restricts the amount of fields to return

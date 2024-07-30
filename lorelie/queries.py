@@ -41,6 +41,11 @@ class Query:
         self.is_evaluated = False
         self.statements = []
         self.select_map = SelectMap()
+        # Since this is a special table that was not created
+        # locally, we need to indicate to the __repr__ of the
+        # rows that they will not be able to use the current_table
+        # property to get the table name
+        self.map_to_sqlite_table = False
 
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self.sql}]>'

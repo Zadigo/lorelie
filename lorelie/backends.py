@@ -162,16 +162,7 @@ class BaseRow:
         return hash((self.pk, *values))
 
     def __contains__(self, value):
-        # Check that a value exists in
-        # in all the values of the row
-        truth_array = []
-        for item in self._cached_data.values():
-            if item is None:
-                truth_array.append(False)
-                continue
-
-            truth_array.append(value in str(item))
-        return any(truth_array)
+        return value in self._cached_data.values()
 
     def __getattr__(self, key):
         if key.endswith('_rel'):

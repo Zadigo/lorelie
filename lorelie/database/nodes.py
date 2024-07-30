@@ -379,7 +379,43 @@ class UpdateNode(BaseNode):
             'table': self.table.name,
             'fields': fields_to_set
         })
-        sql = [update_sql, *where_node.as_sql(backend)]
+        sql = [
+            update_sql,
+            *where_node.as_sql(backend)
+        ]
+        return sql
+
+
+class DeleteNode(BaseNode):
+    def __init__(self, table, *where_args, order_by=[], limit=None, **where_expressions):
+        super().__init__(table=table)
+        self.where_args = where_args
+        self.where_expressions = where_expressions
+        self.order_by = order_by
+        self.limit = limit
+
+    @property
+    def node_name(self):
+        return 'delete'
+
+    def as_sql(self, backend):
+        delete_sql = backend.DELETE.format_map({
+            'table': self.table.name
+        })
+        where_node = WhereNode(*self.where_args, **self.where_expressions)
+        sql = [
+            delete_sql,
+            *where_node.as_sql(backend)
+        ]
+
+        if self.order_by:
+            order_by_node = OrderByNode(self.table, *self.order_by)
+            sql.extend(order_by_node.as_sql(backend))
+
+        if self.limit is not None:
+            if not isinstance(self.limit, int):
+                raise ValueError(f'{self.limit} should be an integer')
+            sql.extend([f'limit {self.limit}'])
         return sql
 
 

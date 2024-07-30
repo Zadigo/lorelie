@@ -347,7 +347,7 @@ class QuerySet:
 
     def __contains__(self, value):
         self.load_cache()
-        return value in self.result_cache
+        return any(map(lambda x: value in x, self.result_cache))
 
     def __eq__(self, value):
         self.load_cache()

@@ -100,6 +100,7 @@ class BaseRow:
             setattr(self, key, value)
 
     def __repr__(self):
+        self._backend.set_current_table_from_row(self)
         # By default, show the rowid or id in the representation
         # of the value a given column e.g. <id: 1> which can
         # be changed for example to <id: Kendall Jenner> if the

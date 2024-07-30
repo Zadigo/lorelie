@@ -707,8 +707,9 @@ class SQLiteBackend(SQL):
         sql = f'pragma table_info({table.name})'
         # query = Query([sql], table=table)
         query = Query(table=table)
-        query.add_sql_node(sql)
-        return QuerySet(query, skip_transform=True)
+        query.map_to_sqlite_table = True
+        query.add_sql_node(f'pragma table_info({table.name})')
+        return QuerySet(query)
 
     def create_table_fields(self, table, columns_to_create):
         field_params = []

@@ -105,7 +105,19 @@ class BaseRow:
         # of the value a given column e.g. <id: 1> which can
         # be changed for example to <id: Kendall Jenner> if the
         # user chooses to use that column to represent the column
-        str_field = self._backend.current_table.str_field or self.pk
+        try:
+            str_field = self._backend.current_table.str_field
+        except:
+            str_field = 'pk'
+
+            is_type_index = self._cached_data.get('type') == 'index'
+            if is_type_index:
+                str_field = 'name'
+
+        is_type_column = 'cid' in self._fields
+        if is_type_column:
+            str_field = 'type'
+
         # The rowid is not necessarily implemented by default in the
         # created sqlite tables. Hence why we test for the id field
         name_to_show = getattr(self, str_field, None) or self.pk

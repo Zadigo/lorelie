@@ -501,6 +501,10 @@ class JoinNode(BaseNode):
         self.table = table
         self.relationship_map = relationship_map
 
+    @property
+    def node_name(self):
+        return 'join'
+
     def as_sql(self, backend):
         # if self.join_type == 'cross':
         #     return []

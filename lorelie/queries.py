@@ -351,6 +351,8 @@ class QuerySet:
 
     def __eq__(self, value):
         self.load_cache()
+        if not isinstance(value, QuerySet):
+            return NotImplemented
         return value == self
 
     def __len__(self):

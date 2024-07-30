@@ -646,6 +646,7 @@ class SQLiteBackend(SQL):
         sqlite3.register_converter('date', converters.convert_date)
         sqlite3.register_converter('datetime', converters.convert_datetime)
         sqlite3.register_converter('timestamp', converters.convert_timestamp)
+        sqlite3.register_converter('boolean', converters.convert_boolean)
 
         def build_path(name, path_obj):
             if not path_obj.is_dir():

@@ -182,6 +182,19 @@ class Query:
             if commit:
                 self.backend.connection.commit()
             self.result_cache = list(result)
+
+            # Since some tables are not created locally,
+            # we need to indicate to the __repr__ of the
+            # rows that they will not be able to use the
+            # current_table of the backend property to get
+            # the table name
+            if self.map_to_sqlite_table:
+                updated_rows = []
+                for row in self.result_cache:
+                    setattr(row, 'linked_to_table', 'sqlite_schema')
+                    updated_rows.append(row)
+                self.result_cache = updated_rows
+
             self.is_evaluated = True
         finally:
             log_queries.append(

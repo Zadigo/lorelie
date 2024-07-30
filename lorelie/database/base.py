@@ -243,6 +243,12 @@ class Database:
     def has_relationships(self):
         return len(self.relationships) > 0
 
+    @property
+    def verbose_name(self):
+        if self.database_name is not None:
+            return self.database_name.title()
+        return 'MEMORY'
+
     def _add_table(self, table):
         table.load_current_connection()
         self.table_map[table.name] = table

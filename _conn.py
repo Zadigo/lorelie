@@ -12,8 +12,15 @@ from lorelie.tables import Table
 # # In memory
 # db = Database(path=pathlib.Path('.'))
 
-table = Table('celebrities', str_field='firstname',
-              fields=[base.CharField('firstname')])
+table = Table(
+    'celebrities',
+    str_field='firstname',
+    fields=[
+        base.CharField('firstname'),
+        base.JSONField('data', default={'sweet': 1}),
+        base.BooleanField('is_valid', default=False)
+    ]
+)
 db = Database(table, log_queries=True)
 db.migrate()
 db.objects.create('celebrities', firstname='Kendall')
@@ -28,4 +35,5 @@ item = db.objects.create('celebrities', firstname='Kylie')
 item.delete()
 
 print(db.objects.all('celebrities'))
-print(log_queries.container)
+# print(log_queries.container)
+print(qs.values())

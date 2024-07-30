@@ -790,38 +790,11 @@ class SQLiteBackend(SQL):
             for field in self.current_table.auto_update_fields:
                 row.updated_fields.update({field: value})
 
-        fields_to_set = []
-        for field, value in row.updated_fields.items():
-            # Simply just invalidate the fields that are
-            # no present on the table
-            if not self.current_table.has_field(field):
-                continue
-
-            field_instance = self.current_table.get_field(field)
-            true_value = field_instance.to_database(value)
-
-            equality_statement = self.EQUALITY.format_map({
-                'field': field,
-                'value': self.quote_value(true_value)
-            })
-            fields_to_set.append(equality_statement)
-
-        conditions = self.comma_join(fields_to_set)
-        update_set = self.UPDATE_SET.format_map({
-            'params': conditions
-        })
-
-        fields_to_set = self.comma_join(fields_to_set)
-        update_sql = self.UPDATE.format_map({
-            'table': self.current_table.name,
-            'params': fields_to_set
-        })
-        where_sql = self.WHERE_CLAUSE.format_map({
-            'params': self.EQUALITY.format_map({
-                'field': 'id',
-                'value': row.id
-            })
-        })
+        update_node = UpdateNode(
+            self.current_table,
+            row.updated_fields,
+            Q(id=row.id)
+        )
 
         query = Query(backend=self)
         query.add_sql_nodes([update_sql, update_set, where_sql])

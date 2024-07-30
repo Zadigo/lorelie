@@ -104,19 +104,6 @@ class MaxLengthConstraint(MinMaxMixin, BaseConstraint):
     template_sql = 'check({condition})'
     length_sql = 'length({column})'
 
-    def __init__(self, limit, field):
-        if not isinstance(limit, int):
-            error = self.base_errors['integer']
-            raise ValueError(error.format(klass=self.__class__.__name__))
-
-        self.limit = limit
-        self.field = field
-
-    def __call__(self, value):
-        if value is None:
-            return True
-        return len(value) > self.limit
-
     def as_sql(self, backend):
         condition = backend.CONDITION.format_map({
             'field': self.length_sql.format(self.field.name),
@@ -128,14 +115,7 @@ class MaxLengthConstraint(MinMaxMixin, BaseConstraint):
 
 class MinValueConstraint(BaseConstraint):
     template_sql = 'check({condition})'
-
-    def __init__(self, limit, field):
-        if not isinstance(limit, int):
-            error = self.base_errors['integer']
-            raise ValueError(error.format(klass=self.__class__.__name__))
-        
-        self.limit = limit
-        self.field = field
+    operator = '>'
 
     def as_sql(self, backend):
         condition = backend.CONDITION.format_map({
@@ -147,10 +127,4 @@ class MinValueConstraint(BaseConstraint):
 
 
 class MaxValueConstraint(MinValueConstraint):
-    def as_sql(self, backend):
-        condition = backend.CONDITION.format_map({
-            'field': self.field,
-            'operator': '<',
-            'value': self.limit
-        })
-        return self.template_sql.format(condition=condition)
+    operator = '<'

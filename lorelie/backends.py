@@ -754,8 +754,7 @@ class SQLiteBackend(SQL):
         query = Query(backend=self)
         query.map_to_sqlite_table = True
         query.add_sql_nodes([select_clause, where_clause])
-        query.run()
-        return query.result_cache
+        return QuerySet(query)
 
     def list_database_indexes(self):
         base_fields = ['type', 'name', 'tbl_name', 'sql']

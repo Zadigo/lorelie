@@ -617,24 +617,53 @@ class SQLiteBackend(SQL):
     """Class that initiates and encapsulates a
     new connection to the database"""
 
-    def __init__(self, database_name=None, log_queries=False):
-        if database_name is None:
-            database_name = ':memory:'
-        else:
-            database_name = f'{database_name}.sqlite'
-        self.database_name = database_name
+    def __init__(self, database_or_name=None, log_queries=False, path=None):
+        self.database_name = None
+        self.database_path = None
+        self.database_instance = None
+        self.connection_timestamp = datetime.datetime.now().timestamp()
+        self.in_memory_connection = False
 
         # sqlite3.register_adapter(datetime.datetime.now, str)
         sqlite3.register_converter('date', converters.convert_date)
         sqlite3.register_converter('datetime', converters.convert_datetime)
         sqlite3.register_converter('timestamp', converters.convert_timestamp)
 
-        connection = sqlite3.connect(
-            database_name,
-            check_same_thread=False,
-            autocommit=True,
-            detect_types=sqlite3.PARSE_DECLTYPES
-        )
+        def build_path(name, path_obj):
+            if not path_obj.is_dir():
+                raise ValueError(
+                    f'Path should be a path to a directory: {path_obj}')
+            return path_obj.joinpath(name)
+
+        if isinstance(database_or_name, str):
+            if path is not None:
+                self.database_path = build_path(self.database_name, path)
+            self.database_path = self.database_name
+        else:
+            name = getattr(database_or_name, 'database_name', None)
+            if name is not None and path is not None:
+                self.database_path = build_path(f'{name}.sqlite', path)
+
+            if hasattr(database_or_name, 'database_name'):
+                self.database_instance = database_or_name
+
+            self.database_name = name
+
+        params = {
+            'check_same_thread': False,
+            'autocommit': True,
+            'detect_types': sqlite3.PARSE_DECLTYPES
+        }
+
+        if self.database_name is None:
+            self.in_memory_connection = True
+            connection = sqlite3.connect(':memory:', **params)
+        elif path is not None:
+            connection = sqlite3.connect(self.database_path, **params)
+        else:
+            name_with_extension = f'{self.database_name}.sqlite'
+            connection = sqlite3.connect(name_with_extension, **params)
+
         MD5Hash.create_function(connection)
         SHA256Hash.create_function(connection)
         MeanAbsoluteDifference.create_function(connection)

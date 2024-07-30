@@ -140,9 +140,10 @@ class DeleteNode(BaseNode):
     def __init__(
         self,
         table: Table,
-        *where_expressions: Q,
+        *where_args: Q,
         order_by: Optional[list[str]] = ...,
-        limit: Optional[int] = ...
+        limit: Optional[int] = ...,
+        **where_expressions: str
     ) -> None: ...
 
     @override

@@ -805,15 +805,10 @@ class SQLiteBackend(SQL):
         """Creates the SQL statement required for
         deleting a row in the database
         """
-        delete_sql = self.DELETE.format_map({
-            'table': self.current_table.name
-        })
-        where_sql = self._backend.WHERE_CLAUSE.format_map({
-            'params': self.EQUALITY.format_map({
-                'field': 'id',
-                'value': row.id
-            })
-        })
+        delete_node = DeleteNode(
+            self.current_table,
+            id=row.id
+        )
 
         query = Query(backend=self)
         query.add_sql_nodes([delete_sql, where_sql])

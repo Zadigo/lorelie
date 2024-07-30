@@ -16,8 +16,10 @@ from lorelie.database.functions.aggregation import (CoefficientOfVariation,
                                                     StDev, Variance)
 from lorelie.database.functions.text import MD5Hash, SHA256Hash
 from lorelie.database.manager import ForeignTablesManager
-from lorelie.database.nodes import SelectNode, WhereNode
+from lorelie.database.nodes import (DeleteNode, SelectNode, UpdateNode,
+                                    WhereNode)
 from lorelie.exceptions import ConnectionExistsError
+from lorelie.expressions import Q
 from lorelie.queries import Query, QuerySet
 
 
@@ -41,9 +43,21 @@ class Connections:
     def __exit__(self):
         return False
 
+    # def get_connection(self, database_name):
+    #     candidates = list(filter(
+    #         lambda x: database_name in x,
+    #             self.connections_map
+    #     ))
+
+    #     if len(candidates) == 1:
+    #         return candidates[0]
+    #     elif len(candidates) == 0:
+    #         raise ConnectionExistsError()
+    #     return candidates[-1]
+
     def get_last_connection(self):
         """Return the last connection from the
-        connection map"""
+        connection pool"""
         try:
             return list(self.created_connections)[-1]
         except IndexError:
@@ -52,6 +66,7 @@ class Connections:
     def register(self, connection, name=None):
         if name is None:
             name = 'default'
+
         self.connections_map[name] = connection
         self.created_connections.add(connection)
 
@@ -93,6 +108,7 @@ class BaseRow:
 
         table = getattr(self._backend, 'current_table', None)
         self.linked_to_table = getattr(table, 'name', None)
+
         self.updated_fields = {}
         self.pk = data.get('rowid', data.get('id', None))
 
@@ -149,7 +165,6 @@ class BaseRow:
         # RowID
         if name == 'rowid':
             return self.pk
-
         value = getattr(self, name)
         # Before returning the value,
         # get the field responsible for
@@ -169,7 +184,9 @@ class BaseRow:
             backend = self.__dict__['_backend']
             right_table_name, _ = key.split('_')
             manager = ForeignTablesManager(
-                right_table_name, backend.current_table)
+                right_table_name,
+                backend.current_table
+            )
             setattr(manager, 'current_row', self)
             return manager
         return key
@@ -615,7 +632,8 @@ class SQL(ExpressionFiltersMixin):
 
 class SQLiteBackend(SQL):
     """Class that initiates and encapsulates a
-    new connection to the database"""
+    new connection to an sqlite database. The connection
+    can be in memory or to a physical database"""
 
     def __init__(self, database_or_name=None, log_queries=False, path=None):
         self.database_name = None
@@ -704,8 +722,6 @@ class SQLiteBackend(SQL):
             )
 
     def list_table_columns(self, table):
-        sql = f'pragma table_info({table.name})'
-        # query = Query([sql], table=table)
         query = Query(table=table)
         query.map_to_sqlite_table = True
         query.add_sql_node(f'pragma table_info({table.name})')
@@ -785,6 +801,11 @@ class SQLiteBackend(SQL):
         """Creates the SQL statement required for
         saving a row in the database
         """
+        self.set_current_table_from_row(row)
+
+        # TODO: Centralize the update of auto update
+        # fields on the table level if possible instead
+        # of having them all around the application
         if self.current_table.auto_update_fields:
             value = str(datetime.datetime.now(tz=pytz.UTC))
             for field in self.current_table.auto_update_fields:
@@ -797,7 +818,7 @@ class SQLiteBackend(SQL):
         )
 
         query = Query(backend=self)
-        query.add_sql_nodes([update_sql, update_set, where_sql])
+        query.add_sql_node(update_node)
         query.run(commit=True)
         return query
 
@@ -811,6 +832,6 @@ class SQLiteBackend(SQL):
         )
 
         query = Query(backend=self)
-        query.add_sql_nodes([delete_sql, where_sql])
+        query.add_sql_node(delete_node)
         query.run(commit=True)
         return query

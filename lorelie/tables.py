@@ -1,6 +1,7 @@
 import re
 from collections import OrderedDict
 
+from database.indexes import Index
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
@@ -123,10 +124,10 @@ class Table(AbstractTable):
     ... database.objects.all('url')
     """
 
-    def __init__(self, name, *, fields=[], index=[], constraints=[], ordering=[], str_field='id'):
+    def __init__(self, name, *, fields=[], indexes=[], constraints=[], ordering=[], str_field='id'):
         self.name = self.validate_table_name(name)
         self.verbose_name = name.lower().title()
-        self.indexes = index
+        self.indexes = indexes
         self.table_constraints = constraints
         self.field_constraints = {}
         self.is_foreign_key_table = False

@@ -398,7 +398,7 @@ class QuerySet:
     def first(self):
         self.query.select_map.limit = 1
         self.query.select_map.order_by = OrderByNode(self.query.table, 'id')
-        return self
+        return self[-1]
 
     def last(self):
         self.query.select_map.limit = 1
@@ -461,7 +461,8 @@ class QuerySet:
 
     def aggregate(self, *args, **kwargs):
         for func in args:
-            if not isinstance(func, (Count)):
+            allows_aggregate = getattr(func, 'allow_aggregation')
+            if not allows_aggregate:
                 continue
             kwargs.update({func.aggregate_name: func})
 

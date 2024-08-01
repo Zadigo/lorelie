@@ -1,12 +1,11 @@
 import re
 from collections import OrderedDict
 
-from database.indexes import Index
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
+from lorelie.database.indexes import Index
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
-from lorelie.fields.base import (AutoField, DateField, DateTimeField, Field,
-                                 IntegerField)
+from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
 from lorelie.queries import Query
 
 

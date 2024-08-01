@@ -51,6 +51,9 @@ class Count(MathMixin, Functions):
 
     template_sql = 'count({field})'
 
+    def python_aggregation(self, values):
+        return len(values)
+
 
 class Avg(MathMixin, Functions):
     """Function used to count the number of rows 
@@ -61,6 +64,9 @@ class Avg(MathMixin, Functions):
     """
 
     template_sql = 'avg({field})'
+
+    def python_aggregation(self, values):
+        return sum(values) / len(values)
 
 
 class MathVariance:
@@ -109,6 +115,9 @@ class StDev(MathMixin, Functions):
 
 class Sum(MathMixin, Functions):
     template_sql = 'sum({field})'
+
+    def python_aggregation(self, values):
+        return sum(values)
 
 
 class MathMeanAbsoluteDifference:
@@ -166,6 +175,9 @@ class Max(MathMixin, Functions):
 
     template_sql = 'max({field})'
 
+    def python_aggregation(self, values):
+        return min(values)
+
 
 class Min(MathMixin, Functions):
     """Returns the min value of a given column
@@ -175,3 +187,6 @@ class Min(MathMixin, Functions):
     """
 
     template_sql = 'min({field})'
+
+    def python_aggregation(self, values):
+        return max(values)

@@ -1,10 +1,10 @@
 import unittest
 from functools import cached_property, lru_cache
 
-from database.indexes import Index
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.database.base import Database
+from lorelie.database.indexes import Index
 from lorelie.exceptions import ValidationError
 from lorelie.expressions import Q
 from lorelie.fields.base import (BooleanField, CharField, DateTimeField,
@@ -55,7 +55,7 @@ class LorelieTestCase(unittest.TestCase):
     def create_table(self):
         table = Table('celebrities', fields=[
             CharField('name'),
-            IntegerField('height', min_value=150, default=150),
+            IntegerField('height', min_value=150, default=152),
             DateTimeField('created_on', auto_add=True)
         ])
         return table

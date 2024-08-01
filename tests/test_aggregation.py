@@ -90,3 +90,20 @@ class TestAggregation(LorelieTestCase):
         nested = Max(Length('name'))
         sql = nested.as_sql(table.backend)
         self.assertEqual(sql, 'max(length(name))')
+
+    def test_on_queryset(self):
+        db = self.create_database()
+        # FIXME: When no value is created and we run aggregate
+        # we get None of the alias_field
+        db.objects.create('celebrities', name='Marion Cotillard')
+        db.objects.create('celebrities', name='Kendall Jenner', height=182)
+        db.objects.create('celebrities', name='Kylie Jenenr', height=172)
+        result = db.objects.aggregate(
+            'celebrities',
+            Sum('height'),
+            Avg('height'),
+            Variance('height'),
+            StDev('height'),
+            MeanAbsoluteDifference('height')
+        )
+        self.assertEqual(result['height__sum'], 506)

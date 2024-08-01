@@ -76,7 +76,7 @@ class Table(AbstractTable):
         name: str,
         *,
         fields: Optional[list[Field]] = ...,
-        index: Optional[list[Index]] = ...,
+        indexes: Optional[list[Index]] = ...,
         constraints: Optional[list[CheckConstraint]] = ...,
         ordering: Optional[list[str]] = ...,
         str_field: Optional[str] = ...

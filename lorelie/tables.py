@@ -186,6 +186,11 @@ class Table(AbstractTable):
         field_names.append('rowid')
         self.field_names = field_names
 
+        for index in indexes:
+            if not isinstance(index, Index):
+                raise ValueError(f'{index} should be an instance of Index')
+            index.prepare(self)
+
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
 

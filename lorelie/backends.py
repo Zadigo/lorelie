@@ -651,7 +651,9 @@ class SQLiteBackend(SQL):
         def build_path(name, path_obj):
             if not path_obj.is_dir():
                 raise ValueError(
-                    f'Path should be a path to a directory: {path_obj}')
+                    "Path should be a path to "
+                    f"a directory: {path_obj}"
+                )
             return path_obj.joinpath(name)
 
         if isinstance(database_or_name, str):

@@ -8,7 +8,7 @@ import pandas
 from lorelie.backends import BaseRow
 from lorelie.database.base import Database, RelationshipMap
 from lorelie.database.functions.aggregation import Avg, Count, Sum
-from lorelie.queries import QuerySet, ValuesIterable
+from lorelie.queries import Query, QuerySet, ValuesIterable
 from lorelie.tables import Table
 
 
@@ -113,9 +113,9 @@ class DatabaseManager:
         **kwargs
     ) -> BaseRow: ...
 
-    def select_for_update(self, table: str) -> QuerySet[BaseRow]: ...
-    def select_related(self, table: str) -> QuerySet[BaseRow]: ...
-    def fetch_related(self, table: str) -> QuerySet[BaseRow]: ...
+    # def select_for_update(self, table: str) -> QuerySet[BaseRow]: ...
+    # def select_related(self, table: str) -> QuerySet[BaseRow]: ...
+    # def fetch_related(self, table: str) -> QuerySet[BaseRow]: ...
 
     def update_or_create(
         self,
@@ -123,6 +123,8 @@ class DatabaseManager:
         create_defaults: Optional[dict[str, Any]] = ...,
         **kwargs
     ) -> BaseRow: ...
+
+    def intersect(self, table: str, qs1: QuerySet, qs2: QuerySet) -> QuerySet: ...
 
     def resolve_expression(
         self,
@@ -142,6 +144,136 @@ class DatabaseManager:
     async def alast(self, table: str) -> Awaitable[BaseRow]: ...
     async def aall(self, table: str) -> Awaitable[QuerySet]: ...
     async def acreate(self, table: str, **kwargs) -> Awaitable[BaseRow]: ...
+
+    async def afilter(
+        self,
+        table: str,
+        *args,
+        **kwargs
+    ) -> Awaitable[QuerySet[BaseRow]]: ...
+
+    async def aget(
+        self,
+        table: str,
+        *args, **kwargs
+    ) -> Awaitable[BaseRow]: ...
+
+    async def aannotate(
+        self,
+        table: str,
+        *args, **kwargs
+    ) -> Awaitable[QuerySet[BaseRow]]: ...
+
+    async def avalues(
+        self,
+        table: str,
+        *fields: str
+    ) -> Awaitable[ValuesIterable]: ...
+
+    async def adataframe(
+        self,
+        table: str,
+        *fields
+    ) -> Awaitable[pandas.DataFrame]: ...
+
+    async def abulk_create(
+        self,
+        table: str,
+        objs: list[DataclassProtocol]
+    ) -> Awaitable[QuerySet[BaseRow]]: ...
+
+    async def aorder_by(
+        self,
+        table: str,
+        *fields: str
+    ) -> Awaitable[QuerySet[BaseRow]]: ...
+
+    async def acount(self, table: str) -> Awaitable[int]: ...
+
+    async def adates(
+        self,
+        table: str,
+        field: str,
+        field_to_sort: Optional[str] = ...,
+        ascending: Optional[bool] = ...
+    ) -> Awaitable[list[datetime.date]]: ...
+
+    async def adatetimes(
+        self,
+        table: str,
+        field: str,
+        field_to_sort: Optional[str] = ...,
+        ascending: Optional[bool] = ...
+    ) -> Awaitable[list[datetime.datetime]]: ...
+
+    async def adifference(
+        self,
+        table: str,
+        *qs: QuerySet
+    ) -> Awaitable[QuerySet[BaseRow]]: ...
+
+    async def adistinct(
+        self,
+        table: str,
+        *fields: str
+    ) -> Awaitable[QuerySet[BaseRow]]: ...
+
+    async def aearliest(
+        self,
+        table: str,
+        *fields: str
+    ) -> Awaitable[BaseRow]: ...
+
+    async def alatest(
+        self,
+        table: str,
+        *fields: str
+    ) -> Awaitable[BaseRow]: ...
+
+    async def aonly(
+        self,
+        table: str,
+        *fields
+    ) -> Awaitable[QuerySet[BaseRow]]: ...
+
+    async def aexclude(
+        self,
+        table: str,
+        *args,
+        **kwargs
+    ) -> Awaitable[QuerySet[BaseRow]]: ...
+
+    async def aextra(self, table: str) -> Awaitable[QuerySet[BaseRow]]: ...
+
+    async def aget_or_create(
+        self,
+        table: str,
+        create_defaults: Optional[dict[str, Any]] = ...,
+        **kwargs
+    ) -> Awaitable[BaseRow]: ...
+
+    # async def aselect_for_update(self, table: str) -> Awaitable[QuerySet[BaseRow]]: ...
+    # async def aselect_related(self, table: str) -> Awaitable[QuerySet[BaseRow]]: ...
+    # async def afetch_related(self, table: str) -> Awaitable[QuerySet[BaseRow]]: ...
+
+    async def aupdate_or_create(
+        self,
+        table: str,
+        create_defaults: Optional[dict[str, Any]] = ...,
+        **kwargs
+    ) -> Awaitable[BaseRow]: ...
+
+    async def aresolve_expression(
+        self,
+        table: str
+    ) -> Awaitable[Union[BaseRow, QuerySet]]: ...
+
+    async def aaggregate(
+        self,
+        table: str,
+        *args: Union[Count, Avg, Sum],
+        **kwargs
+    ) -> Awaitable[dict[str, int]]: ...
 
 
 class ForeignTablesManager:

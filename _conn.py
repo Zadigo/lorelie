@@ -23,17 +23,28 @@ table = Table(
 )
 db = Database(table, log_queries=True)
 db.migrate()
+
 db.objects.create('celebrities', firstname='Kendall')
-qs = db.objects.all('celebrities')
-qs.exists()
-item = qs[0]
-item['firstname'] = 'Julie'
-item.save()
-print(item)
 
-item = db.objects.create('celebrities', firstname='Kylie')
-item.delete()
+# qs = db.objects.all('celebrities')
+# qs.exists()
+# item = qs[0]
+# item['firstname'] = 'Julie'
+# item.save()
+# print(item)
 
-print(db.objects.all('celebrities'))
-# print(log_queries.container)
-print(qs.values())
+# item = db.objects.create('celebrities', firstname='Kylie')
+# item.delete()
+
+# print(db.objects.all('celebrities'))
+# # print(log_queries.container)
+# print(qs.values())
+
+
+qs1 = db.objects.all('celebrities')
+qs2 = db.objects.all('celebrities')
+qs3 = db.objects.intersect('celebrities', qs1, qs2)
+print(qs3)
+
+# for log in log_queries.container:
+#     print(log)

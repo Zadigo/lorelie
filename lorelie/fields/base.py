@@ -312,9 +312,9 @@ class DecimalField(NumericFieldMixin, Field):
 class JSONField(Field):
     python_type = (dict, list)
 
-    @property
-    def field_type(self):
-        return 'dict'
+    # @property
+    # def field_type(self):
+    #     return 'dict'
 
     def to_python(self, data):
         if data is None or data == '':

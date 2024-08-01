@@ -541,10 +541,13 @@ class IntersectNode(BaseNode):
         return 'intersect'
 
     def as_sql(self, backend):
-        lhv = self.left_select.as_sql(backend)
-        rhv = self.right_select.as_sql(backend)
-        sql = self.template_sql.format(lhv[0], rhv[0])
-        return [sql]
+        # lhv = self.left_select.as_sql(backend)
+        # rhv = self.right_select.as_sql(backend)
+        # sql = self.template_sql.format(lhv[0], rhv[0])
+        # return [sql]
+        lhv = backend.de_sqlize_statement(self.left_select)
+        rhv = backend.de_sqlize_statement(self.right_select)
+        return [self.template_sql.format(lhv, rhv)]
 
 
 class ViewNode(BaseNode):

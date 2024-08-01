@@ -5,12 +5,8 @@ from dataclasses import is_dataclass
 
 from asgiref.sync import sync_to_async
 
-from lorelie.database.functions.aggregation import (Avg,
-                                                    CoefficientOfVariation,
-                                                    Count, Max,
-                                                    MeanAbsoluteDifference,
-                                                    Min, StDev, Sum, Variance)
-from lorelie.database.nodes import (InsertNode, OrderByNode, SelectNode,
+from lorelie.database.functions.aggregation import Count
+from lorelie.database.nodes import (InsertNode, IntersectNode, OrderByNode, SelectNode,
                                     UpdateNode, WhereNode)
 from lorelie.exceptions import (FieldExistsError, MigrationsExistsError,
                                 TableExistsError)
@@ -151,8 +147,8 @@ class DatabaseManager:
         selected_table = self.before_action(table)
         kwargs = self._validate_auto_fields(selected_table, kwargs)
         values, kwargs = selected_table.validate_values_from_dict(kwargs)
-        query = self.database.query_class(table=selected_table)
 
+        query = self.database.query_class(table=selected_table)
         insert_node = InsertNode(
             selected_table,
             insert_values=kwargs,
@@ -415,8 +411,9 @@ class DatabaseManager:
         # will implement in the kwargs
         none_aggregate_functions = []
         for function in functions:
-            if not isinstance(function, (Count, Avg, Sum, MeanAbsoluteDifference, CoefficientOfVariation, Variance, StDev, Max, Min)):
-                none_aggregate_functions.count(function)
+            allows_aggregation = getattr(function, 'allow_aggregation', False)
+            if not allows_aggregation:
+                none_aggregate_functions.append(function)
                 continue
             kwargs[function.aggregate_name] = function
 
@@ -560,9 +557,20 @@ class DatabaseManager:
         dates = map(date_iterator, query.result_cache)
         return list(dates)
 
-    # def difference()
-    # def earliest()
-    # def latest()
+    def difference(self, table):
+        return NotImplemented
+
+    def earliest(self, table):
+        return NotImplemented
+
+    def latest(self, table, *fields):
+        # selected_table = self.before_action(table)
+        # select_node = SelectNode(selected_table, *fields, limit=1)
+        # order_by_node = OrderByNode(selected_table, *fields)
+        # query = selected_table.query_class(table=selected_table)
+        # query.add_sql_nodes(select_node, order_by_node)
+        # return QuerySet(query)[0]
+        return NotImplemented
 
     def exclude(self, table, *args, **kwargs):
         """Selects all the values from the database
@@ -583,8 +591,11 @@ class DatabaseManager:
             query.add_sql_node(ordering_node)
         return QuerySet(query)
 
-    # def extra()
-    # def only()
+    def extra(self, table):
+        return NotImplemented
+
+    def only(self, table):
+        return NotImplemented
 
     def get_or_create(self, table, create_defaults={}, **kwargs):
         """Tries to get a row in the database using the coditions
@@ -741,6 +752,37 @@ class DatabaseManager:
         # then modify the data in the database
         return QuerySet(new_query)[0]
 
+    def intersect(self, table, qs1, qs2):
+        """The intersect function allows you to combine 
+        the result sets of two queries and returns 
+        distinct rows that appear in both result sets. 
+        This is similar to the SQL `INTERSECT` operator, 
+        which is used to find the common records between 
+        two `SELECT` statements
+
+        >>> qs1 = db.objects.all('celebrities')
+        ... qs2 = db.objects.all('celebrities')
+        ... qs3 = db.objects.intersect('celebrities', qs1, qs2)
+        """
+        selected_table = self.before_action(table)
+
+        if not isinstance(qs1, QuerySet):
+            raise ValueError(f'{qs1} should be an instance of QuerySet')
+
+        if not isinstance(qs2, QuerySet):
+            raise ValueError(f'{qs2} should be an instance of QuerySet')
+
+        if not qs1.query.is_evaluated:
+            qs1.load_cache()
+
+        if not qs2.query.is_evaluated:
+            qs2.load_cache()
+
+        node = IntersectNode(qs1.query.sql, qs2.query.sql)
+        query = selected_table.query_class(table=selected_table)
+        query.add_sql_node(node)
+        return QuerySet(query)
+
     async def afirst(self, table):
         return await sync_to_async(self.first)(table)
 
@@ -752,6 +794,75 @@ class DatabaseManager:
 
     async def acreate(self, table, **kwargs):
         return await sync_to_async(self.create)(table, **kwargs)
+
+    async def afilter(self, table, **kwargs):
+        return await sync_to_async(self.filter)(table, **kwargs)
+
+    async def aget(self, table, *args, **kwargs):
+        return await sync_to_async(self.get)(table, *args, **kwargs)
+
+    async def aannotate(self, table, *args, **kwargs):
+        return await sync_to_async(self.annotate)(table, *args, **kwargs)
+
+    async def avalues(self, table, *fields):
+        return await sync_to_async(self.values)(table, *fields)
+
+    async def adataframe(self, table, *fields):
+        return await sync_to_async(self.dataframe)(table, *fields)
+
+    async def abulk_create(self, table, *objs):
+        return await sync_to_async(self.dataframe)(table, *objs)
+
+    async def aorder_by(self, table, *fields):
+        return await sync_to_async(self.order_by)(table, *fields)
+
+    async def acount(self, table):
+        return await sync_to_async(self.count)(table)
+
+    async def adates(self, table, field, field_to_sort=None, ascending=True):
+        return await sync_to_async(self.dates)(table, field, field_to_sort=field_to_sort, ascending=ascending)
+
+    async def adatetimes(self, table, field, field_to_sort=None, ascending=True):
+        return await sync_to_async(self.datetimes)(table, field, field_to_sort=field_to_sort, ascending=ascending)
+
+    async def adifference(self, table):
+        return await sync_to_async(self.difference)()
+
+    async def adistinct(self, table, *columns):
+        return await sync_to_async(self.distinct)(table, *columns)
+
+    async def aearliest(self, table):
+        return await sync_to_async(self.earliest)(table)
+
+    async def alatest(self, table):
+        return await sync_to_async(self.latest)(table)
+
+    async def aonly(self, table):
+        return await sync_to_async(self.only)(table)
+
+    async def aexclude(self, table, *args, **kwargs):
+        return await sync_to_async(self.exclude)(table, *args, **kwargs)
+
+    async def aextra(self, table):
+        return await sync_to_async(self.extra)(table)
+
+    # async def aselect_for_update(self, table):
+    #     return await sync_to_async(self.select_for_update)(table)
+
+    # async def aselect_related(self, table):
+    #     return await sync_to_async(self.select_related)(table)
+
+    # async def afetch_related(self, table):
+    #     return await sync_to_async(self.fetch_related)(table)
+
+    async def aupdate_or_create(self, table, create_defaults={}, **kwargs):
+        return await sync_to_async(self.update_or_create)(table, create_defaults=create_defaults, **kwargs)
+
+    async def aresolve_expression(self, table):
+        return await sync_to_async(self.resolve_expression)(table)
+
+    async def aaggregate(self, table, *args, **kwargs):
+        return await sync_to_async(self.aggregate)(table, *args, **kwargs)
 
 
 class ForeignTablesManager:

@@ -2,7 +2,7 @@ from lorelie.fields.base import (AutoField, BooleanField, CharField, DateField,
                                  DateTimeField, EmailField, Field,
                                  FilePathField, IntegerField, JSONField,
                                  SlugField, TimeField, UUIDField)
-from lorelie.fields.relationships import ForeignKeyField
+from lorelie.fields.relationships import ForeignKeyField, ForeignKeyActions
 
 __all__ = [
     'AutoField',
@@ -18,5 +18,7 @@ __all__ = [
     'SlugField',
     'TimeField',
     'UUIDField',
-    'ForeignKeyField'
+
+    'ForeignKeyField',
+    'ForeignKeyActions'
 ]

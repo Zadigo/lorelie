@@ -1,9 +1,6 @@
+import logging
 import pathlib
-import re
-
-# from lorelie import fields
-# from lorelie.database import Database
-# from lorelie.tables import Table
+from collections import defaultdict, deque
 
 PROJECT_PATH = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -15,9 +12,6 @@ DATABASE = 'scraping'
 #     'Table',
 #     'fields'
 # ]
-
-
-from collections import defaultdict, deque
 
 
 class LogQueries:
@@ -33,10 +27,10 @@ class LogQueries:
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {len(self.container)}>'
-    
+
     def __iter__(self):
         return iter(self.container)
-    
+
     def __len__(self):
         return len(self.container)
 
@@ -52,9 +46,39 @@ class LogQueries:
             except:
                 pass
             else:
-                container.append(statement)            
+                container.append(statement)
 
         if len(self.container) > self.maxsize:
             self.container.clear()
 
+
 log_queries = LogQueries()
+
+
+class LorelieLogger:
+    def __init__(self):
+        logger = logging.getLogger('lorelie')
+
+        handler = logging.FileHandler('queries.log')
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
+
+        log_format = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s: %(message)s',
+            datefmt='%Y-%m-%d %H:%M'
+        )
+        handler.setFormatter(log_format)
+
+        self.logger = logger
+    
+    def debug(self, message, *args, **kwargs):
+        self.logger.debug(message, *args, **kwargs)
+
+    def info(self, message, *args, **kwargs):
+        self.logger.info(message, *args, **kwargs)
+
+    def warning(self, message, *args, **kwargs):
+        self.logger.warning(message, *args, **kwargs)
+
+
+lorelie_logger = LorelieLogger()

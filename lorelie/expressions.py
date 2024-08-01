@@ -1,6 +1,3 @@
-from enum import unique
-
-
 class BaseExpression:
     template_sql = None
 
@@ -55,7 +52,7 @@ class Value(BaseExpression):
 
 class NegatedExpression(BaseExpression):
     template_sql = 'not {expression}'
-    
+
     def __init__(self, expression):
         self.children = [expression]
         self.seen_expressions = []
@@ -76,7 +73,7 @@ class NegatedExpression(BaseExpression):
         # types of expressions ex. F & Q, F | Q
         # self.seen_expressions = [
         #     child.__class__.__name__
-        #         for child in self.children 
+        #         for child in self.children
         #             if not isinstance(child, str)
         # ]
 
@@ -95,7 +92,7 @@ class NegatedExpression(BaseExpression):
         def map_children(node):
             if isinstance(node, str):
                 return node
-            
+
             return backend.simple_join(node.as_sql(backend))
         sql = map(map_children, self.children)
 
@@ -228,7 +225,7 @@ class CombinedExpression:
         # using the combined expression as a
         # standalone class but we might need
         # to build the existing children on
-        # init to avoid arrays like 
+        # init to avoid arrays like
         # a = CombinedExpression(Q(firstname='Kendall'))
         # b = Q(age__gt=26)
         # c = a & b -> ['(and age>26)']
@@ -266,7 +263,7 @@ class CombinedExpression:
         self.children.append('*')
         self.children.append(Value(other))
         return self
-    
+
     @property
     def internal_type(self):
         return 'expression'
@@ -374,7 +371,7 @@ class F(BaseExpression):
 
     These operations will translate directly to database
     operations in such as `price * 1.2` where the value
-    in the price column will be multiplied by 1.2
+    in the price column will be multiplied by `1.2`
     """
 
     ADD = '+'

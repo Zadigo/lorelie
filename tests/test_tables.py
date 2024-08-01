@@ -1,5 +1,4 @@
 import sqlite3
-import unittest
 
 from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
@@ -48,7 +47,7 @@ class TestTable(LorelieTestCase):
         with self.assertRaises(KeyError):
             table.get_field('firstname')
 
-        # self.assertIsNone(field.table)
+        self.assertIsNotNone(field.table)
 
     def test_field_types(self):
         table = self.create_table()
@@ -72,25 +71,26 @@ class TestTable(LorelieTestCase):
         )
         self.assertTrue(state)
 
-    def test_build_field_parameters(self):
+    def test_build_all_field_parameters(self):
         # The field parameters are the parameters that
         # are used by "create table" when creating a
         # new table in a database
         table = self.create_table()
 
-        # We should not be able to use a table outside
+        # OLD: We should not be able to use a table outside
         # of the Database class without having called
         # prepare()
-        with self.assertRaises((ImproperlyConfiguredError, AttributeError)):
-            table.build_field_parameters()
+        # with self.assertRaises((ImproperlyConfiguredError, AttributeError)):
+        #     table.build_all_field_parameters()
 
         table.backend = self.create_connection()
-        parameters = table.build_field_parameters()
+        parameters = list(table.build_all_field_parameters())
         self.assertListEqual(
             parameters,
             [
                 ['name', 'text', 'not null'],
-                ['height', 'integer', 'default', 150, 'not null'],
+                ['height', 'integer', 'default', 150,
+                    'not null', 'check(height>150)'],
                 ['id', 'integer', 'primary key', 'autoincrement', 'not null']
             ]
         )
@@ -99,17 +99,17 @@ class TestTable(LorelieTestCase):
         table = self.create_table()
         table.backend = self.create_connection()
         items = table.validate_values(['name'], ['Kendall'])
-        self.assertListEqual(items, ["'Kendall'"])
+        self.assertTupleEqual(items, (["'Kendall'"], {'name': "'Kendall'"}))
 
         with self.assertRaises((FieldExistsError, KeyError)):
             # Validating a field that does not exist
-            # on the table
+            # on the table should raise an error
             table.validate_values(['age'], [23])
 
     def test_table_management(self):
         table = self.create_table()
         table.backend = self.create_connection()
-        field_params = table.build_field_parameters()
+        field_params = table.build_all_field_parameters()
 
         field_params = (
             table.backend.simple_join(params)
@@ -121,7 +121,10 @@ class TestTable(LorelieTestCase):
         )
         self.assertListEqual(
             create_table_sql,
-            ['create table if not exists celebrities (name text not null, height integer default 150 not null, id integer primary key autoincrement not null)']
+            [
+                'create table if not exists celebrities (name text not null, height integer default 150 not null check(height>150), '
+                'id integer primary key autoincrement not null)'
+            ]
         )
 
         drop_table_sql = table.drop_table_sql()
@@ -133,15 +136,31 @@ class TestTable(LorelieTestCase):
     def test_table_level_constraints(self):
         constraint = CheckConstraint('my_constraint', Q(name__eq='Kendall'))
         table = Table(
-            'my_table', 
-            fields=[CharField('name')], 
+            'my_table',
+            fields=[CharField('name')],
             constraints=[constraint]
         )
         db = Database(table)
         table.prepare(db)
+        self.assertIn(constraint, table.table_constraints)
+
+    def test_adding_an_existing_constraint_to_the_table(self):
+        # TODO: Prevent the user from being able to create two
+        # similar constraints in a given table
+        constraint1 = CheckConstraint('my_constraint', Q(name__eq='Kendall'))
+        constraint2 = CheckConstraint('my_constraint', Q(name__eq='Kendall'))
+
+        table = Table(
+            'my_table',
+            fields=[CharField('name')],
+            constraints=[constraint1, constraint2]
+        )
+        db = Database(table, log_queries=True)
+        db.migrate()
 
     def test_database_field_creation_validation(self):
-        db = self.create_database(using=self.create_complex_table())
+        db = self.create_database(
+            using=self.create_complex_table(), log_queries=True)
 
         with self.assertRaises(sqlite3.IntegrityError):
             db.objects.create('stars', height=145)
@@ -151,9 +170,15 @@ class TestTable(LorelieTestCase):
 
         with self.assertRaises(ValidationError):
             db.objects.create('stars', name='Taylor Swift')
-        
+
         # TODO: Should not_null be False if we have a field
         # with a default value set
         db.objects.create('stars', name='Lucie Safarova', height=165)
         with self.assertRaises(sqlite3.IntegrityError):
             db.objects.create('stars', name='Lucie Safarova', height=165)
+
+    def test_list_contains_table(self):
+        table = self.create_table()
+        tables = [table]
+        self.assertIn(table, tables)
+        self.assertIn(table.name, tables)

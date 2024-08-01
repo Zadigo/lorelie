@@ -1,8 +1,10 @@
 import datetime
+import decimal
 import json
 import re
+from decimal import Decimal
+from functools import cached_property
 from urllib.parse import unquote
-
 
 from lorelie.constraints import (MaxLengthConstraint, MaxValueConstraint,
                                  MinValueConstraint)
@@ -28,6 +30,7 @@ class Field:
         self.max_length = max_length
         self.base_validators = self.base_validators + validators
         self.standard_field_types = ['text', 'integer', 'blob', 'real', 'null']
+        self.is_relationship_field = False
         self.base_field_parameters = {
             'primary key': False,
             'null': False,
@@ -62,6 +65,10 @@ class Field:
         that allows us then convert the data
         back to its Python representation"""
         return 'text'
+
+    @property
+    def field_python_name(self):
+        return self.__class__.__name__
 
     @property
     def is_standard_field_type(self):
@@ -126,38 +133,13 @@ class Field:
         self.run_validators(data)
         return data
 
-        # if callable(data):
-        #     return self.to_python(str(data()))
-
-        # if data is None:
-        #     return ''
-
-        # if not isinstance(data, self.python_type):
-        #     raise ValueError(
-        #         f"{type(data)} for column '{self.name}' "
-        #         f"should be an instance of {self.python_type}"
-        #     )
-
-        # self.run_validators(data)
-        # try:
-        #     # return self.to_python(data)
-
-        #     # TODO: Why convert this to python
-        #     # value for the database?
-        #     return self.to_python(data)
-        # except (TypeError, ValueError):
-        #     raise ValidationError(
-        #         "The value for {name} is not valid",
-        #         name=self.name
-        #     )
-
     def field_parameters(self):
         """Adapts the python function parameters passed within
         the fields to usable SQL text statements:
 
-        >>> field = CharField('visited', default=False)
+        >>> field = BooleanField('visited', default=False)
         ... field.field_parameters()
-        ... ['visited', 'text', 'not null', 'default', 0]
+        ... ['visited', 'integer', 'not null', 'default', 0]
         """
         field_type = None
         if self.max_length is not None:
@@ -244,11 +226,6 @@ class Field:
 
 
 class CharField(Field):
-    # def to_python(self, data):
-    #     if data is None:
-    #         return ''
-    #     return self.python_type(data)
-
     def to_database(self, data):
         if callable(data):
             data = data()
@@ -262,11 +239,11 @@ class NumericFieldMixin:
         super().__init__(name, **kwargs)
 
         if min_value is not None:
-            instance = MinValueConstraint(min_value, self.name)
+            instance = MinValueConstraint(min_value, self)
             self.constraints.append(instance)
 
         if max_value is not None:
-            instance = MaxValueConstraint(max_value, self.name)
+            instance = MaxValueConstraint(max_value, self)
             self.constraints.append(instance)
 
 
@@ -276,21 +253,6 @@ class IntegerField(NumericFieldMixin, Field):
     @property
     def field_type(self):
         return 'integer'
-
-    # def to_python(self, data):
-    #     if data is None or data == '':
-    #         return data
-
-    #     if isinstance(data, int):
-    #         return data
-
-    #     try:
-    #         return self.python_type(data)
-    #     except (TypeError, ValueError):
-    #         raise ValidationError(
-    #             "The value for {name} is not valid",
-    #             name=self.name
-    #         )
 
     def to_database(self, data):
         if isinstance(data, str):
@@ -323,12 +285,36 @@ class FloatField(NumericFieldMixin, Field):
             )
 
 
+class DecimalField(NumericFieldMixin, Field):
+    def __init__(self, name, digits=None, **kwargs):
+        super().__init__(name, **kwargs)
+        if digits is None:
+            raise ValueError(f'{digits} should be an integer')
+        self.digits = digits
+
+    @cached_property
+    def build_context(self):
+        return decimal.Context(prec=self.digits)
+
+    def to_python(self, data):
+        try:
+            if isinstance(data, float):
+                return self.build_context.create_decimal_from_float(data)
+            return Decimal(data)
+        except Exception as e:
+            raise ValidationError(e.args)
+
+    def to_database(self, data):
+        decimal_value = self.build_context.create_decimal(data)
+        return str(decimal_value)
+
+
 class JSONField(Field):
     python_type = (dict, list)
 
-    @property
-    def field_type(self):
-        return 'dict'
+    # @property
+    # def field_type(self):
+    #     return 'dict'
 
     def to_python(self, data):
         if data is None or data == '':
@@ -352,16 +338,9 @@ class BooleanField(Field):
     truth_types = ['true', 't', 1, '1']
     false_types = ['false', 'f', 0, '0']
 
-    # @property
-    # def field_type(self):
-    #     return 'bool'
-
-    # def to_python(self, data):
-    #     if data in self.truth_types:
-    #         return True
-
-    #     if data in self.false_types:
-    #         return False
+    @property
+    def field_type(self):
+        return 'boolean'
 
     def to_database(self, data):
         if data in self.truth_types:
@@ -411,25 +390,21 @@ class DateFieldMixin:
 
 class DateField(DateFieldMixin, Field):
     """
-    `auto_add` will update the field with the
-    current date every time a value is created
+    * `auto_add` will update the field with the
+      current date every time a value is created
 
-    `auto_update` will update the field with the
-    current date every time a value is updated
+    * `auto_update` will update the field with the
+      current date every time a value is updated
     """
 
     @property
     def field_type(self):
         return 'date'
 
-    # def to_python(self, data):
-    #     if data is None or data == '':
-    #         return data
-
-    #     d = self.parse_date(data)
-    #     return d.date()
-
     def to_database(self, data):
+        if data == '' or data is None:
+            return data
+
         clean_data = ''
 
         if isinstance(data, str):
@@ -457,13 +432,18 @@ class DateField(DateFieldMixin, Field):
 
 
 class DateTimeField(DateFieldMixin, Field):
-    """
-    `auto_add` will update the field with the
-    current date every time a value is created
+    """The `DateTimeField` class is a specialized field for 
+    handling date and time data in your database models. It extends 
+    `DateFieldMixin` and Field, providing additional functionality 
+    specifically for date and time fields.
 
-    `auto_update` will update the field with the
-    current date every time a value is updated
+    * `auto_add` will update the field with the
+      current date every time a value is created
+
+    * `auto_update` will update the field with the
+      current date every time a value is updated
     """
+
     date_format = '%Y-%m-%d %H:%M:%S.%f%z'
 
     @property
@@ -471,6 +451,9 @@ class DateTimeField(DateFieldMixin, Field):
         return 'datetime'
 
     def to_database(self, data):
+        if data == '' or data is None:
+            return data
+
         clean_data = ''
 
         if isinstance(data, str):
@@ -478,6 +461,7 @@ class DateTimeField(DateFieldMixin, Field):
                 '%Y-%m-%d %H:%M:%S.%f',
                 '%Y-%m-%d %H:%M:%S.%f%z'
             )
+
             clean_data = self.parse_from_format(data, formats)
             self.run_validators(clean_data)
             clean_data = str(clean_data)
@@ -498,7 +482,7 @@ class TimeField(DateTimeField):
 
     def to_database(self, data):
         clean_data = super().to_database(data)
-        return clean_data
+        return datetime.datetime.fromisoformat(clean_data)
 
 
 class EmailField(CharField):

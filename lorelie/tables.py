@@ -1,12 +1,11 @@
 import re
-import datetime
 from collections import OrderedDict
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
+from lorelie.database.indexes import Index
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
-from lorelie.fields.base import (AutoField, DateField, DateTimeField, Field,
-                                 IntegerField)
+from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
 from lorelie.queries import Query
 
 
@@ -63,9 +62,7 @@ class AbstractTable(metaclass=BaseTable):
 
         result = re.search(r'\s+', name)
         if result:
-            raise ValueError(
-                "Table name contains invalid spaces"
-            )
+            raise ValueError("Table name contains invalid spaces")
         return name.lower()
 
     def validate_values_from_list(self, values):
@@ -77,9 +74,12 @@ class AbstractTable(metaclass=BaseTable):
         return self.validate_values(fields, values)
 
     def validate_values(self, fields, values):
-        """Validate a set of values that the
-        user is trying to insert or update in
-        the database"""
+        """Validate a set of values that the user is 
+        trying to insert or update in the database
+
+        >>> validate_values(['name'], ['Kendall'])
+        ... (["'Kendall'"], {'name': "'Kendall'"})
+        """
         validated_values = []
         for i, field in enumerate(fields):
             # TODO: Allow creation with id field
@@ -105,18 +105,15 @@ class AbstractTable(metaclass=BaseTable):
 
 
 class Table(AbstractTable):
-    """Represents a table in the database. This class
-    can be used independently but would require creating
-    and managing table creation
+    """To create a table in the SQLite database, you first need to 
+    create an instance of the Table class and then use it with the 
+    Database class, which represents the actual database. The make_migrations 
+    function can be called to generate a JSON file that contains all 
+    the historical changes made to the database.
 
-    To create a table without using `Database`:
-
-    >>> table = Table('my_table', 'my_database', fields=[Field('url')])
-    ... table.prepare()
-    ... table.create(url='http://example.come')
-
-    However, if you wish to manage a migration file and other table related
-    tasks, wrapping tables in `Database` is the best option:
+    Represents a table in your database which is managed within a Database class. 
+    This setup allows you to handle migration files and perform various 
+    table-related tasks:
 
     >>> table = Table('my_table', 'my_database', fields=[Field('url')])
     ... database = Database('my_database', table)
@@ -126,10 +123,10 @@ class Table(AbstractTable):
     ... database.objects.all('url')
     """
 
-    def __init__(self, name, *, fields=[], index=[], constraints=[], ordering=[], str_field='id'):
+    def __init__(self, name, *, fields=[], indexes=[], constraints=[], ordering=[], str_field='id'):
         self.name = self.validate_table_name(name)
         self.verbose_name = name.lower().title()
-        self.indexes = index
+        self.indexes = indexes
         self.table_constraints = constraints
         self.field_constraints = {}
         self.is_foreign_key_table = False
@@ -147,9 +144,8 @@ class Table(AbstractTable):
 
         non_authorized_names = ['rowid', 'id']
         for field in fields:
-            # TODO: This does not work
-            # if not issubclass(field.__class__, Field):
-            #     raise ValueError(f'{field} should be an instance of Field')
+            if not hasattr(field, 'prepare'):
+                raise ValueError(f"{field} should be an instance of Field")
 
             if field.name in non_authorized_names:
                 raise ValueError(
@@ -176,12 +172,13 @@ class Table(AbstractTable):
             # since this will just override the first
             # apparition of the duplicate field multiple
             # times in the map
+            # TODO: Delegate this section to the prepare
+            # method of the field directly
             self.fields_map[field.name] = field
 
         # Automatically create an ID field and set
         # it up with the table and backend
         id_field = AutoField()
-        # TODO: Call load_current_connection
         id_field.prepare(self)
         self.fields_map['id'] = id_field
 
@@ -189,16 +186,24 @@ class Table(AbstractTable):
         field_names.append('rowid')
         self.field_names = field_names
 
+        for index in indexes:
+            if not isinstance(index, Index):
+                raise ValueError(f'{index} should be an instance of Index')
+            index.prepare(self)
+
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
 
-    def __eq__(self, table):
-        if not isinstance(table, Table):
-            return NotImplemented
+    def __eq__(self, value):
+        if not isinstance(value, Table):
+            return any([
+                value == self.name,
+                value in self.field_names
+            ])
 
         return all([
-            self.name == table.name,
-            self.field_names == table.field_names
+            self.name == value.name,
+            self.field_names == value.field_names
         ])
 
     def __contains__(self, value):
@@ -206,11 +211,7 @@ class Table(AbstractTable):
 
     def __setattr__(self, name, value):
         if name == 'name':
-            if re.search(r'\W', value):
-                raise ValueError(
-                    "The table name should not contain carachters "
-                    "such as _, -, @ or %"
-                )
+            pass
         return super().__setattr__(name, value)
 
     def __getattribute__(self, name):
@@ -220,7 +221,8 @@ class Table(AbstractTable):
                 raise ImproperlyConfiguredError(
                     self,
                     "You are trying to use a table outside of a Database "
-                    "and therefore calling it without a backend being set"
+                    "and therefore calling it without the backend being set "
+                    "on the table instance"
                 )
         return super().__getattribute__(name)
 
@@ -246,7 +248,11 @@ class Table(AbstractTable):
             raise ValueError(f"{field} should be be an instance of Field")
 
         if field_name != field.name:
-            raise ValueError('Name does not match the internal field name')
+            raise ValueError(
+                f"Field name '{field_name}' does not match the "
+                f"field's internal name '{field.name}'. You are trying "
+                "to add a field on the table where the names do not match"
+            )
 
         if field_name in self.fields_map:
             raise ValueError("Field is already present on the database")
@@ -254,7 +260,7 @@ class Table(AbstractTable):
         self.fields_map[field_name] = field
         self.field_names = list(self.fields_map.keys())
 
-        field_params = self.build_field_parameters()
+        field_params = self.build_all_field_parameters()
         field_params = [
             self.backend.simple_join(params)
             for params in field_params
@@ -276,6 +282,7 @@ class Table(AbstractTable):
         check_constraints = []
         for constraint in self.table_constraints:
             constraint_sql = constraint.as_sql(self.backend)
+
             if isinstance(constraint, UniqueConstraint):
                 unique_constraints.append(constraint_sql)
             elif isinstance(constraint, CheckConstraint):
@@ -286,7 +293,8 @@ class Table(AbstractTable):
         # are just joined by normal space
         joined_unique = self.backend.comma_join([fields, *unique_constraints])
         joined_checks = self.backend.simple_join(
-            [joined_unique, *check_constraints])
+            [joined_unique, *check_constraints]
+        )
 
         sql = self.backend.CREATE_TABLE.format_map({
             'table': self.name,
@@ -300,52 +308,40 @@ class Table(AbstractTable):
         })
         return [sql]
 
-    def build_field_parameters(self):
+    def build_all_field_parameters(self):
         """Returns the paramaters for all
         the fields present on the current
         table. The parameters are the SQL
         parameters e.g. null, autoincrement
-        used to define the field in 
-        the database"""
+        used to define/create the field in 
+        the database on creation or update"""
         for field in self.fields_map.values():
             yield field.field_parameters()
 
-        # return [
-        #     field.field_parameters()
-        #         for field in self.fields_map.values()
-        # ]
+            if field.is_relationship_field:
+                yield field.relationship_field_params
 
     def prepare(self, database):
-        """Prepares the table with other parameters, 
-        creates the create SQL and then creates the
-        different tables in the database using the 
-        parameters of the different fields"""
-        field_params = self.build_field_parameters()
+        """Prepares the table with additional parameters, 
+        gets all the field parameters to be used in order to
+        create the current table and then creates the create SQL
+        statement that will then be used to creates the
+        different tables in the database using the database"""
+        field_params = self.build_all_field_parameters()
         field_params = [
             self.backend.simple_join(params)
             for params in field_params
         ]
 
         if database.has_relationships:
-            for _, relationship_map in database.relationships.items():
-                if not relationship_map.can_be_validated:
-                    raise ValueError(relationship_map.error_message)
+            for _, manager in database.relationships.items():
+                if not manager.relationship_map.can_be_validated:
+                    raise ValueError(manager.relationship_map.error_message)
 
-                if relationship_map.creates_relationship(self):
-                    # We have to create the field automatically
-                    # in the fields map of the table
-                    field_name = relationship_map.backward_related_field
-                    field_params = self._add_field(
-                        field_name,
-                        IntegerField(field_name, null=False)
-                    )
-
-                    relationship_sql = relationship_map.field.as_sql(
-                        self.backend
-                    )
-                    field_params.extend([
-                        self.backend.simple_join(relationship_sql)
-                    ])
+                if manager.relationship_map.creates_relationship(self):
+                    # TODO: Gather all the fields and append the sql
+                    # used for creating the relationship on table
+                    continue
 
         joined_fields = self.backend.comma_join(field_params)
         create_sql = self.create_table_sql(joined_fields)

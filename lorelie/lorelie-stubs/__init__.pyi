@@ -1,9 +1,11 @@
 from collections import deque
 from collections.abc import Iterator
+from logging import Logger
 from typing import DefaultDict, Literal, Optional
 
 from lorelie.backends import SQLiteBackend
 from lorelie.tables import Table
+
 
 class LogQueries:
     container: deque = ...
@@ -14,6 +16,27 @@ class LogQueries:
     def __repr__(self) -> str: ...
     def __iter__(self) -> Iterator[str]: ...
     def __len__(self) -> int: ...
-    def append(self, statement: str, table: Optional[Table] = ..., backend: Optional[SQLiteBackend]= ...) -> None: ...
+    def append(
+        self, 
+        statement: str,
+        table: Optional[Table] = ..., 
+        backend: Optional[SQLiteBackend] = ...
+    ) -> None: ...
+
 
 log_queries: LogQueries
+
+
+class LorelieLogger:
+    logger: Logger = ...
+
+    def __init__(self) -> None: ...
+
+    def debug(self, message: str, *args, **kwargs) -> None: ...
+
+    def info(self, message: str, *args, **kwargs) -> None: ...
+
+    def warning(self, message: str, *args, **kwargs) -> None: ...
+
+
+lorelie_logger: LorelieLogger

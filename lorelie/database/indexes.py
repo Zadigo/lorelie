@@ -40,23 +40,27 @@ class Index:
         self.condition = condition
         index_id = secrets.token_hex(nbytes=5)
         self.index_name = f'{self.prefix}_{name}_{index_id}'
+        self.table = None
 
     def __repr__(self):
         return f'<Index: fields={self.fields} condition={self.condition}>'
 
-    def as_sql(self, table):
+    def prepare(self, table):
+        self.table = table
+
+    def as_sql(self, backend):
         for field in self.fields:
-            table.has_field(field, raise_exception=True)
+            self.table.has_field(field, raise_exception=True)
 
         fields_sql = self.template_sql.format_map({
             'name': self.index_name,
-            'table': table.name,
-            'fields': table.backend.comma_join(self.fields)
+            'table': self.table.name,
+            'fields': backend.comma_join(self.fields)
         })
 
         sql = [fields_sql]
     
         if self.condition is not None:
             where_node = WhereNode(self.condition)
-            sql.extend(where_node.as_sql(table.backend))
-        return table.backend.simple_join(sql)
+            sql.extend(where_node.as_sql(backend))
+        return backend.simple_join(sql)

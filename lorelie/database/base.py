@@ -1,15 +1,14 @@
 import dataclasses
 import pathlib
 from collections import OrderedDict
-from dataclasses import field
-from functools import wraps
-from typing import Union
+from functools import cached_property, wraps
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database import registry
-from lorelie.database.manager import DatabaseManager
+from lorelie.database.manager import DatabaseManager, ForeignTablesManager
 from lorelie.database.migrations import Migrations
 from lorelie.exceptions import TableExistsError
+from lorelie.fields import IntegerField
 from lorelie.fields.relationships import ForeignKeyField
 from lorelie.queries import Query
 from lorelie.tables import Table
@@ -21,76 +20,104 @@ class RelationshipMap:
     right_table: Table
     junction_table: Table = None
     relationship_type: str = dataclasses.field(default='foreign')
-    field: Union[ForeignKeyField] = None
     can_be_validated: bool = False
     error_message: str = None
 
     def __post_init__(self):
         accepted_types = ['foreign', 'one', 'many']
         if self.relationship_type not in accepted_types:
-            self.can_be_validated = False
             self.error_message = (
-                f"The relationship type is not valid: {self.relationship_type}"
+                f"The relationship type is "
+                "not valid: {self.relationship_type}"
             )
 
         # If both tables are exactly the same
         # in name and fields, this cannot be
         # a valid relationship
         if self.left_table == self.right_table:
-            self.can_be_validated = False
             self.error_message = (
                 "Cannot create a relationship between "
-                f"two similar tables: {self.left_table}, {self.right_table}"
+                f"two same tables: {self.left_table}, {self.right_table}"
             )
-        self.can_be_validated = True
+
+        if self.error_message is None:
+            self.can_be_validated = True
 
     def __repr__(self):
-        return f'<RelationshipMap[{self.right_table.name} -> {self.left_table.name}]>'
+        relationship = '/'
+        template = '<RelationshipMap[{value}]>'
+        if self.relationship_type == 'foreign':
+            relationship = f"{self.left_table.name} -> {self.right_table.name}"
+        return template.format_map({'value': relationship})
 
     @property
-    def relationship_field_name(self):
+    def relationship_name(self):
+        """Creates a default relationship name by using
+        the respective name of each table"""
         if self.left_table is not None and self.right_table is not None:
-            left_table_name = getattr(self.left_table, 'name', None)
-            right_table_name = getattr(self.right_table, 'name', None)
+            left_table_name = getattr(self.left_table, 'name')
+            right_table_name = getattr(self.right_table, 'name')
             return f'{left_table_name}_{right_table_name}'
         return None
 
     @property
     def forward_field_name(self):
-        return getattr(self.left_table, 'name', None)
+        # db.objects.first().followers.all()
+        return getattr(self.left_table, 'name')
 
     @property
     def backward_field_name(self):
-        name = getattr(self.right_table, 'name', None)
+        # db.objects.first().names_set.all()
+        name = getattr(self.right_table, 'name')
         return f'{name}_set'
 
     @property
-    def backward_related_field(self):
+    def foreign_backward_related_field_name(self):
         """Returns the database field that will
         relate the right table to the ID field
-        of the left table e.g. table_id -> id"""
-        name = getattr(self.left_table, 'name', None)
+        of the left table so if we have tables
+        A (fields name) and B (fields age), then
+        the age_id which is the backward related
+        field name will be the name of the field
+        created in A: `age_id <- id`"""
+        name = getattr(self.right_table, 'name')
         return f'{name}_id'
 
+    @property
+    def foreign_forward_related_field_name(self):
+        """Returns the database field that will
+        relate the right table to the ID field
+        of the left table so if we have tables
+        A (fields name) and B (fields age), then
+        the age_id which is the backward related
+        field name will be the name of the field
+        created in A: `id -> age_id`"""
+        name = getattr(self.left_table, 'name')
+        return f'{name}_id'
+
+    def get_relationship_condition(self, table):
+        tables = (self.right_table, self.left_table)
+        if table not in tables:
+            raise ValueError(
+                "Cannot create conditions for none "
+                "existing tables"
+            )
+
+        selected_table = list(filter(lambda x: table == x, tables))
+        other_table = list(filter(lambda x: table != x, tables))
+
+        lhv = f"{selected_table[-1].name}.id"
+        rhv = f"{
+            other_table[-1].name}.{self.foreign_forward_related_field_name}"
+
+        return lhv, rhv
+
     def creates_relationship(self, table):
-        """The relationship is created from right
-        to left. This function allows us to determine
-        if a table can create a relationship with
-        another one"""
-        return table == self.right_table
-
-
-@dataclasses.dataclass
-class TriggersMap:
-    pre_save: list = field(default_factory=list)
-    post_save: list = field(default_factory=list)
-    pre_delete: list = field(default_factory=list)
-
-    def list_functions(self, table, trigger_name):
-        """Returns the list of functions for a given
-        specific trigger name"""
-        container = getattr(self, trigger_name, [])
-        return list(filter(lambda x: table in x, container))
+        """The relationship is created from left
+        to right. This function allows us to determine
+        if a table can create a relationship if it matches
+        the left table registed in this map"""
+        return table == self.left_table
 
 
 class Database:
@@ -142,12 +169,19 @@ class Database:
         self.path = pathlib.Path(__name__).parent.absolute()
 
         if path is not None:
+            if isinstance(path, str):
+                path = pathlib.Path(path)
+
             self.path = path
 
         # Create a connection to populate the
         # connection pool for the rest of the
         # operations
-        self.backend_class(database_name=name)
+        self.backend_class(
+            database_or_name=self,
+            path=self.path,
+            log_queries=log_queries
+        )
 
         self.table_map = {}
         for table in tables:
@@ -160,7 +194,6 @@ class Database:
 
         self.table_instances = list(tables)
         self.relationships = OrderedDict()
-        self.triggers_map = TriggersMap()
         self.log_queries = log_queries
 
         # databases.register(self)
@@ -218,9 +251,33 @@ class Database:
     def has_relationships(self):
         return len(self.relationships) > 0
 
+    @property
+    def verbose_name(self):
+        if self.database_name is not None:
+            return self.database_name.title()
+        return 'MEMORY'
+
     def _add_table(self, table):
         table.load_current_connection()
         self.table_map[table.name] = table
+
+    def _prepare_relationship_map(self, right_table, left_table):
+        if (not isinstance(left_table, Table) and
+                not isinstance(right_table, Table)):
+            raise ValueError(
+                "Both tables should be an instance of "
+                f"Table: {left_table}, {right_table}"
+            )
+
+        if (left_table not in self.table_instances and
+                right_table not in self.table_instances):
+            raise ValueError(
+                "Both tables need to be registered in the database "
+                "namespace in order to create a relationship between them"
+            )
+
+        right_table.is_foreign_key_table = True
+        return RelationshipMap(left_table, right_table)
 
     def get_table(self, table_name):
         try:
@@ -257,10 +314,11 @@ class Database:
         """
         return NotImplemented
 
+    # TODO: Remove this line
     def create_view(self, name, queryset, temporary=True):
         return NotImplemented
 
-    def register_trigger(self, table=None, trigger=None):
+    def register_trigger(self, trigger, table=None):
         """Registers a trigger function onto the database
         and that will get called at a specific stage of
         when the database runs a specific type of operation
@@ -271,69 +329,82 @@ class Database:
         ...     pass
         """
         def wrapper(func):
+            if table is not None:
+                values = [table.name, trigger, func]
+            else:
+                values = [None, trigger, func]
+            registry.registered_triggers.container.append(values)
+
             @wraps(func)
             def inner(**kwargs):
-                if trigger is not None:
-                    func(database=self, table=table, **kwargs)
-
-            if trigger == 'pre_save':
-                self.triggers_map.pre_save.append((table, inner))
+                func(database=self, table=table, **kwargs)
             return inner
         return wrapper
 
-    def foreign_key(self, left_table, right_table, on_delete=None, related_name=None):
-        """Adds a foreign key between two databases by using the
+    def foreign_key(self, name, left_table, right_table, on_delete=None, related_name=None):
+        """Adds a foreign key between two tables by using the
         default primary ID field. The orientation for the foreign
-        key goes from `left_table.id` to `right_table.id`
+        key goes from `left_table.id` to `right_table.field_id`
+
         >>> table1 = Table('celebrities', fields=[CharField('firstname', max_length=200)])
         ... table2 = Table('social_media', fields=[CharField('name', max_length=200)])
 
         >>> db = Database(table1, table2)
-        ... db.foreign_key(table1, table2, on_delete='cascade', related_name='f_my_table')
+        ... db.foreign_key('followers', table1, table2, on_delete='cascade', related_name='f_my_table')
         ... db.migrate()
         ... db.social_media_tbl.all()
         ... db.celebrity_tbl_set.all()
         ... db.objects.foreign_key('social_media').all()
         ... db.objects.foreign_key('social_media', reverse=True).all()
         """
-        # if (not isinstance(left_table, Table) and
-        #         not isinstance(right_table, Table)):
-        #     raise ValueError(
-        #         "Both tables should be an instance of "
-        #         f"Table: {left_table}, {right_table}"
-        #     )
+        relationship_map = self._prepare_relationship_map(
+            right_table,
+            left_table
+        )
+        self.relationships[name] = ForeignTablesManager(relationship_map)
 
-        # if (left_table not in self.table_instances and
-        #         right_table not in self.table_instances):
-        #     raise ValueError(
-        #         "Both tables need to be registered in the database "
-        #         "namespace in order to create a relationship"
-        #     )
+        # Create the default field that will be used to access the
+        # the right table: db.objects.first().field_set.all() and
+        # then implemented on the left table. The left table will
+        # contain the ID relatonship keys used to associate the
+        # two tables
+        field = ForeignKeyField(
+            relationship_map=relationship_map,
+            related_name=related_name
+        )
+        field.prepare(self)
 
-        # right_table.is_foreign_key_table = True
-        # relationship_map = RelationshipMap(left_table, right_table)
+        relationship_map.left_table.is_foreign_key_table = True
+        relationship_map.right_table._add_field(
+            relationship_map.foreign_forward_related_field_name,
+            field
+        )
 
-        # field = ForeignKeyField(relationship_map=relationship_map)
-        # field.prepare(self)
-
-        # relationship_map.field = field
-        # self.relationships[relationship_map.relationship_field_name] = relationship_map
-        return NotImplemented
-
-    def many_to_many(self, left_table, right_table, primary_key=True, related_name=None):
-        # Create an intermediate junction table that
+    def many_to_many(self, name, left_table, right_table):
+        # TODO: Create an intermediate junction table that
         # will serve to query many to many fields
         # junction_name = f'{left_table.name}_{right_table.name}'
-        # table = Table(junction_name, fields=[
-        #     IntegerField(f'{left_table.name}_id'),
-        #     IntegerField(f'{right_table.name}_id'),
-        # ])
-        # self._add_table(table)
+        relationship_map = self._prepare_relationship_map(
+            right_table, left_table)
+        relationship_map.relationship_type = 'many'
 
-        # relationship_map = RelationshipMap(left_table, right_table)
-        # relationship_map.junction_table = table
-        # self.relationships[relationship_map.relationship_field_name] = relationship_map
-        return NotImplemented
+        junction_table = Table(relationship_map.relationship_name, fields=[
+            IntegerField(f'{left_table.name}_id'),
+            IntegerField(f'{right_table.name}_id'),
+        ])
+        junction_table.prepare(self)
+        self._add_table(junction_table)
 
-    def one_to_one_key(self, left_table, right_table, on_delete=None, related_name=None):
-        return NotImplemented
+        self.foreign_key(
+            name, relationship_map.foreign_forward_related_field_name, left_table, junction_table)
+        self.foreign_key(
+            name, relationship_map.foreign_forward_related_field_name, right_table, junction_table)
+
+    def one_to_one_key(self, name, left_table, right_table, on_delete=None):
+        relationship_map = self._prepare_relationship_map(
+            right_table,
+            left_table
+        )
+        relationship_map.relationship_type = 'one'
+        self.relationships[name] = ForeignTablesManager(relationship_map)
+        relationship_map.left_table.is_foreign_key_table = True

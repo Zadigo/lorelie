@@ -1,79 +1,109 @@
-# import unittest
 
-# from lorelie.backends import SQLiteBackend
-# from lorelie.database.functions.aggregation import (Avg,
-#                                                     CoefficientOfVariation,
-#                                                     Count, Max,
-#                                                     MeanAbsoluteDifference,
-#                                                     Min, StDev, Sum, Variance)
-# from lorelie.database.functions.text import Length
-# from lorelie.fields.base import IntegerField
-# from lorelie.tables import Table
+from lorelie.database.functions.aggregation import (Avg,
+                                                    CoefficientOfVariation,
+                                                    Count, Max,
+                                                    MeanAbsoluteDifference,
+                                                    Min, StDev, Sum, Variance)
+from lorelie.database.functions.text import Length
+from lorelie.test.testcases import LorelieTestCase
 
-# backend = SQLiteBackend()
-# table = Table('celebrities', fields=[IntegerField('age')])
-# table.backend = backend
-# backend.set_current_table(table)
-
-# # select rowid, * from celebrities where age=(select max(age) from celebrities)
+# select rowid, * from celebrities where age=(select max(age) from celebrities)
 
 
-# class TestAggregation(unittest.TestCase):
-#     def test_max_aggregation(self):
-#         instance = Max('age')
-#         sql = instance.as_sql(table.backend)
-#         expected_sql = "max(age)"
-#         self.assertEqual(sql, expected_sql)
+class TestAggregation(LorelieTestCase):
+    def test_max(self):
+        table = self.create_table()
+        table.backend = self.create_connection()
 
-#     def test_min_aggregation(self):
-#         instance = Min('age')
-#         sql = instance.as_sql(table.backend)
-#         expected_sql = "min(age)"
-#         self.assertEqual(sql, expected_sql)
+        instance = Max('age')
+        sql = instance.as_sql(table.backend)
+        self.assertEqual(sql, "max(age)")
 
-#     def test_avg_aggregation(self):
-#         instance = Avg('age')
-#         sql = instance.as_sql(table.backend)
-#         expected_sql = "avg(age)"
-#         self.assertEqual(sql, expected_sql)
+    def test_min(self):
+        table = self.create_table()
+        table.backend = self.create_connection()
 
-#     def test_variance_aggregation(self):
-#         instance = Variance('age')
-#         sql = instance.as_sql(table.backend)
-#         expected_sql = "variance(age)"
-#         self.assertEqual(sql, expected_sql)
+        instance = Min('age')
+        sql = instance.as_sql(table.backend)
+        self.assertEqual(sql, "min(age)")
 
-#     def test_std_deviation_aggregation(self):
-#         instance = StDev('age')
-#         sql = instance.as_sql(table.backend)
-#         expected_sql = "stdev(age)"
-#         self.assertEqual(sql, expected_sql)
+    def test_avg(self):
+        table = self.create_table()
+        table.backend = self.create_connection()
 
-#     def test_sum_aggregation(self):
-#         instance = Sum('age')
-#         sql = instance.as_sql(table.backend)
-#         expected_sql = "sum(age)"
-#         self.assertEqual(sql, expected_sql)
+        instance = Avg('age')
+        sql = instance.as_sql(table.backend)
+        self.assertEqual(sql, "avg(age)")
 
-#     def test_count_aggregation(self):
-#         instance = Count('age')
-#         sql = instance.as_sql(table.backend)
-#         expected_sql = "count(age)"
-#         self.assertEqual(sql, expected_sql)
+    def test_variance(self):
+        table = self.create_table()
+        table.backend = self.create_connection()
 
-#     def test_coefficient_of_variation_aggregation(self):
-#         instance = CoefficientOfVariation('age')
-#         sql = instance.as_sql(table.backend)
-#         expected_sql = "coeffofvariation(age)"
-#         self.assertEqual(sql, expected_sql)
+        instance = Variance('age')
+        sql = instance.as_sql(table.backend)
+        self.assertEqual(sql, "variance(age)")
 
-#     def test_mean_absolute_difference_aggregation(self):
-#         instance = MeanAbsoluteDifference('age')
-#         sql = instance.as_sql(table.backend)
-#         expected_sql = "meanabsdifference(age)"
-#         self.assertEqual(sql, expected_sql)
+    def test_stdev(self):
+        table = self.create_table()
+        table.backend = self.create_connection()
 
-#     def test_nested_aggregation(self):
-#         nested = Max(Length('name'))
-#         sql = nested.as_sql(table.backend)
-#         self.assertEqual(sql, 'max(length(name))')
+        instance = StDev('age')
+        sql = instance.as_sql(table.backend)
+        self.assertEqual(sql, "stdev(age)")
+
+    def test_sum(self):
+        table = self.create_table()
+        table.backend = self.create_connection()
+
+        instance = Sum('age')
+        sql = instance.as_sql(table.backend)
+        self.assertEqual(sql, "sum(age)")
+
+    def test_count(self):
+        table = self.create_table()
+        table.backend = self.create_connection()
+
+        instance = Count('age')
+        sql = instance.as_sql(table.backend)
+        self.assertEqual(sql, "count(age)")
+
+    def test_coefficient_of_variation(self):
+        table = self.create_table()
+        table.backend = self.create_connection()
+
+        instance = CoefficientOfVariation('age')
+        sql = instance.as_sql(table.backend)
+        self.assertEqual(sql, "coeffofvariation(age)")
+
+    def test_mean_absolute_difference(self):
+        table = self.create_table()
+        table.backend = self.create_connection()
+
+        instance = MeanAbsoluteDifference('age')
+        sql = instance.as_sql(table.backend)
+        self.assertEqual(sql, "meanabsdifference(age)")
+
+    def test_aggregation_from_function(self):
+        table = self.create_table()
+        table.backend = self.create_connection()
+
+        nested = Max(Length('name'))
+        sql = nested.as_sql(table.backend)
+        self.assertEqual(sql, 'max(length(name))')
+
+    def test_on_queryset(self):
+        db = self.create_database()
+        # FIXME: When no value is created and we run aggregate
+        # we get None of the alias_field
+        db.objects.create('celebrities', name='Marion Cotillard')
+        db.objects.create('celebrities', name='Kendall Jenner', height=182)
+        db.objects.create('celebrities', name='Kylie Jenenr', height=172)
+        result = db.objects.aggregate(
+            'celebrities',
+            Sum('height'),
+            Avg('height'),
+            Variance('height'),
+            StDev('height'),
+            MeanAbsoluteDifference('height')
+        )
+        self.assertEqual(result['height__sum'], 506)

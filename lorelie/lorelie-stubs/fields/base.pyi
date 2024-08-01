@@ -1,6 +1,8 @@
 import datetime
-from typing import (Any, Callable, Literal, Tuple, Type,
-                    TypedDict, Union, Unpack, override)
+from decimal import Context
+from functools import cached_property
+from typing import (Any, Callable, Literal, Tuple, Type, TypedDict, Union,
+                    Unpack, override)
 
 from lorelie.constraints import MaxLengthConstraint
 from lorelie.tables import Table
@@ -51,6 +53,9 @@ class Field:
     def field_type(self) -> str: ...
 
     @property
+    def field_python_name(self) -> str: ...
+
+    @property
     def is_standard_field_type(self) -> bool: ...
 
     @staticmethod
@@ -65,7 +70,7 @@ class Field:
 
     def run_validators(self, value: Any) -> None: ...
     def to_python(self, data: Any) -> Any: ...
-    def to_database(self, data: Any) -> Union[int, float, dict, list]: ...
+    def to_database(self, data: Any) -> Union[str, int, float, dict, list]: ...
     def field_parameters(self) -> list[str]: ...
     def prepare(self, table: Table) -> None: ...
     def deconstruct(self) -> Tuple[str, list[str]]: ...
@@ -75,6 +80,7 @@ class CharField(Field):
     @override
     @property
     def field_type(self) -> Literal['text']: ...
+
 
 class NumericFieldMixin:
     @override
@@ -100,9 +106,13 @@ class IntegerField(NumericFieldMixin, Field):
 
 class FloatField(NumericFieldMixin, Field):
     ...
-    # @override
-    # @property
-    # def field_type(self) -> Literal['float']: ...
+
+
+class DecimalField(NumericFieldMixin, Field):
+    def __init__(self, name: str, digits: int = ..., **kwargs) -> None: ...
+
+    @cached_property
+    def build_context(self) -> Context: ...
 
 
 class JSONField(Field):

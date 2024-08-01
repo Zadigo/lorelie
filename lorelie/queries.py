@@ -1,10 +1,12 @@
+import datetime
 import sqlite3
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
 
-from lorelie import log_queries
+from lorelie import log_queries, lorelie_logger
 from lorelie.database.functions.aggregation import Count
-from lorelie.database.nodes import BaseNode, OrderByNode, SelectMap, WhereNode
+from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
+                                    SelectNode, WhereNode)
 
 
 class Query:
@@ -39,6 +41,11 @@ class Query:
         self.is_evaluated = False
         self.statements = []
         self.select_map = SelectMap()
+        # Since this is a special table that was not created
+        # locally, we need to indicate to the __repr__ of the
+        # rows that they will not be able to use the current_table
+        # property to get the table name
+        self.map_to_sqlite_table = False
 
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self.sql}]>'
@@ -82,6 +89,20 @@ class Query:
             instance.is_evaluated = True
         finally:
             log_queries.append(script, table=table, backend=backend)
+
+            # Logging should not be set to True
+            #  in a production environment since there
+            # could be sensitive data passed in the queries
+            # to the log. Warn the user about this
+            if instance.backend.log_queries:
+                lorelie_logger.warning(
+                    "Logging queries in a production environment is high risk "
+                    "and should be disabled. Logging sensitive data in to a log"
+                    "file can cause severe security issues to you data"
+                )
+                for query in log_queries:
+                    lorelie_logger.info(f"\"{query}\"")
+
             return instance
 
     @property
@@ -160,7 +181,21 @@ class Query:
         else:
             if commit:
                 self.backend.connection.commit()
+
             self.result_cache = list(result)
+
+            # Since some tables are not created locally,
+            # we need to indicate to the __repr__ of the
+            # rows that they will not be able to use the
+            # current_table of the backend property to get
+            # the table name
+            if self.map_to_sqlite_table:
+                updated_rows = []
+                for row in self.result_cache:
+                    setattr(row, 'linked_to_table', 'sqlite_schema')
+                    updated_rows.append(row)
+                self.result_cache = updated_rows
+
             self.is_evaluated = True
         finally:
             log_queries.append(
@@ -169,11 +204,32 @@ class Query:
                 backend=self.backend
             )
 
+            # Logging should not be set to True
+            #  in a production environment since there
+            # could be sensitive data passed in the queries
+            # to the log. Warn the user about this
+            if self.backend.log_queries:
+                lorelie_logger.warning(
+                    "Logging queries in a production environment is high risk "
+                    "and should be disabled. Logging sensitive data in to a log"
+                    "file can cause severe security issues to you data"
+                )
+                for query in log_queries:
+                    try:
+                        lorelie_logger.info(f"\"{query}\"")
+                    except:
+                        lorelie_logger.warning('Could not log query')
+
     def transform_to_python(self):
         """Transforms the values returned by the
         database into Python objects"""
         from lorelie.fields.base import AliasField
         for row in self.result_cache:
+            # The sqlite_schema is not created
+            # locally so no sense to do a transform
+            if self.map_to_sqlite_table:
+                continue
+
             for name in row._fields:
                 value = row[name]
                 if name in self.alias_fields:
@@ -244,7 +300,7 @@ class QuerySet:
 
     def __init__(self, query, skip_transform=False):
         if not isinstance(query, Query):
-            raise ValueError(f"{query} should be an instance of Query")
+            raise ValueError(f"'{query}' should be an instance of Query")
 
         self.query = query
         self.result_cache = []
@@ -260,6 +316,15 @@ class QuerySet:
         # to the QuerySet that commits needs to be
         # set to True
         self.use_commit = False
+        # Flag which can be used to indicate
+        # to the QuerySet to use an alias view
+        # to query items from the database as
+        # oppposed to using the table name
+        self.alias_view_name = None
+        # Despite existing data in the cache,
+        # force the cache to be reloaded from
+        # the existing database
+        self.force_reload_cache = False
 
     def __repr__(self):
         self.load_cache()
@@ -283,10 +348,12 @@ class QuerySet:
 
     def __contains__(self, value):
         self.load_cache()
-        return value in self.result_cache
+        return any(map(lambda x: value in x, self.result_cache))
 
     def __eq__(self, value):
         self.load_cache()
+        if not isinstance(value, QuerySet):
+            return NotImplemented
         return value == self
 
     def __len__(self):
@@ -302,8 +369,27 @@ class QuerySet:
     def sql_statement(self):
         return self.query.sql
 
+    def check_alias_view_name(self):
+        if self.alias_view_name is not None:
+            # Replace the previous SelectNode
+            # with the new one by using the
+            # previous parameters of the
+            # previous SelectNode
+            old_select = self.query.select_map.select
+            new_node = SelectNode(
+                self.query.table,
+                *old_select.fields,
+                distinct=old_select.distinct,
+                limit=old_select.limit,
+                view_name=self.alias_view_name
+            )
+            self.query.select_map.select = new_node
+            self.force_reload_cache = True
+            return True
+        return False
+
     def load_cache(self):
-        if not self.result_cache:
+        if self.force_reload_cache or not self.result_cache:
             self.query.run(commit=self.use_commit)
             if not self.skip_transform:
                 self.query.transform_to_python()
@@ -312,7 +398,7 @@ class QuerySet:
     def first(self):
         self.query.select_map.limit = 1
         self.query.select_map.order_by = OrderByNode(self.query.table, 'id')
-        return self
+        return self[-1]
 
     def last(self):
         self.query.select_map.limit = 1
@@ -320,6 +406,7 @@ class QuerySet:
         return self
 
     def all(self):
+        self.check_alias_view_name()
         return self
 
     def filter(self, *args, **kwargs):
@@ -327,6 +414,7 @@ class QuerySet:
         filters = backend.decompose_filters(**kwargs)
         build_filters = backend.build_filters(filters, space_characters=False)
 
+        self.check_alias_view_name()
         if self.query.select_map.should_resolve_map:
             try:
                 # Try to update and existing where
@@ -373,7 +461,8 @@ class QuerySet:
 
     def aggregate(self, *args, **kwargs):
         for func in args:
-            if not isinstance(func, (Count)):
+            allows_aggregate = getattr(func, 'allow_aggregation')
+            if not allows_aggregate:
                 continue
             kwargs.update({func.aggregate_name: func})
 

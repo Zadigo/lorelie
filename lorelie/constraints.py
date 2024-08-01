@@ -8,7 +8,7 @@ class BaseConstraint:
     prefix = None
     base_errors = {
         'integer': (
-            "Limit for {klass} should "
+            "Limit for {klass} should be "
             "an integer field"
         )
     }
@@ -19,6 +19,9 @@ class BaseConstraint:
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.generated_name}>'
 
+    def __hash__(self):
+        return hash((self.name))
+
     @property
     def generated_name(self):
         random_string = secrets.token_hex(nbytes=5)
@@ -26,7 +29,7 @@ class BaseConstraint:
 
     def as_sql(self, backend):
         return NotImplemented
-    
+
 
 class CheckConstraint(BaseConstraint):
     """Represents a SQL CHECK constraint that is used 
@@ -80,10 +83,7 @@ class UniqueConstraint(BaseConstraint):
         return self.template_sql.format(fields=fields)
 
 
-class MaxLengthConstraint(BaseConstraint):
-    template_sql = 'check({condition})'
-    length_sql = 'length({column})'
-
+class MinMaxMixin:
     def __init__(self, limit, field):
         if not isinstance(limit, int):
             error = self.base_errors['integer']
@@ -92,10 +92,17 @@ class MaxLengthConstraint(BaseConstraint):
         self.limit = limit
         self.field = field
 
-    def __call__(self, value):
-        if value is None:
-            return True
-        return len(value) > self.limit
+
+class MaxLengthConstraint(MinMaxMixin, BaseConstraint):
+    """The `MaxLengthConstraint` class is a custom database constraint 
+    used to enforce a maximum length on a specified field within a table. 
+    This constraint ensures that the length of the field's value does not 
+    exceed a defined limit. If the value's length surpasses this limit, 
+    the constraint will be violated, thus maintaining data integrity by 
+    restricting the length of the input data"""
+
+    template_sql = 'check({condition})'
+    length_sql = 'length({column})'
 
     def as_sql(self, backend):
         condition = backend.CONDITION.format_map({
@@ -106,31 +113,18 @@ class MaxLengthConstraint(BaseConstraint):
         return self.template_sql.format(condition=condition)
 
 
-class MinValueConstraint(BaseConstraint):
+class MinValueConstraint(MinMaxMixin, BaseConstraint):
     template_sql = 'check({condition})'
-
-    def __init__(self, limit, field):
-        if not isinstance(limit, int):
-            error = self.base_errors['integer']
-            raise ValueError(error.format(klass=self.__class__.__name__))
-        
-        self.limit = limit
-        self.field = field
+    operator = '>'
 
     def as_sql(self, backend):
         condition = backend.CONDITION.format_map({
-            'field': self.field,
-            'operator': '>',
+            'field': self.field.name,
+            'operator': self.operator,
             'value': self.limit
         })
         return self.template_sql.format(condition=condition)
 
 
 class MaxValueConstraint(MinValueConstraint):
-    def as_sql(self, backend):
-        condition = backend.CONDITION.format_map({
-            'field': self.field,
-            'operator': '<',
-            'value': self.limit
-        })
-        return self.template_sql.format(condition=condition)
+    operator = '<'

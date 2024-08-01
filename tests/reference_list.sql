@@ -100,3 +100,11 @@ where name="Jupe";
 
 insert into google (name, height)
 values("Kendall", 0);
+
+
+-- followers__id=1
+select *
+from celebrities
+inner join followers on celebrities.id = followers.celebrity_id
+where celebrities.id = 1
+order by followers.total_count desc

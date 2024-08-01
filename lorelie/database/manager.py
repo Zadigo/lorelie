@@ -3,19 +3,14 @@ import dataclasses
 import datetime
 from dataclasses import is_dataclass
 
-import pytz
 from asgiref.sync import sync_to_async
 
-from lorelie.database.functions.aggregation import (Avg,
-                                                    CoefficientOfVariation,
-                                                    Count, Max,
-                                                    MeanAbsoluteDifference,
-                                                    Min, StDev, Sum, Variance)
-from lorelie.database.nodes import (InsertNode, OrderByNode, SelectNode,
+from lorelie.database.functions.aggregation import Count
+from lorelie.database.nodes import (InsertNode, IntersectNode, OrderByNode, SelectNode,
                                     UpdateNode, WhereNode)
 from lorelie.exceptions import (FieldExistsError, MigrationsExistsError,
                                 TableExistsError)
-from lorelie.queries import EmptyQuerySet, Query, QuerySet, ValuesIterable
+from lorelie.queries import QuerySet, ValuesIterable
 
 
 class DatabaseManager:
@@ -146,14 +141,14 @@ class DatabaseManager:
         """The create function facilitates the creation 
         of a new row in the specified table within the 
         current database
-        
+
         >>> db.objects.create('celebrities', firstname='Kendall')
         """
         selected_table = self.before_action(table)
         kwargs = self._validate_auto_fields(selected_table, kwargs)
         values, kwargs = selected_table.validate_values_from_dict(kwargs)
-        query = self.database.query_class(table=selected_table)
 
+        query = self.database.query_class(table=selected_table)
         insert_node = InsertNode(
             selected_table,
             insert_values=kwargs,
@@ -162,36 +157,6 @@ class DatabaseManager:
 
         query.add_sql_node(insert_node)
         return QuerySet(query)[0]
-
-        # fields, values = selected_table.backend.dict_to_sql(
-        #     kwargs,
-        #     quote_values=False
-        # )
-        # values, _ = selected_table.validate_values(fields, values)
-
-        # # pre_saved_values = self.pre_save(selected_table, fields, values)
-        # joined_fields = selected_table.backend.comma_join(fields)
-        # joined_values = selected_table.backend.comma_join(values)
-
-        # query = self.database.query_class(table=selected_table)
-        # # insert_node = InsertNode(selected_table, insert_values=kwargs)
-        # insert_sql = selected_table.backend.INSERT.format(
-        #     table=selected_table.name,
-        #     fields=joined_fields,
-        #     values=joined_values
-        # )
-
-        # # See: https://www.sqlitetutorial.net/sqlite-returning/
-        # return_fields = selected_table.backend.comma_join(
-        #     selected_table.field_names
-        # )
-        # query.add_sql_nodes([insert_sql, f'returning {return_fields}'])
-        # # query.run(commit=True)
-        # # TODO: This raises a sqlite3.OperationalError: cannot
-        # # commit transaction - SQL statements in progress
-        # queryset = QuerySet(query)
-        # queryset.use_commit = True
-        # return list(queryset)[-0]
 
     def filter(self, table, *args, **kwargs):
         """Filter the data in the database based on
@@ -252,10 +217,11 @@ class DatabaseManager:
         return list(queryset)[-0]
 
     def annotate(self, table, *args, **kwargs):
-        """method allows the usage of advanced functions or expressions in a query to 
-        add additional fields to your querysets based on the values of existing fields
+        """The annotate method allows the usage of advanced functions or expressions in 
+        a query by adding additional fields to your querysets based on the values 
+        of existing fields
 
-        Returning each values of the name in lower or uppercase:
+        For example, returning each values of the name in lower or uppercase:
 
         >>> db.objects.annotate('celebrities', lowered_name=Lower('name'))
         ... db.objects.annotate('celebrities', uppered_name=Upper('name'))
@@ -264,7 +230,7 @@ class DatabaseManager:
 
         >>> database.objects.annotate(year=ExtractYear('created_on'))
 
-        We can also run cases. For example, when a price is equals to 1,
+        We can also run cases. For example, when a price is equal to 1,
         then create temporary column named custom price with either 2 or 3:
 
         >>> condition = When('price=1', 2)
@@ -327,6 +293,12 @@ class DatabaseManager:
         alias_fields = list(kwargs.keys())
 
         for alias, func in kwargs.items():
+            if selected_table.has_field(alias):
+                raise ValueError(
+                    "Alias field names cannot override table "
+                    f"columns: {alias} -> {selected_table.field_names}"
+                )
+
             internal_type = getattr(func, 'internal_type')
             if internal_type == 'expression':
                 func.alias_field_name = alias
@@ -351,55 +323,11 @@ class DatabaseManager:
 
         if selected_table.ordering:
             orderby_node = OrderByNode(
-                selected_table, *selected_table.ordering)
+                selected_table,
+                *selected_table.ordering
+            )
             query.add_sql_node(orderby_node)
         return QuerySet(query)
-
-        # for func in args:
-        #     if not isinstance(func, (Functions, BaseExpression)):
-        #         raise ValueError(
-        #             'Func should be an instnae of Functions or BaseExpression')
-
-        #     if isinstance(func, CombinedExpression):
-        #         raise ValueError('CombinedExpressions require an alias name')
-
-        #     kwargs.update({func.alias_field_name: func})
-
-        # if not kwargs:
-        #     return self.all(table)
-
-        # alias_fields = list(kwargs.keys())
-
-        # for field in alias_fields:
-        #     # Combined expressions alias field names
-        #     # are added afterwards once the user sets
-        #     # the name for the expression
-        #     if isinstance(kwargs[field], CombinedExpression):
-        #         kwargs[field].alias_field_name = field
-
-        # annotation_map = selected_table.backend.build_annotation(**kwargs)
-        # annotated_sql_fields = selected_table.backend.comma_join(
-        #     annotation_map.joined_final_sql_fields
-        # )
-        # return_fields = ['*', annotated_sql_fields]
-
-        # select_node = SelectNode(selected_table, *return_fields)
-
-        # query = self.database.query_class(table=selected_table)
-        # query.add_sql_nodes([select_node])
-
-        # if annotation_map.requires_grouping:
-        #     # grouping_fields = set(annotation_map.field_names)
-        #     # groupby_sql = selected_table.backend.GROUP_BY.format_map({
-        #     #     'conditions': selected_table.backend.comma_join(grouping_fields)
-        #     # })
-        #     groupby_sql = selected_table.backend.GROUP_BY.format_map({
-        #         'conditions': 'id'
-        #     })
-        #     query.select_map.groupby = groupby_sql
-
-        # query.alias_fields = list(alias_fields)
-        # return QuerySet(query)
 
     def values(self, table, *fields):
         """Returns data from the database as a list
@@ -483,8 +411,9 @@ class DatabaseManager:
         # will implement in the kwargs
         none_aggregate_functions = []
         for function in functions:
-            if not isinstance(function, (Count, Avg, Sum, MeanAbsoluteDifference, CoefficientOfVariation, Variance, StDev, Max, Min)):
-                none_aggregate_functions.count(function)
+            allows_aggregation = getattr(function, 'allow_aggregation', False)
+            if not allows_aggregation:
+                none_aggregate_functions.append(function)
                 continue
             kwargs[function.aggregate_name] = function
 
@@ -494,7 +423,7 @@ class DatabaseManager:
             )
 
         aggregate_sqls = []
-        annotation_map = selected_table.backend.build_annotation(**kwargs)
+        annotation_map = selected_table.backend.build_annotation(kwargs)
         aggregate_sqls.extend(annotation_map.joined_final_sql_fields)
 
         select_node = SelectNode(selected_table, *aggregate_sqls)
@@ -628,9 +557,20 @@ class DatabaseManager:
         dates = map(date_iterator, query.result_cache)
         return list(dates)
 
-    # def difference()
-    # def earliest()
-    # def latest()
+    def difference(self, table):
+        return NotImplemented
+
+    def earliest(self, table):
+        return NotImplemented
+
+    def latest(self, table, *fields):
+        # selected_table = self.before_action(table)
+        # select_node = SelectNode(selected_table, *fields, limit=1)
+        # order_by_node = OrderByNode(selected_table, *fields)
+        # query = selected_table.query_class(table=selected_table)
+        # query.add_sql_nodes(select_node, order_by_node)
+        # return QuerySet(query)[0]
+        return NotImplemented
 
     def exclude(self, table, *args, **kwargs):
         """Selects all the values from the database
@@ -651,8 +591,11 @@ class DatabaseManager:
             query.add_sql_node(ordering_node)
         return QuerySet(query)
 
-    # def extra()
-    # def only()
+    def extra(self, table):
+        return NotImplemented
+
+    def only(self, table):
+        return NotImplemented
 
     def get_or_create(self, table, create_defaults={}, **kwargs):
         """Tries to get a row in the database using the coditions
@@ -809,36 +752,135 @@ class DatabaseManager:
         # then modify the data in the database
         return QuerySet(new_query)[0]
 
+    def intersect(self, table, qs1, qs2):
+        """The intersect function allows you to combine 
+        the result sets of two queries and returns 
+        distinct rows that appear in both result sets. 
+        This is similar to the SQL `INTERSECT` operator, 
+        which is used to find the common records between 
+        two `SELECT` statements
+
+        >>> qs1 = db.objects.all('celebrities')
+        ... qs2 = db.objects.all('celebrities')
+        ... qs3 = db.objects.intersect('celebrities', qs1, qs2)
+        """
+        selected_table = self.before_action(table)
+
+        if not isinstance(qs1, QuerySet):
+            raise ValueError(f'{qs1} should be an instance of QuerySet')
+
+        if not isinstance(qs2, QuerySet):
+            raise ValueError(f'{qs2} should be an instance of QuerySet')
+
+        if not qs1.query.is_evaluated:
+            qs1.load_cache()
+
+        if not qs2.query.is_evaluated:
+            qs2.load_cache()
+
+        node = IntersectNode(qs1.query.sql, qs2.query.sql)
+        query = selected_table.query_class(table=selected_table)
+        query.add_sql_node(node)
+        return QuerySet(query)
+
     async def afirst(self, table):
         return await sync_to_async(self.first)(table)
-    
+
     async def alast(self, table):
         return await sync_to_async(self.last)(table)
-    
+
     async def aall(self, table):
         return await sync_to_async(self.all)(table)
-    
+
     async def acreate(self, table, **kwargs):
         return await sync_to_async(self.create)(table, **kwargs)
 
+    async def afilter(self, table, **kwargs):
+        return await sync_to_async(self.filter)(table, **kwargs)
+
+    async def aget(self, table, *args, **kwargs):
+        return await sync_to_async(self.get)(table, *args, **kwargs)
+
+    async def aannotate(self, table, *args, **kwargs):
+        return await sync_to_async(self.annotate)(table, *args, **kwargs)
+
+    async def avalues(self, table, *fields):
+        return await sync_to_async(self.values)(table, *fields)
+
+    async def adataframe(self, table, *fields):
+        return await sync_to_async(self.dataframe)(table, *fields)
+
+    async def abulk_create(self, table, *objs):
+        return await sync_to_async(self.dataframe)(table, *objs)
+
+    async def aorder_by(self, table, *fields):
+        return await sync_to_async(self.order_by)(table, *fields)
+
+    async def acount(self, table):
+        return await sync_to_async(self.count)(table)
+
+    async def adates(self, table, field, field_to_sort=None, ascending=True):
+        return await sync_to_async(self.dates)(table, field, field_to_sort=field_to_sort, ascending=ascending)
+
+    async def adatetimes(self, table, field, field_to_sort=None, ascending=True):
+        return await sync_to_async(self.datetimes)(table, field, field_to_sort=field_to_sort, ascending=ascending)
+
+    async def adifference(self, table):
+        return await sync_to_async(self.difference)()
+
+    async def adistinct(self, table, *columns):
+        return await sync_to_async(self.distinct)(table, *columns)
+
+    async def aearliest(self, table):
+        return await sync_to_async(self.earliest)(table)
+
+    async def alatest(self, table):
+        return await sync_to_async(self.latest)(table)
+
+    async def aonly(self, table):
+        return await sync_to_async(self.only)(table)
+
+    async def aexclude(self, table, *args, **kwargs):
+        return await sync_to_async(self.exclude)(table, *args, **kwargs)
+
+    async def aextra(self, table):
+        return await sync_to_async(self.extra)(table)
+
+    # async def aselect_for_update(self, table):
+    #     return await sync_to_async(self.select_for_update)(table)
+
+    # async def aselect_related(self, table):
+    #     return await sync_to_async(self.select_related)(table)
+
+    # async def afetch_related(self, table):
+    #     return await sync_to_async(self.fetch_related)(table)
+
+    async def aupdate_or_create(self, table, create_defaults={}, **kwargs):
+        return await sync_to_async(self.update_or_create)(table, create_defaults=create_defaults, **kwargs)
+
+    async def aresolve_expression(self, table):
+        return await sync_to_async(self.resolve_expression)(table)
+
+    async def aaggregate(self, table, *args, **kwargs):
+        return await sync_to_async(self.aggregate)(table, *args, **kwargs)
+
 
 class ForeignTablesManager:
-    def __init__(self, right_table_name, left_table, reverse=False):
+    """This is the main manager used to access/reverse
+    access tables linked by a relationship"""
+
+    def __init__(self, relationship_map, reverse=False):
         self.reverse = reverse
-        self.left_table = left_table
-        self.right_table = left_table.database.get_table(right_table_name)
+        self.relationship_map = relationship_map
+        self.left_table = relationship_map.left_table
+        self.right_table = relationship_map.right_table
 
         if not self.right_table.is_foreign_key_table:
             raise ValueError(
                 "Trying to access a table which has no "
                 "foreign key relationship with the related "
-                f"table: {right_table_name} <- {left_table}"
+                f"table: {self.left_table} -> {self.right_table}"
             )
-        self.relatationship_name = f'{
-            self.left_table.name}_{self.right_table.name}'
-        relationships = getattr(left_table.database, 'relationships')
-        self.relationship = relationships[self.relatationship_name]
-        self.database_manager = getattr(self.left_table.database, 'objects')
         self.current_row = None
 
     def __repr__(self):
@@ -846,6 +888,15 @@ class ForeignTablesManager:
         if self.reverse:
             direction = '<-'
         return f'<{self.__class__.__name__} [from {direction} to]>'
+
+    # def __getattribute__(self, name):
+    #     manager = DatabaseManager.as_manager()
+    #     if hasattr(manager, name):
+    #         func = getattr(manager, name)
+    #         if func is None:
+    #             raise AttributeError()
+    #         return func
+    #     return super().__getattribute__(name)
 
     # def __getattr__(self, name):
     #     methods = {}
@@ -862,52 +913,52 @@ class ForeignTablesManager:
     #     else:
     #         return partial(method, table=self.right_table.name)
 
-    def all(self):
-        select_node = SelectNode(self.right_table)
-        query = Query(table=self.right_table)
-        query.add_sql_node(select_node)
-        return QuerySet(query)
+    # def all(self):
+    #     select_node = SelectNode(self.right_table)
+    #     query = Query(table=self.right_table)
+    #     query.add_sql_node(select_node)
+    #     return QuerySet(query)
 
-    def last(self):
-        select_node = SelectNode(self.right_table)
-        orderby_node = OrderByNode(self.right_table, '-id')
+    # def last(self):
+    #     select_node = SelectNode(self.right_table)
+    #     orderby_node = OrderByNode(self.right_table, '-id')
 
-        query = self.right_table.database.query_class(table=self.right_table)
-        query.add_sql_nodes([select_node, orderby_node])
-        queryset = QuerySet(query)
-        return queryset[-0]
+    #     query = self.right_table.database.query_class(table=self.right_table)
+    #     query.add_sql_nodes([select_node, orderby_node])
+    #     queryset = QuerySet(query)
+    #     return queryset[-0]
 
-    def create(self, **kwargs):
-        fields, values = self.right_table.backend.dict_to_sql(
-            kwargs,
-            quote_values=False
-        )
-        values = self.right_table.validate_values(fields, values)
+    # def create(self, **kwargs):
+    #     fields, values = self.right_table.backend.dict_to_sql(
+    #         kwargs,
+    #         quote_values=False
+    #     )
+    #     values = self.right_table.validate_values(fields, values)
 
-        # pre_saved_values = self.pre_save(self.right_table, fields, values)
+    #     # pre_saved_values = self.pre_save(self.right_table, fields, values)
 
-        # TODO: Create functions for datetimes and timezones
-        current_date = datetime.datetime.now(tz=pytz.UTC)
-        if self.right_table.auto_add_fields:
-            for field in self.right_table.auto_add_fields:
-                fields.append(field)
-                date = self.right_table.backend.quote_value(str(current_date))
-                values.append(date)
+    #     # TODO: Create functions for datetimes and timezones
+    #     current_date = datetime.datetime.now(tz=pytz.UTC)
+    #     if self.right_table.auto_add_fields:
+    #         for field in self.right_table.auto_add_fields:
+    #             fields.append(field)
+    #             date = self.right_table.backend.quote_value(str(current_date))
+    #             values.append(date)
 
-        fields.insert(0, self.relationship.backward_related_field)
-        values.insert(0, self.current_row.id)
+    #     fields.insert(0, self.relationship.backward_related_field)
+    #     values.insert(0, self.current_row.id)
 
-        joined_fields = self.right_table.backend.comma_join(fields)
-        joined_values = self.right_table.backend.comma_join(values)
+    #     joined_fields = self.right_table.backend.comma_join(fields)
+    #     joined_values = self.right_table.backend.comma_join(values)
 
-        query = self.right_table.database.query_class(table=self.right_table)
+    #     query = self.right_table.database.query_class(table=self.right_table)
 
-        insert_sql = self.right_table.backend.INSERT.format(
-            table=self.right_table.name,
-            fields=joined_fields,
-            values=joined_values
-        )
+    #     insert_sql = self.right_table.backend.INSERT.format(
+    #         table=self.right_table.name,
+    #         fields=joined_fields,
+    #         values=joined_values
+    #     )
 
-        query.add_sql_nodes([insert_sql])
-        query.run(commit=True)
-        return self.last()
+    #     query.add_sql_nodes([insert_sql])
+    #     query.run(commit=True)
+    #     return self.last()

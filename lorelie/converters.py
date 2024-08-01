@@ -33,3 +33,7 @@ def convert_timestamp(data):
     interpreted as Python date objects"""
     return datetime.datetime.fromtimestamp(int(data))
 
+
+def convert_boolean(data):
+    decoded_data = data.decode('utf-8')
+    return True if decoded_data == '1' else False

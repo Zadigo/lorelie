@@ -46,6 +46,7 @@ class Count(MathMixin, Functions):
     a table if no condition is specified
 
     >>> database.objects.aggregate('celebrities', Count('name'))
+    ... database.objects.aggregate('celebrities', alias_count=Count('name'))
     """
 
     template_sql = 'count({field})'
@@ -59,20 +60,20 @@ class Avg(MathMixin, Functions):
     that match a specified condition or all rows in 
     a table if no condition is specified
 
-    >>> database.objects.aggregate('celebrities', count_of_names=Count('name'))
+    >>> database.objects.aggregate('celebrities', avg_of_names=Avg('name'))
     """
 
     template_sql = 'avg({field})'
 
     def python_aggregation(self, values):
-        number_of_items = len(values)
-        return sum(values) / number_of_items
+        return sum(values) / len(values)
 
 
 class MathVariance:
     """Math function that calculates
     the variance for a given set of 
-    values"""
+    values this uses the layout preconized
+    by SQLite for """
 
     def __init__(self):
         self.total = 0
@@ -148,11 +149,6 @@ class MeanAbsoluteDifference(MathMixin, Functions):
         connection.create_aggregate(
             'meanabsdifference', 1, MathMeanAbsoluteDifference)
 
-    def python_aggregation(self, values):
-        instance = MathMeanAbsoluteDifference()
-        instance.values = values
-        return instance.calculation
-
 
 class MathCoefficientOfVariation(MathMeanAbsoluteDifference):
     def finalize(self):
@@ -166,22 +162,31 @@ class CoefficientOfVariation(MathMixin, Functions):
     @staticmethod
     def create_function(connection):
         connection.create_aggregate(
-            'coeffofvariation', 1, MathCoefficientOfVariation)
+            'coeffofvariation', 1, MathCoefficientOfVariation
+        )
 
 
 class Max(MathMixin, Functions):
     """Returns the max value of a given column
 
     >>> db.objects.aggregate('celebrities',  Max('id'))
+    ... db.objects.annotate('celebrities',  Max('id'))
     """
 
     template_sql = 'max({field})'
+
+    def python_aggregation(self, values):
+        return min(values)
 
 
 class Min(MathMixin, Functions):
     """Returns the min value of a given column
 
     >>> db.objects.aggregate('celebrities', Min('id'))
+    ... db.objects.annotate('celebrities',  Min('id'))
     """
 
     template_sql = 'min({field})'
+
+    def python_aggregation(self, values):
+        return max(values)

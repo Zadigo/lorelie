@@ -14,7 +14,7 @@ class Functions:
         if this function is not used via an 
         explicit alias"""
         return f'{self.__class__.__name__.lower()}_{self.field_name}'
-
+    
     @staticmethod
     def create_function(connection):
         """Use this function to register a local

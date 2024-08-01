@@ -1,6 +1,7 @@
 import unittest
 from functools import cached_property, lru_cache
 
+from database.indexes import Index
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.database.base import Database
@@ -82,6 +83,36 @@ class LorelieTestCase(unittest.TestCase):
             ],
             constraints=[
                 UniqueConstraint('my_constraint', fields=['name', 'height'])
+            ]
+        )
+        return table
+
+    def create_full_table(self):
+        """Creates a table with all the type of constraints
+        and parameters available to be created on a table"""
+        table = Table(
+            'celebrities',
+            fields=[
+                CharField('firstname'),
+                IntegerField('age', min_value=18, max_value=99),
+                CharField('country', default='France')
+            ],
+            constraints=[
+                CheckConstraint(
+                    'firstname',
+                    Q(firstname='Julie')
+                ),
+                UniqueConstraint(
+                    'unique_firstname',
+                    fields=['firstname']
+                )
+            ],
+            indexes=[
+                Index(
+                    'firstname_index',
+                    fields=['firstname'],
+                    condition=Q(firstname='Kendall')
+                )
             ]
         )
         return table

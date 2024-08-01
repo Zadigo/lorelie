@@ -31,6 +31,9 @@ class TestMigrations(LorelieTestCase):
         self.assertTrue(migrations.migrated)
         self.assertTrue(db.get_table('celebrities').is_prepared)
 
+    def test_make_migrations(self):
+        db = self.create_database(using=self.create_full_table())
+        db.make_migrations()
 
 
 #     @unittest.expectedFailure
@@ -66,7 +69,3 @@ class TestMigrations(LorelieTestCase):
 
 #         self.assertEqual(db.migrations.database_name, 'memory')
 #         db.objects.all('lorelie_migrations')
-
-
-# if __name__ == '__main__':
-#     unittest.main()

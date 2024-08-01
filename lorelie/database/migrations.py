@@ -2,12 +2,36 @@ import datetime
 import json
 import secrets
 from collections import defaultdict
+import dataclasses
+from dataclasses import dataclass, field
 from functools import cached_property
 
-from lorelie import PROJECT_PATH
 from lorelie.backends import SQLiteBackend, connections
+from lorelie.database.nodes import InsertNode
 from lorelie.fields.base import CharField, DateTimeField, Field, JSONField
 from lorelie.queries import Query
+from lorelie.tables import Table
+
+
+@dataclass
+class Schema:
+    table: type = None
+    database: type = None
+    fields: list = field(default_factory=list)
+    field_params: list = field(default_factory=list)
+    indexes: dict = field(default_factory=dict)
+    constraints: dict = field(default_factory=dict)
+
+    def __hash__(self):
+        return hash((self.table.name, self.database.database_name))
+
+    def prepare(self):
+        self.fields = self.table.field_names
+        self.field_params = list(self.table.build_all_field_parameters())
+
+    def to_dict(self):
+        for field in dataclasses.fields(self):
+            pass
 
 
 def migration_validator(value):
@@ -25,7 +49,7 @@ class Migrations:
     backend_class = SQLiteBackend
 
     def __init__(self, database):
-        self.file = PROJECT_PATH / 'migrations.json'
+        self.file = database.path / 'migrations.json'
         self.database = database
         self.database_name = database.database_name or 'memory'
         self.CACHE = self.read_content
@@ -48,6 +72,8 @@ class Migrations:
         # the underlying database can be
         # fully functionnal
         self.migrated = False
+        self.schemas = defaultdict(Schema)
+        self.pending_migration = {}
 
     def __repr__(self):
         return f'<{self.__class__.__name__} {self.file_id}>'
@@ -65,21 +91,39 @@ class Migrations:
             # Create a blank migration file
             return self.blank_migration()
 
-    def _write_fields(self, table):
-        fields_map = []
-        for name, field in table.fields_map.items():
-            field_name, params = list(field.deconstruct())
-            fields_map.append({
-                'name': field_name,
-                'params': params
-            })
-        self.fields_map[table.name] = fields_map
+    # def _write_fields(self, table):
+    #     """Parses the different fields from
+    #     a given table for a migration file"""
+    #     fields_map = []
+    #     for name, field in table.fields_map.items():
+    #         field_name, params = list(field.deconstruct())
+    #         fields_map.append({
+    #             'name': field_name,
+    #             'params': params
+    #         })
+    #     self.fields_map[table.name] = fields_map
 
-    def _write_indexes(self, table):
-        indexes = {}
-        for index in table.indexes:
-            indexes[index.index_name] = index._fields
-        return indexes
+    # def _write_indexes(self, table, backend=None):
+    #     """Parses the different indexes from
+    #     a given table for a migration file"""
+    #     indexes = {}
+    #     for index in table.indexes:
+    #         indexes[index.index_name] = [
+    #             index.fields,
+    #             index.condition.as_sql(backend)
+    #         ]
+    #     return indexes
+
+    # def _write_constraints(self, table, backend=None):
+    #     """Parses the different constraints from
+    #     a given table for a migration file"""
+    #     indexes = {}
+    #     for constraint in table.table_constraints:
+    #         indexes[constraint.name] = [
+    #             constraint.name,
+    #             constraint.as_sql(backend)
+    #         ]
+    #     return indexes
 
     def create_migration_table(self):
         """Creates a migrations table in the database
@@ -87,7 +131,7 @@ class Migrations:
         the current database"""
         from lorelie.tables import Table
         table_fields = [
-            CharField('name'),
+            CharField('name', null=False, unique=True),
             CharField('table_name', null=False),
             JSONField(
                 'migration',
@@ -96,10 +140,14 @@ class Migrations:
             ),
             DateTimeField('applied', auto_add=True)
         ]
-        table = Table('lorelie_migrations', fields=table_fields)
+        table = Table(
+            'lorelie_migrations',
+            fields=table_fields,
+            str_field='name'
+        )
         self.database._add_table(table)
 
-    def check(self, table_instances):
+    def migrate(self, table_instances):
         from lorelie.tables import Table
 
         # Safeguard that avoids calling
@@ -115,6 +163,9 @@ class Migrations:
                     f"Value should be instance "
                     f"of Table. Got: {table_instance}"
                 )
+            schema = self.schemas[name]
+            schema.table = table_instance
+            schema.database = self.database
 
         if errors:
             raise ValueError(*errors)
@@ -134,7 +185,7 @@ class Migrations:
 
         backend = connections.get_last_connection()
         backend.linked_to_table = 'sqlite'
-        database_tables = backend.list_tables_sql()
+        database_tables = backend.list_all_tables()
         # When the table is in the migration file
         # and not in the database tables that we
         # listed above, it needs to be created
@@ -150,7 +201,7 @@ class Migrations:
                 self.tables_for_deletion.add(database_row)
 
         if ('lorelie_migrations' not in database_tables or
-             'lorelie_migrations' not in self.migration_table_map):
+                'lorelie_migrations' not in self.migration_table_map):
             self.create_migration_table()
             self.tables_for_creation.add('lorelie_migrations')
 
@@ -169,17 +220,20 @@ class Migrations:
 
         other_sqls_to_run = []
 
-        if self.tables_for_deletion:
-            sql_script = []
-            for database_row in self.tables_for_deletion:
-                sql = self.backend_class.DROP_TABLE.format(
-                    table=database_row['name']
-                )
-                sql_script.append(sql)
+        # TODO: For now do not run tables
+        # for deletion when doing migrations
+        # we'll implement this afterwards
+        # if self.tables_for_deletion:
+        #     sql_script = []
+        #     for database_row in self.tables_for_deletion:
+        #         sql = self.backend_class.DROP_TABLE.format(
+        #             table=database_row['name']
+        #         )
+        #         sql_script.append(sql)
 
-            sql = backend.build_script(*sql_script)
-            other_sqls_to_run.append(sql)
-            self.has_migrations = True
+        #     sql = backend.build_script(*sql_script)
+        #     other_sqls_to_run.append(sql)
+        #     self.has_migrations = True
 
         # For existing tables, check that the
         # fields are the same and well set as
@@ -193,41 +247,47 @@ class Migrations:
             if table_instance is None:
                 continue
 
-            self.check_fields(table_instances[database_row['name']], backend)
+            self.check_fields(table_instance, backend)
 
-        # The database might require another set of
-        # parameters (ex. indexes) that we run here
-        Query.run_script(other_sqls_to_run, backend=backend)
-
-        # Create indexes for each table
         database_indexes = backend.list_database_indexes()
-        index_sqls = []
         for name, table in table_instances.items():
             for index in table.indexes:
-                index_sqls.append(index.as_sql(table))
+                other_sqls_to_run.append(index.as_sql(backend))
 
+        # TODO: For now we will not remove obsolete
+        # indexes too. We will implement this after too
         # Remove obsolete indexes
-        for database_index in database_indexes:
-            if database_index not in table.indexes:
+        for row in database_indexes:
+            if row not in table.indexes:
                 # We cannot and should not drop autoindexes
                 # which are created by sqlite. Anyways, it
                 # raises an error
-                if 'sqlite_autoindex' in database_index.name:
+                if 'sqlite_autoindex' in row.name:
                     continue
-                index_sqls.append(backend.drop_indexes_sql(database_index))
 
-        # Create table constraints
-        # table_constraints = []
-        # for _, table in table_instances.items():
-        #     for field in table.fields:
-        #         constraints = [constraint.as_sql() for constraint in field.base_constraints]
-        #         sql_clause = backend.CHECK_CONSTRAINT.format_map({
-        #             'conditions': backend.operator_join(constraints)
-        #         })
-        #         table_constraints.append(sql_clause)
+                other_sqls_to_run.append(
+                    backend.DROP_INDEX.format_map({
+                        'value': row['name']
+                    })
+                )
 
-        # Query.run_multiple(self.database.backend, *index_sqls)
-        Query.run_script(index_sqls)
+        if self.pending_migration:
+            params = {
+                'name': f'mig_{secrets.token_hex(5)}',
+                'table_name': None,
+                'migration': self.pending_migration
+            }
+            try:
+                self.database.objects.create('lorelie_migrations', **params)
+            except Exception:
+                raise
+            finally:
+                self.pending_migration = {}
+
+        # The database might require another set of
+        # parameters (ex. indexes, constraints) that we
+        # are going to run here
+        Query.run_script(backend=backend, sql_tokens=other_sqls_to_run)
 
         self.tables_for_creation.clear()
         self.tables_for_deletion.clear()
@@ -236,7 +296,7 @@ class Migrations:
     def check_fields(self, table, backend):
         """Checks the migration file for fields
         in relationship with the table"""
-        database_table_columns = backend.list_table_columns_sql(table)
+        database_table_columns = backend.list_table_columns(table)
 
         columns_to_create = set()
         for field_name in table.fields_map.keys():
@@ -245,13 +305,17 @@ class Migrations:
 
         # TODO: Drop columns that were dropped in the database
 
+        self.schemas[table.name].fields = list(
+            map(lambda x: x['name'], database_table_columns)
+        )
         backend.create_table_fields(table, columns_to_create)
 
     def blank_migration(self):
         """Creates a blank initial migration file"""
         migration_content = {}
 
-        file_path = PROJECT_PATH / 'migrations.json'
+        # file_path = PROJECT_PATH / 'migrations.json'
+        file_path = self.database.path / 'migrations.json'
         if not file_path.exists():
             file_path.touch()
 
@@ -265,26 +329,44 @@ class Migrations:
             return migration_content
 
     def make_migrations(self, tables):
-        # Write to the migrations.json file only if
-        # necessary e.g. dropped tables, changed fields
+        backend = connections.get_last_connection()
+        migration = {
+            'id': secrets.token_hex(5),
+            'date': str(datetime.datetime.now()),
+            'number': 1,
+            'tables': []
+        }
+
+        for table in tables:
+            if not isinstance(table, Table):
+                raise ValueError(f'{table} is not an instance of Table')
+
+            schema = self.schemas[table.name]
+            schema.table = table
+            schema.database = self.database
+            migration['tables'].append(schema)
+
+            for constraint in table.table_constraints:
+                schema.constraints[constraint.name] = [
+                    constraint.name,
+                    constraint.as_sql(backend)
+                ]
+
+            for index in table.indexes:
+                schema.indexes[index.index_name] = [
+                    index.fields
+                ]
+
+            schema.prepare()
+        self.pending_migration = migration
+
         if self.has_migrations:
             cache_copy = self.CACHE.copy()
-            with open(PROJECT_PATH / 'migrations.json', mode='w+') as f:
+            with open(self.database.path.joinpath('migrations.json'), mode='w+') as f:
                 cache_copy['id'] = secrets.token_hex(5)
                 cache_copy['date'] = str(datetime.datetime.now())
                 cache_copy['number'] = self.CACHE['number'] + 1
-
-                cache_copy['tables'] = []
-                for table in tables:
-                    # if table.backend is None:
-                    #     table.backend = temporary_connection
-
-                    self._write_fields(table)
-                    cache_copy['tables'].append({
-                        'name': table.name,
-                        'fields': self.fields_map[table.name],
-                        'indexes': self._write_indexes(table)
-                    })
+                cache_copy['tables'] = migration['tables']
                 json.dump(cache_copy, f, indent=4, ensure_ascii=False)
 
     def get_table_fields(self, name):

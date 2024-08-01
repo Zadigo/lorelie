@@ -28,7 +28,7 @@ class Transaction:
 
         return False
 
-    def begin(self, table, function, *, database=None, **kwargs):
+    def begin(self, table, *, database=None, **kwargs):
         if isinstance(table, str):
             if database is not None:
                 database = self.registered_databaes[database]
@@ -36,13 +36,6 @@ class Transaction:
 
         if not isinstance(table, Table):
             raise ValueError('Table sould be an instance of Table')
-
-        function_to_execute = getattr(database.objects, function, None)
-        if function_to_execute is None:
-            raise ValueError('Function does not exist')
-
-        explained_sql = function_to_execute(table.name, explain=True, **kwargs)
-        self.execution_map.append((function, explained_sql))
 
     def savepoint(self, name=None):
         if name is None:
@@ -77,12 +70,3 @@ class Transaction:
 
 
 transaction = Transaction()
-
-
-# with transaction as t:
-#     name = t.begin('table', 'create', name='Kendall')
-#     s1 = t.savepoint()
-#     name.google = 'Something'
-#     t.rollback_savepoint(name=s1)
-#     name.fashion = 'Another'
-#     t.commit()

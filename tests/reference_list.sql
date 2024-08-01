@@ -82,3 +82,29 @@ WHERE id=1
 
 ALTER TABLE socials
 ADD CONSTRAINT celebrity_socials FOREIGN KEY (celebrity_id) REFERENCES celebrities(id) DEFERRABLE INITIALLY DEFERRED
+
+
+
+
+create table if not exists google (
+	name varchar(2000) null check(length(name)<2000),
+	height integer default 150 check(length(height>1)),
+	unique(name, height)
+	
+	check(length(name)>1)
+);
+
+create index my_index
+on products (name)
+where name="Jupe";
+
+insert into google (name, height)
+values("Kendall", 0);
+
+
+-- followers__id=1
+select *
+from celebrities
+inner join followers on celebrities.id = followers.celebrity_id
+where celebrities.id = 1
+order by followers.total_count desc

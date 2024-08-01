@@ -1,38 +1,137 @@
-
-
 class BaseExpression:
-    template = None
+    template_sql = None
 
-    def __init__(self):
-        self.backend = None
-        self.sql_statement = None
+    @property
+    def internal_type(self):
+        return 'expression'
 
     def as_sql(self, backend):
         return NotImplemented
 
 
+class Value(BaseExpression):
+    def __init__(self, value, output_field=None):
+        self.value = value
+        self.internal_name = 'value'
+        self.output_field = output_field
+        self.get_output_field()
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.to_database()})'
+
+    def get_output_field(self):
+        from lorelie.fields.base import CharField, FloatField, IntegerField, JSONField
+        if self.output_field is None:
+            if isinstance(self.value, int):
+                self.output_field = IntegerField(self.internal_name)
+            elif isinstance(self.value, float):
+                self.output_field = FloatField(self.internal_name)
+            elif isinstance(self.value, str):
+                if self.value.isdigit() or self.value.isnumeric():
+                    self.output_field = IntegerField(self.internal_name)
+                else:
+                    self.output_field = CharField(self.internal_name)
+            elif isinstance(self.value, dict):
+                self.output_field = JSONField(self.internal_name)
+
+    def to_python(self, value):
+        pass
+
+    def to_database(self):
+        return self.output_field.to_database(self.value)
+
+    def as_sql(self, backend):
+        if callable(self.value):
+            self.value = str(self.value)
+
+        if hasattr(self.value, 'internal_type'):
+            self.value = str(self.value)
+
+        return [backend.quote_value(self.value)]
+
+
 class NegatedExpression(BaseExpression):
-    template = 'not {expression}'
+    template_sql = 'not {expression}'
+
+    def __init__(self, expression):
+        self.children = [expression]
+        self.seen_expressions = []
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__}: {self.expression}>'
+
+    def __and__(self, other):
+        self.children.append('and')
+        if isinstance(other, NegatedExpression):
+            self.children.extend(other.children)
+            return self
+
+        if isinstance(other, (F, Q)):
+            self.seen_expressions.append(other.__class__.__name__)
+
+        # We should not be able to combine certain
+        # types of expressions ex. F & Q, F | Q
+        # self.seen_expressions = [
+        #     child.__class__.__name__
+        #         for child in self.children
+        #             if not isinstance(child, str)
+        # ]
+
+        # unique_children = set(self.seen_expressions)
+        # if len(unique_children) > 1:
+        #     pass
+
+        # print(self.seen_expressions)
+
+        self.children.append(other)
+        return self
+
+    def as_sql(self, backend):
+        seen_expressions = []
+
+        def map_children(node):
+            if isinstance(node, str):
+                return node
+
+            return backend.simple_join(node.as_sql(backend))
+        sql = map(map_children, self.children)
+
+        return self.template_sql.format_map({
+            'expression': backend.simple_join(sql)
+        })
 
 
 class When(BaseExpression):
+    """Represents a conditional expression in an SQL query. 
+    It defines a condition and the corresponding value when 
+    the condition is met
+    """
+
     def __init__(self, condition, then_case, **kwargs):
-        super().__init__()
         self.condition = condition
         self.then_case = then_case
         self.field_name = None
 
+    def __repr__(self):
+        return f'When({self.field_name} -> {self.then_case})'
+
     def as_sql(self, backend):
-        decomposed_filter = backend.decompose_filters_from_string(
-            self.condition
-        )
-        self.field_name = decomposed_filter[0]
-        condition = backend.simple_join(
-            backend.build_filters(
+        list_of_filters = []
+        if isinstance(self.condition, (Q, CombinedExpression)):
+            complex_filter = self.condition.as_sql(backend)
+            list_of_filters.extend(complex_filter)
+        else:
+            decomposed_filter = backend.decompose_filters_from_string(
+                self.condition
+            )
+            built_filters = backend.build_filters(
                 decomposed_filter,
                 space_characters=False
             )
-        )
+            self.field_name = decomposed_filter[0]
+            list_of_filters.extend(built_filters)
+
+        condition = backend.simple_join(list_of_filters)
         sql = backend.WHEN.format_map({
             'condition': condition,
             'value': backend.quote_value(self.then_case)
@@ -41,14 +140,22 @@ class When(BaseExpression):
 
 
 class Case(BaseExpression):
+    """Represents a conditional expression in an SQL query. 
+    It evaluates multiple conditions and returns a value 
+    based on the first condition that is met
+
+    >>> logic = When('firstname=Kendall', 'Kylie')
+    ... case = Case(condition1)
+    ... db.objects.annotate('celebrities', case)
+    """
+
     CASE = 'case {conditions}'
     CASE_ELSE = 'else {value}'
     CASE_END = 'end {alias}'
 
     def __init__(self, *cases, default=None):
-        super().__init__()
         self.field_name = None
-        self.alias_name = None
+        self.alias_field_name = None
         self.default = default
 
         for case in cases:
@@ -56,9 +163,14 @@ class Case(BaseExpression):
                 raise ValueError('Value should be an instance of When')
         self.cases = list(cases)
 
+    def __repr__(self):
+        cases_repr = ', '.join(repr(case) for case in self.cases)
+        return f'{self.__class__.__name__}({cases_repr})'
+
     def as_sql(self, backend):
         fields = set()
         statements_to_join = []
+
         for case in self.cases:
             fields.add(case.field_name)
             statements_to_join.append(case.as_sql(backend))
@@ -74,77 +186,50 @@ class Case(BaseExpression):
             value=backend.quote_value(self.default)
         )
 
-        if self.alias_name is None:
+        if self.alias_field_name is None:
             raise ValueError(
                 "Case annotation does not have an "
-                f"alias name. Got: {self.alias_name}"
+                f"alias name. Got: {self.alias_field_name}"
             )
 
         # TODO: We should check that the alias name does not
         # conflict with a field in the original table
 
-        case_end_sql = self.CASE_END.format(alias=self.alias_name)
+        case_end_sql = self.CASE_END.format(alias=self.alias_field_name)
         return backend.simple_join([case_sql, case_else_sql, case_end_sql])
 
 
-class OrderBy(BaseExpression):
-    """Creates an order by SQL clause
-    for an existing expression"""
-
-    template = 'order by {conditions}'
-
-    def __init__(self, fields):
-        self.ascending = set()
-        self.descending = set()
-
-        if not isinstance(fields, (list, tuple)):
-            raise ValueError(
-                "Ordering fields should be a list "
-                "of field names on your table"
-            )
-        self.fields = list(fields)
-        self.map_fields()
-        super().__init__()
-
-    def __bool__(self):
-        return len(self.fields) > 0
-
-    @classmethod
-    def new(cls, fields):
-        return cls(fields)
-
-    def map_fields(self):
-        for field in self.fields:
-            if field.startswith('-'):
-                field = field.removeprefix('-')
-                self.descending.add(field)
-            else:
-                self.ascending.add(field)
-
-    def as_sql(self, backend):
-        conditions = []
-
-        for field in self.ascending:
-            conditions.append(
-                backend.ASCENDING.format_map({'field': field})
-            )
-
-        for field in self.descending:
-            conditions.append(
-                backend.DESCENDNIG.format_map({'field': field})
-            )
-
-        fields = backend.comma_join(conditions)
-        ordering_sql = backend.ORDER_BY.format_map({'conditions': fields})
-        return [ordering_sql]
-
-
 class CombinedExpression:
-    EXPRESSION = '({inner}) {outer}'
+    """A combined expression is a combination
+    of multiple expressions in order to create
+    an combined expression sql statement
+
+    >>> CombinedExpression(Q(age=21), Q(age=34))
+    ... CombinedExpression(F('age'))
+    """
+
+    template_sql = '({inner}) {outer}'
 
     def __init__(self, *funcs):
         self.others = list(funcs)
         self.children = []
+        # Indicates that the expression
+        # will be a mathematical one
+        # e.g. F('age') + 1
+        self.is_math = False
+        # These expressions require an alias
+        # field name in order to be rendered
+        # correctly in sqlite
+        self.alias_field_name = None
+        # NOTE: Technically we will never be
+        # using the combined expression as a
+        # standalone class but we might need
+        # to build the existing children on
+        # init to avoid arrays like
+        # a = CombinedExpression(Q(firstname='Kendall'))
+        # b = Q(age__gt=26)
+        # c = a & b -> ['(and age>26)']
+        # self.build_children()
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.children}>'
@@ -159,20 +244,46 @@ class CombinedExpression:
         self.children.append(other)
         return self
 
+    def __add__(self, other):
+        self.children.append('+')
+        self.children.append(Value(other))
+        return self
+
+    def __sub__(self, other):
+        self.children.append('-')
+        self.children.append(Value(other))
+        return self
+
+    def __div__(self, other):
+        self.children.append('/')
+        self.children.append(Value(other))
+        return self
+
+    def __mul__(self, other):
+        self.children.append('*')
+        self.children.append(Value(other))
+        return self
+
+    @property
+    def internal_type(self):
+        return 'expression'
+
     def build_children(self, operator='and'):
-        for other in self.others:
+        for i in range(len(self.others)):
+            other = self.others[i]
             self.children.append(other)
-            self.children.append(operator)
 
-        if self.children[-1] == 'and' or self.children[-1] == 'or':
-            self.children[-1] = ''
-
-        self.children = list(filter(lambda x: x != '', self.children))
+            if i + 1 != len(self.others):
+                self.children.append(operator)
 
     def as_sql(self, backend):
+        # if self.is_math:
+        #     for child in self.children:
+        #         print(child)
+        # else:
         sql_statement = []
         for child in self.children:
-            if isinstance(child, str):
+            if isinstance(child, (str, int, float)):
                 sql_statement.append(child)
                 continue
             child_sql = child.as_sql(backend)
@@ -184,7 +295,7 @@ class CombinedExpression:
         is_inner = True
 
         for item in sql_statement:
-            if item == 'and' or item == 'or':
+            if item == 'and' or item == 'or' or item in ['+', '-', '/', '*']:
                 if seen_operator is None:
                     is_inner = True
                 elif seen_operator != item:
@@ -192,25 +303,39 @@ class CombinedExpression:
                 seen_operator = item
 
             if is_inner:
-                if isinstance(item, str):
+                if isinstance(item, (str, int, float)):
                     item = [item]
                 inner_items.extend(item)
                 continue
             else:
-                if isinstance(item, str):
+                if isinstance(item, (str, int, float)):
                     item = [item]
                 outer_items.extend(item)
                 continue
 
         inner = backend.simple_join(inner_items)
         outer = backend.simple_join(outer_items)
-        sql = self.EXPRESSION.format(inner=inner, outer=outer).strip()
+        sql = self.template_sql.format(inner=inner, outer=outer).strip()
         # TODO: Ensure that the SQL returned from these types
         # of expressions all return a list of strings
         return [sql]
 
 
 class Q(BaseExpression):
+    """Represents a filter expression within SQL queries, 
+    employed within the `WHERE` clause for example
+    to define complex filter conditions.
+
+    >>> Q(firstname="Kendall") & Q(lastname="Jenner")
+
+    The expression above expression results in a logical AND operation
+    between two Q instances, where each instance represents a filter condition.
+
+    >>> Q(firstname="Kendall") | Q(lastname="Jenner")
+
+    The above expression results in a logical OR operation.
+    """
+
     def __init__(self, **expressions):
         self.expressions = expressions
 
@@ -227,34 +352,85 @@ class Q(BaseExpression):
         instance.build_children(operator='or')
         return instance
 
+    def __invert__(self):
+        return NegatedExpression(self)
+
     def as_sql(self, backend):
         filters = backend.decompose_filters(**self.expressions)
         built_filters = backend.build_filters(filters, space_characters=False)
         return [backend.operator_join(built_filters)]
 
 
-# class F:
-#     ADD = '+'
+class F(BaseExpression):
+    """The F function allows us to make operations
+    directly on the value of the database
 
-#     def __init__(self, field):
-#         self.field = field
-#         self.children = [self]
-#         self.sql = None
+    >>> F('age') + 1
+    ... F('price') * 1.2
+    ... F('price') + F('price')
 
-#     def __repr__(self):
-#         return f'{self.__class__.__name__}({self.field})'
+    These operations will translate directly to database
+    operations in such as `price * 1.2` where the value
+    in the price column will be multiplied by `1.2`
+    """
 
-#     def __add__(self, obj):
-#         if isinstance(obj, F):
-#             true_represention = obj.field
-#         elif isinstance(obj, (float, int, str)):
-#             true_represention = Value(obj)
-#         self.children.append(true_represention)
-#         sql_tokens = [self.field, self.ADD, true_represention]
-#         self.sql = backend.simple_join(sql_tokens)
-#         return CombinedExpression(*self.children, operator=self.ADD)
+    ADD = '+'
+    SUBSRACT = '-'
+    MULTIPLY = 'x'
+    DIVIDE = '/'
 
+    def __init__(self, field):
+        self.field = field
 
-# result = F('age') + F('age')
-# print(result)
-# print(result.as_sql())
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.field})'
+
+    def __add__(self, other):
+        if not isinstance(other, (F, str, int)):
+            return NotImplemented
+
+        if isinstance(other, (int, str, float)):
+            other = Value(other)
+
+        combined = CombinedExpression(self, other)
+        combined.build_children(operator=self.ADD)
+        return combined
+
+    def __mul__(self, other):
+        if not isinstance(other, (F, str, int)):
+            return NotImplemented
+
+        if isinstance(other, (int, str, float)):
+            other = Value(other)
+
+        combined = CombinedExpression(self, other)
+        combined.build_children(operator=self.MULTIPLY)
+        return combined
+
+    def __div__(self, other):
+        if not isinstance(other, (F, str, int)):
+            return NotImplemented
+
+        if isinstance(other, (int, str, float)):
+            other = Value(other)
+
+        combined = CombinedExpression(self, other)
+        combined.build_children(operator=self.DIVIDE)
+        return combined
+
+    def __sub__(self, other):
+        if not isinstance(other, (F, str, int)):
+            return NotImplemented
+
+        if isinstance(other, (int, str, float)):
+            other = Value(other)
+
+        combined = CombinedExpression(self, other)
+        combined.build_children(operator=self.SUBSRACT)
+        return combined
+
+    def __neg__(self):
+        return NegatedExpression(self)
+
+    def as_sql(self, backend):
+        return [self.field]

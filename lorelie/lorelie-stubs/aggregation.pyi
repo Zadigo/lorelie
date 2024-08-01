@@ -4,7 +4,7 @@ from lorelie.functions import Functions
 from lorelie.queries import QuerySet
 
 
-class MathMixin(Functions):
+class MathMixin:
     @property
     def aggregate_name(self) -> str: ...
 
@@ -50,3 +50,11 @@ class MeanAbsoluteDifference(MathMixin, Functions):
 class CoefficientOfVariation(MathMixin, Functions):
     @override
     def python_aggregation(self, values: list[int]) -> Union[int, float]: ...
+
+
+class Max(MathMixin, Functions):
+    ...
+
+
+class Min(MathMixin, Functions):
+    ...

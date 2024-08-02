@@ -10,6 +10,7 @@ from lorelie.expressions import Q
 from lorelie.fields.base import (BooleanField, CharField, DateTimeField,
                                  FloatField, IntegerField)
 from lorelie.tables import Table
+from lorelie.fields.relationships import ForeignKeyActions, ForeignKeyField
 
 __all__ = [
     'LorelieTestCase'
@@ -129,11 +130,11 @@ class LorelieTestCase(unittest.TestCase):
         table2 = Table(
             'followers',
             fields=[
-                IntegerField('number_of_follower')
+                IntegerField('number_of_follower'),
+                ForeignKeyField(table1, 'celebs', on_delete=ForeignKeyActions.CASCADE)
             ]
         )
         db = Database(table1, table2)
-        db.foreign_key('followers', table1, table2)
         db.migrate()
         return db
 

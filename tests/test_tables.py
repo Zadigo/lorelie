@@ -190,3 +190,18 @@ class TestTable(LorelieTestCase):
         tables = [table]
         self.assertIn(table, tables)
         self.assertIn(table.name, tables)
+
+    def test_foreign_key_tables(self):
+        db = self.create_foreign_key_database()
+
+        t1 = db.get_table('celebrities')
+        t2 = db.get_table('followers')
+
+        t1.objects.create(name='Kendall', age=25)
+        t2.objects.create(number_of_follower=1000)
+
+        qs1 = t1.objects.all()
+        qs2 = t2.objects.all()
+
+        self.assertTrue(qs1.exists())
+        self.assertTrue(qs2.exists())

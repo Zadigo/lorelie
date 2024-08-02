@@ -1,7 +1,6 @@
 import unittest
-
-from lorelie.backends import SQLiteBackend
-from lorelie.expressions import Case, CombinedExpression, F, Q, NegatedExpression, Value, When
+from lorelie.expressions import (CombinedExpression, F, NegatedExpression, Q,
+                                 Value, When, Case)
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -144,67 +143,71 @@ class TestCombinedExpression(LorelieTestCase):
         print(c.as_sql(self.create_connection()))
 
 
-# class TestWhen(unittest.TestCase):
-#     def create_backend(self):
-#         return SQLiteBackend()
+class TestWhen(LorelieTestCase):
+    def test_structure(self):
+        instance = When(Q(name='Kendall'), 'Kylie')
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(sql, "when name='Kendall' then 'Kylie'")
 
-#     def test_structure(self):
-#         instance = When('firstname=Kendall', 'kendall')
-#         sql = instance.as_sql(self.create_backend())
-#         self.assertRegex(
-#             sql,
-#             r"^when\sfirstname\=\'Kendall\'\sthen\s\'kendall\'$"
-#         )
-
-
-# class TestCase(unittest.TestCase):
-#     def create_backend(self):
-#         return SQLiteBackend()
-
-#     @unittest.expectedFailure
-#     def test_no_alias_name(self):
-#         condition = When('firstname=Kendall', 'kendall')
-#         case = Case(condition)
-#         case.as_sql(self.create_backend())
-
-#     def test_structure(self):
-#         condition = When('firstname=Kendall', 'Kylie')
-#         case = Case(condition, default='Aurélie')
-#         case.alias_field_name = 'firstname_alias'
-
-#         self.assertEqual(
-#             case.as_sql(self.create_backend()),
-#             "case when firstname='Kendall' then 'Kylie' else 'Aurélie' end firstname_alias"
-#         )
+    def test_with_string(self):
+        instance = When('name=Kendall', then_case='Kylie')
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(sql, "when name='Kendall' then 'Kylie'")
 
 
-# class TestF(unittest.TestCase):
-#     def create_backend(self):
-#         return SQLiteBackend()
+class TestCase(LorelieTestCase):
+    @unittest.expectedFailure
+    def test_no_alias_name(self):
+        condition = When('firstname=Kendall', 'kendall')
+        case = Case(condition)
+        case.as_sql(self.create_connection())
 
-#     def test_structure(self):
-#         result = F('age') + F('age')
-#         self.assertIsInstance(result, CombinedExpression)
+    def test_structure(self):
+        condition = When('firstname=Kendall', 'Kylie')
+        case = Case(condition, default='Aurélie')
+        case.alias_field_name = 'firstname_alias'
 
-#         sql = result.as_sql(self.create_backend())
-#         self.assertEqual(
-#             sql,
-#             ['(age + age)']
-#         )
+        self.assertEqual(
+            case.as_sql(self.create_connection()),
+            "case when firstname='Kendall' then 'Kylie' else 'Aurélie' end firstname_alias"
+        )
 
-#         result = F('age') + F('age') - 1
-#         sql = result.as_sql(self.create_backend())
-#         self.assertEqual(
-#             sql,
-#             ['(age + age) - 1']
-#         )
 
-#         result = F('age') - F('age')
-#         sql = result.as_sql(self.create_backend())
-#         self.assertEqual(
-#             sql,
-#             ['(age - age)']
-#         )
+class TestFFunction(LorelieTestCase):
+    def test_structure(self):
+        result = F('name') + 'other'
+        self.assertIsInstance(result, CombinedExpression)
+
+    def test_resolution_methods(self):
+        result = F('age') + 'height'
+        sql = result.as_sql(self.create_connection())
+        self.assertEqual(sql[0], "(age + 'height')")
+
+        operations = [
+            # age + 1
+            F('age') + 1,
+            # age - 1
+            F('age') - 1,
+            # age * 1
+            F('age') * 1,
+            # FIXME:  age / 1
+            # result = F('age') / 1
+            F('age') + F('age') + 1
+        ]
+
+        expected = [
+            '(age + 1)',
+            '(age - 1)',
+            '(age x 1)',
+            '(age / 1)',
+            '(age + age + 1)'
+        ]
+
+        backend = self.create_connection()
+        for operation in operations:
+            with self.subTest(operation=operation):
+                result = operation.as_sql(backend)
+                self.assertIn(result[0], expected)
 
 
 class TestValue(LorelieTestCase):
@@ -229,7 +232,3 @@ class TestValue(LorelieTestCase):
         instance = Value(Q(age__gt=25))
         sql = instance.as_sql(self.create_connection())
         self.assertIsInstance(sql[0], str)
-
-
-# if __name__ == '__main__':
-#     unittest.main()

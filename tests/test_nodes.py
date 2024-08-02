@@ -166,8 +166,8 @@ class TestWhereNode(LorelieTestCase):
             name=Q(name='Kendall')
         )
         self.assertRaises(
-            ValueError, 
-            node.as_sql, 
+            ValueError,
+            node.as_sql,
             self.create_connection()
         )
 
@@ -334,7 +334,7 @@ class TestIntersectNode(LorelieTestCase):
 class TestViewNode(LorelieTestCase):
     def test_structure(self):
         db = self.create_database()
-        node = ViewNode('my_view', db.objects.all('celebrities'))
+        node = ViewNode('my_view', db.celebrities.objects.all('celebrities'))
         result = node.as_sql(db.get_table('celebrities').backend)
         self.assertListEqual(
             result,

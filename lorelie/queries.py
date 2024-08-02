@@ -120,7 +120,7 @@ class Query:
             if node.node_name == 'order_by':
                 if self.select_map.order_by is not None:
                     node = self.select_map.order_by & node
-            # ERROR: Other nodes are added to the select map?
+            # FIXME: Other nodes are added to the select map?
             self.select_map[node.node_name] = node
 
         self.statements.append(node)
@@ -129,7 +129,7 @@ class Query:
         if not isinstance(nodes, list):
             raise ValueError(
                 f"{nodes} should be an instance "
-                " of BaseNode or <str>"
+                " of list or tuple"
             )
 
         for node in nodes:

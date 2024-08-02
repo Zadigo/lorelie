@@ -1,4 +1,3 @@
-import pandas
 from lorelie.backends import BaseRow
 from lorelie.queries import Query, QuerySet
 from lorelie.test.testcases import LorelieTestCase
@@ -18,9 +17,15 @@ class TestQuerySet(LorelieTestCase):
         # the statement is just a semicolon
         self.assertEqual(qs.sql_statement, ';')
 
+    def test_queryset_is_lazy(self):
+        db = self.create_database()
+        table = db.get_table('celebrities')
+        qs = table.objects.all()
+        self.assertFalse(qs.query.is_evaluated)
+
     def test_with_nodes(self):
         db = self.create_database()
-        qs = db.objects.all('celebrities')
+        qs = db.celebrities.objects.all()
 
         list(qs)
 
@@ -44,8 +49,8 @@ class TestQuerySet(LorelieTestCase):
 
     def test_dunders(self):
         db = self.create_database()
-        db.objects.create('celebrities', name='Kendall', height=203)
-        qs = db.objects.all('celebrities')
+        db.celebrities.objects.create(name='Kendall', height=203)
+        qs = db.celebrities.objects.all()
 
         item = qs[0]
         self.assertIsInstance(item, BaseRow)

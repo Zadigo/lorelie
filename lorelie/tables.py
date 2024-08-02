@@ -5,7 +5,11 @@ from collections import OrderedDict, defaultdict
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.database.indexes import Index
+<<<<<<< HEAD
 from lorelie.database.manager import ForeignTablesManager
+=======
+from lorelie.database.manager import DatabaseManager
+>>>>>>> develop
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
 from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
 from lorelie.queries import Query
@@ -137,6 +141,7 @@ class AbstractTable(metaclass=BaseTable):
     # TODO: Remove
     query_class = Query
     backend_class = SQLiteBackend
+    objects = DatabaseManager()
 
     def __init__(self):
         self.backend = None
@@ -240,6 +245,7 @@ class Table(AbstractTable):
         self.is_foreign_key_table = False
         self.relationship_maps = {}
         self.relationships = {}
+        self.attached_to_database = None
         # The str_field is the name of the
         # field to be used for representing
         # the column in the BaseRow
@@ -490,4 +496,5 @@ class Table(AbstractTable):
         query = self.query_class(table=self)
         query.add_sql_nodes(create_sql)
         query.run(commit=True)
+        self.attached_to_database = database
         self.is_prepared = True

@@ -6,10 +6,10 @@ from dataclasses import is_dataclass
 from asgiref.sync import sync_to_async
 
 from lorelie.database.functions.aggregation import Count
-from lorelie.database.nodes import (InsertNode, IntersectNode, JoinNode, OrderByNode, SelectNode,
-                                    UpdateNode, WhereNode)
-from lorelie.exceptions import (FieldExistsError, MigrationsExistsError,
-                                TableExistsError)
+from lorelie.database.functions.dates import Extract
+from lorelie.database.nodes import (InsertNode, IntersectNode, OrderByNode,
+                                    SelectNode, UpdateNode, WhereNode)
+from lorelie.exceptions import FieldExistsError, MigrationsExistsError
 from lorelie.queries import QuerySet, ValuesIterable
 
 
@@ -21,6 +21,7 @@ class DatabaseManager:
     def __init__(self):
         self.table_map = {}
         self.database = None
+        self.table = None
         # Tells if the manager was
         # created via as_manager
         self.auto_created = True
@@ -31,8 +32,17 @@ class DatabaseManager:
 
     def __get__(self, instance, cls=None):
         if not self.table_map:
-            self.table_map = instance.table_map
-            self.database = instance
+            self.table = instance
+            try:
+                self.database = instance.attached_to_database
+                self.table_map = instance.attached_to_database.table_map
+            except Exception as e:
+                raise ExceptionGroup(
+                    e.args[0],
+                    [
+                        MigrationsExistsError()
+                    ]
+                )
         return self
 
     @classmethod
@@ -40,16 +50,6 @@ class DatabaseManager:
         instance = cls()
         instance.auto_created = False
         return instance
-
-    def _get_select_sql(self, selected_table, columns=['rowid', '*'], distinct=False):
-        # This function creates and returns the base SQL line for
-        # selecting values in the database: "select rowid, * where rowid=1"
-        pass
-
-    def _get_first_or_last_sql(self, selected_table, first=True):
-        """Returns the general SQL that returns the first
-        or last value from the database"""
-        pass
 
     def _validate_auto_fields(self, table, params, update_only=False):
         # There might be cases where the
@@ -71,13 +71,13 @@ class DatabaseManager:
             params[field] = str(d)
         return params
 
-    def pre_save(self, selected_table, fields, values):
+    def pre_save(self, fields, values):
         """Pre-save stores the pre-processed data
         into a namedtuple that is then sent to the
         `clean` method on the table which then allows
         the user to modify the data before sending it
         to the database"""
-        named = collections.namedtuple(selected_table.name, fields)
+        named = collections.namedtuple(self.table.name, fields)
         data_dict = {}
         for i, field in enumerate(fields):
             if field == 'id' or field == 'rowid':
@@ -85,78 +85,61 @@ class DatabaseManager:
             data_dict[field] = values[i]
         return named(**data_dict)
 
-    def before_action(self, table_name):
-        try:
-            table = self.table_map[table_name]
-        except KeyError:
-            if not self.database.is_ready:
-                raise MigrationsExistsError()
-            raise TableExistsError(table_name)
-        else:
-            table.backend.set_current_table(table)
-            table.load_current_connection()
-            return table
-
-    def first(self, table):
+    def first(self):
         """Returns the first row from
         a database table"""
-        selected_table = self.before_action(table)
+        select_node = SelectNode(self.table)
+        orderby_node = OrderByNode(self.table, 'id')
 
-        select_node = SelectNode(selected_table)
-        orderby_node = OrderByNode(selected_table, 'id')
-
-        query = self.database.query_class(table=selected_table)
+        query = self.database.query_class(table=self.table)
         query.add_sql_nodes([select_node, orderby_node])
         return QuerySet(query)[0]
 
-    def last(self, table):
+    def last(self):
         """Returns the last row from
         a database table"""
-        selected_table = self.before_action(table)
+        select_node = SelectNode(self.table)
+        orderby_node = OrderByNode(self.table, '-id')
 
-        select_node = SelectNode(selected_table)
-        orderby_node = OrderByNode(selected_table, '-id')
-
-        query = self.database.query_class(table=selected_table)
+        query = self.database.query_class(table=self.table)
         query.add_sql_nodes([select_node, orderby_node])
         return QuerySet(query)[0]
 
-    def all(self, table):
-        selected_table = self.before_action(table)
-        select_node = SelectNode(selected_table)
+    def all(self):
+        select_node = SelectNode(self.table)
+        query = self.table.query_class(table=self.table)
 
-        query = selected_table.query_class(table=selected_table)
-
-        if selected_table.ordering:
+        if self.table.ordering:
             orderby_node = OrderByNode(
-                selected_table, *selected_table.ordering)
+                self.table,
+                *self.table.ordering
+            )
             query.add_sql_node(orderby_node)
 
         query.add_sql_node(select_node)
         return QuerySet(query)
 
-    def create(self, table, **kwargs):
+    def create(self, **kwargs):
         """The create function facilitates the creation 
         of a new row in the specified table within the 
         current database
 
         >>> db.objects.create('celebrities', firstname='Kendall')
         """
-        selected_table = self.before_action(table)
-        kwargs = self._validate_auto_fields(selected_table, kwargs)
-        values, kwargs = selected_table.validate_values_from_dict(kwargs)
+        kwargs = self._validate_auto_fields(self.table, kwargs)
+        values, kwargs = self.table.validate_values_from_dict(kwargs)
 
-        query = self.database.query_class(table=selected_table)
+        query = self.database.query_class(table=self.table)
         insert_node = InsertNode(
-            selected_table,
+            self.table,
             insert_values=kwargs,
-            returning=selected_table.field_names
+            returning=self.table.field_names
         )
 
         query.add_sql_node(insert_node)
         return QuerySet(query)[0]
 
-    def filter(self, table, *args, **kwargs):
+    def filter(self, *args, **kwargs):
         """Filter the data in the database based on
         a set of criteria using filter keyword arguments
 
@@ -170,36 +153,32 @@ class DatabaseManager:
         >>> db.objects.filter('celebrities', Q(firstname='Kendall') | Q(firstname='Kylie'))
         ... db.objects.filter('celebrities', Q(firstname='Margot') | Q(firstname='Kendall') & Q(followers__gte=1000))
         """
-        selected_table = self.before_action(table)
-
-        select_node = SelectNode(selected_table)
+        select_node = SelectNode(self.table)
         where_node = WhereNode(*args, **kwargs)
 
-        query = selected_table.query_class(table=selected_table)
+        query = self.table.query_class(table=self.table)
         query.add_sql_nodes([select_node, where_node])
 
-        if selected_table.ordering:
+        if self.table.ordering:
             orderby_node = OrderByNode(
-                selected_table,
-                *selected_table.ordering
+                self.table,
+                *self.table.ordering
             )
             query.add_sql_node(orderby_node)
 
         return QuerySet(query)
 
-    def get(self, table, *args, **kwargs):
+    def get(self, *args, **kwargs):
         """Returns a specific row from the database
         based on a set of criteria
 
         >>> instance.objects.get('celebrities', id__eq=1)
         ... instance.objects.get('celebrities', id=1)
         """
-        selected_table = self.before_action(table)
-
-        select_node = SelectNode(selected_table)
+        select_node = SelectNode(self.table)
         where_node = WhereNode(*args, **kwargs)
 
-        query = selected_table.query_class(table=selected_table)
+        query = self.table.query_class(table=self.table)
         query.add_sql_nodes([select_node, where_node])
         queryset = QuerySet(query)
 
@@ -214,7 +193,7 @@ class DatabaseManager:
 
         return list(queryset)[-0]
 
-    def annotate(self, table, *args, **kwargs):
+    def annotate(self, *args, **kwargs):
         """The annotate method allows the usage of advanced functions or expressions in 
         a query by adding additional fields to your querysets based on the values 
         of existing fields
@@ -266,8 +245,6 @@ class DatabaseManager:
         The above will return the price count for each products. If there are
         two products with a price of 1 we will then get `[{'price': 1, 'count_price': 2}]`
         """
-        selected_table = self.before_action(table)
-
         for func in args:
             internal_type = getattr(func, 'internal_type', None)
             if internal_type is None:
@@ -286,65 +263,63 @@ class DatabaseManager:
                 kwargs.update({func.alias_field_name: func})
 
         if not kwargs:
-            return self.all(table)
+            return self.all(self.table)
 
         alias_fields = list(kwargs.keys())
 
         for alias, func in kwargs.items():
-            if selected_table.has_field(alias):
+            if self.table.has_field(alias):
                 raise ValueError(
                     "Alias field names cannot override table "
-                    f"columns: {alias} -> {selected_table.field_names}"
+                    f"columns: {alias} -> {self.table.field_names}"
                 )
 
             internal_type = getattr(func, 'internal_type')
             if internal_type == 'expression':
                 func.alias_field_name = alias
 
-        annotation_map = selected_table.backend.build_annotation(kwargs)
-        annotated_sql_fields = selected_table.backend.comma_join(
+        annotation_map = self.table.backend.build_annotation(kwargs)
+        annotated_sql_fields = self.table.backend.comma_join(
             annotation_map.joined_final_sql_fields
         )
 
         return_fields = ['*', annotated_sql_fields]
-        select_node = SelectNode(selected_table, *return_fields)
+        select_node = SelectNode(self.table, *return_fields)
 
-        query = self.database.query_class(table=selected_table)
+        query = self.database.query_class(table=self.table)
         query.alias_fields = list(alias_fields)
         query.add_sql_node(select_node)
 
         if annotation_map.requires_grouping:
-            groupby_sql = selected_table.backend.GROUP_BY.format_map({
+            groupby_sql = self.table.backend.GROUP_BY.format_map({
                 'conditions': 'id'
             })
             query.select_map.groupby = groupby_sql
 
-        if selected_table.ordering:
+        if self.table.ordering:
             orderby_node = OrderByNode(
-                selected_table,
-                *selected_table.ordering
+                self.table,
+                *self.table.ordering
             )
             query.add_sql_node(orderby_node)
         return QuerySet(query)
 
-    def values(self, table, *fields):
+    def values(self, *fields):
         """Returns data from the database as a list
         of dictionnary values
 
         >>> instance.objects.as_values('celebrities', 'id')
         ... [{'id': 1}]
         """
-        selected_table = self.before_action(table)
-
         # columns = list(fields) or ['rowid', '*']
         columns = list(fields)
-        select_node = SelectNode(selected_table, *columns)
-        query = self.database.query_class(table=selected_table)
+        select_node = SelectNode(self.table, *columns)
+        query = self.database.query_class(table=self.table)
         query.add_sql_node(select_node)
 
-        if selected_table.ordering:
+        if self.table.ordering:
             orderby_node = OrderByNode(
-                selected_table, *selected_table.ordering)
+                self.table, *self.table.ordering)
             query.add_sql_node(orderby_node)
 
         queryset = QuerySet(query)
@@ -356,7 +331,7 @@ class DatabaseManager:
         # return list(dictionnaries())
         return list(ValuesIterable(queryset, fields=columns))
 
-    def dataframe(self, table, *fields):
+    def dataframe(self, *fields):
         """This method returns data from the database as a pandas 
         DataFrame object. This allows for easy manipulation and 
         analysis of the data using pandas' powerful data handling 
@@ -366,9 +341,9 @@ class DatabaseManager:
         ... pandas.DataFrame
         """
         import pandas
-        return pandas.DataFrame(self.values(table, *fields))
+        return pandas.DataFrame(self.values(*fields))
 
-    def order_by(self, table, *fields):
+    def order_by(self, *fields):
         """Returns data ordered by the fields specified
         by the user. It can be sorted in ascending order:
 
@@ -378,16 +353,14 @@ class DatabaseManager:
 
         >>> instance.objects.order_by('celebrities', '-firstname')
         """
-        selected_table = self.before_action(table)
+        select_node = SelectNode(self.table)
+        order_by_node = OrderByNode(self.table, *fields)
 
-        select_node = SelectNode(selected_table)
-        order_by_node = OrderByNode(selected_table, *fields)
-
-        query = selected_table.query_class(table=selected_table)
+        query = self.table.query_class(table=self.table)
         query.add_sql_nodes([select_node, order_by_node])
         return QuerySet(query)
 
-    def aggregate(self, table, *args, **kwargs):
+    def aggregate(self, *args, **kwargs):
         """Returns data ordered by the fields specified by the user. 
         You can specify the sorting order by providing the field names. 
         Prefixing a field with a hyphen (-) sorts the data in descending order, 
@@ -400,8 +373,6 @@ class DatabaseManager:
         >>> db.objects.aggregate('celebrities', count_age=Count('id'))
         ... {'count_age': 1}
         """
-        selected_table = self.before_action(table)
-
         functions = list(args)
 
         # Functions used in args will get an
@@ -421,24 +392,24 @@ class DatabaseManager:
             )
 
         aggregate_sqls = []
-        annotation_map = selected_table.backend.build_annotation(kwargs)
+        annotation_map = self.table.backend.build_annotation(kwargs)
         aggregate_sqls.extend(annotation_map.joined_final_sql_fields)
 
-        select_node = SelectNode(selected_table, *aggregate_sqls)
+        select_node = SelectNode(self.table, *aggregate_sqls)
 
-        query = selected_table.query_class(table=selected_table)
+        query = self.table.query_class(table=self.table)
         query.add_sql_node(select_node)
         query.alias_fields = annotation_map.alias_fields
         query.run()
         return getattr(query.result_cache[0], '_cached_data', {})
 
-    def count(self, table):
+    def count(self):
         """Returns the number of items present
         in the database
 
         >>> db.objects.count('celebrities')
         """
-        result = self.aggregate(table, Count('id'))
+        result = self.aggregate(Count('id'))
         return result.get('id__count')
 
     # def foreign_table(self, relationship):
@@ -449,23 +420,25 @@ class DatabaseManager:
     #     left_table, right_table = result
     #     return ForeignTablesManager(left_table, right_table, self)
 
-    def distinct(self, table, *columns):
+    def distinct(self, *columns):
         """Returns items from the database which are
         distinct
 
         >>> db.objects.distinct('celebrities', 'firstname')
         """
-        selected_table = self.before_action(table)
-        select_node = SelectNode(selected_table, *columns, distinct=True)
-        query = selected_table.query_class(table=selected_table)
+        select_node = SelectNode(self.table, *columns, distinct=True)
+        query = self.table.query_class(table=self.table)
         query.add_sql_node(select_node)
-        if selected_table.ordering:
+
+        if self.table.ordering:
             ordering_node = OrderByNode(
-                selected_table, *selected_table.ordering)
+                self.table,
+                *self.table.ordering
+            )
             query.add_sql_node(ordering_node)
         return QuerySet(query)
 
-    def bulk_create(self, table, objs):
+    def bulk_create(self, objs):
         """Creates multiple objects in the database at once
         using a list of datasets or dictionnaries
 
@@ -476,8 +449,6 @@ class DatabaseManager:
         >>> db.objects.bulk_create('celebrities', [Celebrity('Taylor Swift')])
         ... [<Celebrity: 1>]
         """
-        selected_table = self.before_action(table)
-
         invalid_objects_counter = 0
         for obj in objs:
             if not is_dataclass(obj):
@@ -487,14 +458,14 @@ class DatabaseManager:
         if invalid_objects_counter > 0:
             raise ValueError(
                 "Objects used in bulk create should be an "
-                "instance of dataclass"
+                "instance of a dataclass"
             )
 
         for obj in objs:
             fields = dataclasses.fields(obj)
             for field in fields:
-                if not selected_table.has_field(field.name):
-                    raise FieldExistsError(field, selected_table)
+                if not self.table.has_field(field.name):
+                    raise FieldExistsError(field, self.table)
 
         columns_to_use = set()
         values_to_create = []
@@ -513,55 +484,42 @@ class DatabaseManager:
             dataclass_values.append(dataclass_data)
             values_to_create.extend(dataclass_values)
 
+            # TODO: We have to validate auto fields
+            # self._validate_auto_fields(self.table, )
+
         # TODO: We have to call validate values
 
         insert_node = InsertNode(
-            selected_table,
-            batch_values=values_to_create
+            self.table,
+            batch_values=values_to_create,
+            returning=self.table.field_names
         )
 
-        query = selected_table.query_class(table=selected_table)
+        query = self.table.query_class(table=self.table)
         query.add_sql_node(insert_node)
-
-        columns_to_use.add('id')
-        query.add_sql_node(
-            f'returning {selected_table.backend.comma_join(columns_to_use)}')
-
         query.run(commit=True)
         return QuerySet(query)
 
-    def dates(self, table, field, field_to_sort='year', ascending=True):
+    def dates(self, field, field_to_sort='year', ascending=True):
         values = self.datetimes(
-            table,
             field,
             field_to_sort=field_to_sort,
             ascending=ascending
         )
         return list(map(lambda x: x.date(), values))
 
-    def datetimes(self, table, field, field_to_sort='year', ascending=True):
-        selected_table = self.before_action(table)
+    def datetimes(self, field, field_to_sort='year', ascending=True):
+        qs1 = self.annotate(**{field_to_sort: Extract(field, field_to_sort)})
+        qs2 = qs1.order_by(field_to_sort if ascending else f'-{field_to_sort}')
+        return list(map(lambda x: x[field], qs2))
 
-        select_node = SelectNode(selected_table, field)
-        query = selected_table.query_class(table=selected_table)
-        query.add_sql_node(select_node)
-        query.run()
-
-        def date_iterator(row):
-            d = datetime.datetime.strptime(
-                row[field], '%Y-%m-%d %H:%M:%S.%f%z')
-            return d
-
-        dates = map(date_iterator, query.result_cache)
-        return list(dates)
-
-    def difference(self, table):
+    def difference(self):
         return NotImplemented
 
-    def earliest(self, table):
+    def earliest(self, *fields):
         return NotImplemented
 
-    def latest(self, table, *fields):
+    def latest(self, *fields):
         # selected_table = self.before_action(table)
         # select_node = SelectNode(selected_table, *fields, limit=1)
         # order_by_node = OrderByNode(selected_table, *fields)
@@ -570,32 +528,32 @@ class DatabaseManager:
         # return QuerySet(query)[0]
         return NotImplemented
 
-    def exclude(self, table, *args, **kwargs):
+    def exclude(self, *args, **kwargs):
         """Selects all the values from the database
         that match the filters
 
         >>> db.objects.exclude(firstname='Kendall')"""
-        selected_table = self.before_action(table)
-
-        select_node = SelectNode(selected_table)
+        select_node = SelectNode(self.table)
         where_node = ~WhereNode(*args, **kwargs)
 
-        query = selected_table.query_class(table=selected_table)
+        query = self.table.query_class(table=self.table)
         query.add_sql_nodes([select_node, where_node])
 
-        if selected_table.ordering:
+        if self.table.ordering:
             ordering_node = OrderByNode(
-                selected_table, *selected_table.ordering)
+                self.table,
+                *self.table.ordering
+            )
             query.add_sql_node(ordering_node)
         return QuerySet(query)
 
-    def extra(self, table):
+    def extra(self):
         return NotImplemented
 
-    def only(self, table):
+    def only(self):
         return NotImplemented
 
-    def get_or_create(self, table, create_defaults={}, **kwargs):
+    def get_or_create(self, create_defaults={}, **kwargs):
         """Tries to get a row in the database using the coditions
         passed in kwargs. It then uses the `defaults`
         parameter to create the values that do not exist.
@@ -608,13 +566,11 @@ class DatabaseManager:
 
         If the queryset returns multiple elements, an error is raised.
         """
-        selected_table = self.before_action(table)
-
-        select_node = SelectNode(selected_table)
+        select_node = SelectNode(self.table)
         where_node = WhereNode(**kwargs)
         sql = [select_node, where_node]
 
-        query = selected_table.query_class(table=selected_table)
+        query = self.table.query_class(table=self.table)
         query.add_sql_nodes(sql)
         queryset = QuerySet(query)
 
@@ -625,29 +581,27 @@ class DatabaseManager:
         else:
             create_defaults.update(kwargs)
             create_defaults = self._validate_auto_fields(
-                selected_table,
+                self.table,
                 create_defaults
             )
-            _, create_defaults = selected_table.validate_values_from_dict(
+            _, create_defaults = self.table.validate_values_from_dict(
                 create_defaults
             )
 
             insert_node = InsertNode(
-                selected_table,
+                self.table,
                 insert_values=create_defaults,
-                returning=selected_table.field_names
+                returning=self.table.field_names
             )
-            new_query = query.create(table=selected_table)
+            new_query = query.create(table=self.table)
             new_query.add_sql_node(insert_node)
             return QuerySet(new_query)[0]
-            # new_query.run(commit=True)
-            # return new_query.result_cache[0]
 
     # def select_for_update()
     # def select_related()
     # def fetch_related()
 
-    def update_or_create(self, table, create_defaults={}, **kwargs):
+    def update_or_create(self, create_defaults={}, **kwargs):
         """Updates a row in the database selected on the
         filters determined by kwargs. It then uses the `create_defaults`
         parameter to create the values that do not exist.
@@ -661,10 +615,8 @@ class DatabaseManager:
         If the queryset returns multiple elements (from the get conditions specified
         via kwargs), an error is raised.
         """
-        selected_table = self.before_action(table)
-
-        select_node = SelectNode(selected_table)
-        query = selected_table.query_class(table=selected_table)
+        select_node = SelectNode(self.table)
+        query = self.table.query_class(table=self.table)
         query.add_sql_node(select_node)
 
         if kwargs:
@@ -695,7 +647,7 @@ class DatabaseManager:
             # We'll just let the error raise itself.
             create_defaults.update(**kwargs)
 
-        _, create_defaults = selected_table.validate_values_from_dict(
+        _, create_defaults = self.table.validate_values_from_dict(
             create_defaults
         )
         ids = list(map(lambda x: x['id'], queryset))
@@ -705,40 +657,40 @@ class DatabaseManager:
             # but there's only one element in the database
             raise ValueError('Get returned more than one value')
 
-        returning_fields = selected_table.field_names
+        returning_fields = self.table.field_names
 
         if queryset.exists():
             create_defaults = self._validate_auto_fields(
-                selected_table,
+                self.table,
                 create_defaults,
                 update_only=True
             )
             # TODO: Add a returning like
             # the InsertNode
             update_node = UpdateNode(
-                selected_table,
+                self.table,
                 create_defaults,
                 id__in=ids
             )
 
-            new_query = query.create(table=selected_table)
+            new_query = query.create(table=self.table)
             new_query.add_sql_node(update_node)
 
-            returning_fields = selected_table.backend.comma_join(
+            returning_fields = self.table.backend.comma_join(
                 returning_fields
             )
             new_query.add_sql_node(f'returning {returning_fields}')
         else:
             create_defaults = self._validate_auto_fields(
-                selected_table,
+                self.table,
                 create_defaults,
             )
             insert_node = InsertNode(
-                selected_table,
+                self.table,
                 insert_values=create_defaults,
                 returning=returning_fields
             )
-            new_query = query.create(table=selected_table)
+            new_query = query.create(table=self.table)
             new_query.add_sql_node(insert_node)
             # new_query.run(commit=True)
 
@@ -750,7 +702,7 @@ class DatabaseManager:
         # then modify the data in the database
         return QuerySet(new_query)[0]
 
-    def intersect(self, table, qs1, qs2):
+    def intersect(self, qs1, qs2):
         """The intersect function allows you to combine 
         the result sets of two queries and returns 
         distinct rows that appear in both result sets. 
@@ -762,8 +714,6 @@ class DatabaseManager:
         ... qs2 = db.objects.all('celebrities')
         ... qs3 = db.objects.intersect('celebrities', qs1, qs2)
         """
-        selected_table = self.before_action(table)
-
         if not isinstance(qs1, QuerySet):
             raise ValueError(f'{qs1} should be an instance of QuerySet')
 
@@ -777,72 +727,72 @@ class DatabaseManager:
             qs2.load_cache()
 
         node = IntersectNode(qs1.query.sql, qs2.query.sql)
-        query = selected_table.query_class(table=selected_table)
+        query = self.table.query_class(table=self.table)
         query.add_sql_node(node)
         return QuerySet(query)
 
-    async def afirst(self, table):
-        return await sync_to_async(self.first)(table)
+    async def afirst(self):
+        return await sync_to_async(self.first)()
 
-    async def alast(self, table):
-        return await sync_to_async(self.last)(table)
+    async def alast(self):
+        return await sync_to_async(self.last)()
 
-    async def aall(self, table):
-        return await sync_to_async(self.all)(table)
+    async def aall(self):
+        return await sync_to_async(self.all)()
 
-    async def acreate(self, table, **kwargs):
-        return await sync_to_async(self.create)(table, **kwargs)
+    async def acreate(self, **kwargs):
+        return await sync_to_async(self.create)(**kwargs)
 
-    async def afilter(self, table, **kwargs):
-        return await sync_to_async(self.filter)(table, **kwargs)
+    async def afilter(self, **kwargs):
+        return await sync_to_async(self.filter)(**kwargs)
 
-    async def aget(self, table, *args, **kwargs):
-        return await sync_to_async(self.get)(table, *args, **kwargs)
+    async def aget(self, *args, **kwargs):
+        return await sync_to_async(self.get)(*args, **kwargs)
 
-    async def aannotate(self, table, *args, **kwargs):
-        return await sync_to_async(self.annotate)(table, *args, **kwargs)
+    async def aannotate(self, *args, **kwargs):
+        return await sync_to_async(self.annotate)(*args, **kwargs)
 
-    async def avalues(self, table, *fields):
-        return await sync_to_async(self.values)(table, *fields)
+    async def avalues(self, *fields):
+        return await sync_to_async(self.values)(*fields)
 
-    async def adataframe(self, table, *fields):
-        return await sync_to_async(self.dataframe)(table, *fields)
+    async def adataframe(self, *fields):
+        return await sync_to_async(self.dataframe)(*fields)
 
-    async def abulk_create(self, table, *objs):
-        return await sync_to_async(self.dataframe)(table, *objs)
+    async def abulk_create(self, *objs):
+        return await sync_to_async(self.dataframe)(*objs)
 
-    async def aorder_by(self, table, *fields):
-        return await sync_to_async(self.order_by)(table, *fields)
+    async def aorder_by(self, *fields):
+        return await sync_to_async(self.order_by)(*fields)
 
-    async def acount(self, table):
-        return await sync_to_async(self.count)(table)
+    async def acount(self):
+        return await sync_to_async(self.count)()
 
-    async def adates(self, table, field, field_to_sort=None, ascending=True):
-        return await sync_to_async(self.dates)(table, field, field_to_sort=field_to_sort, ascending=ascending)
+    async def adates(self, field, field_to_sort=None, ascending=True):
+        return await sync_to_async(self.dates)(field, field_to_sort=field_to_sort, ascending=ascending)
 
-    async def adatetimes(self, table, field, field_to_sort=None, ascending=True):
-        return await sync_to_async(self.datetimes)(table, field, field_to_sort=field_to_sort, ascending=ascending)
+    async def adatetimes(self, field, field_to_sort=None, ascending=True):
+        return await sync_to_async(self.datetimes)(field, field_to_sort=field_to_sort, ascending=ascending)
 
-    async def adifference(self, table):
+    async def adifference(self):
         return await sync_to_async(self.difference)()
 
-    async def adistinct(self, table, *columns):
-        return await sync_to_async(self.distinct)(table, *columns)
+    async def adistinct(self, *columns):
+        return await sync_to_async(self.distinct)(*columns)
 
-    async def aearliest(self, table):
-        return await sync_to_async(self.earliest)(table)
+    async def aearliest(self, *fields):
+        return await sync_to_async(self.earliest)(*fields)
 
-    async def alatest(self, table):
-        return await sync_to_async(self.latest)(table)
+    async def alatest(self, *fields):
+        return await sync_to_async(self.latest)(*fields)
 
-    async def aonly(self, table):
-        return await sync_to_async(self.only)(table)
+    async def aonly(self):
+        return await sync_to_async(self.only)()
 
-    async def aexclude(self, table, *args, **kwargs):
-        return await sync_to_async(self.exclude)(table, *args, **kwargs)
+    async def aexclude(self, *args, **kwargs):
+        return await sync_to_async(self.exclude)(*args, **kwargs)
 
-    async def aextra(self, table):
-        return await sync_to_async(self.extra)(table)
+    async def aextra(self):
+        return await sync_to_async(self.extra)()
 
     # async def aselect_for_update(self, table):
     #     return await sync_to_async(self.select_for_update)(table)
@@ -853,14 +803,14 @@ class DatabaseManager:
     # async def afetch_related(self, table):
     #     return await sync_to_async(self.fetch_related)(table)
 
-    async def aupdate_or_create(self, table, create_defaults={}, **kwargs):
-        return await sync_to_async(self.update_or_create)(table, create_defaults=create_defaults, **kwargs)
+    async def aupdate_or_create(self, create_defaults={}, **kwargs):
+        return await sync_to_async(self.update_or_create)(create_defaults=create_defaults, **kwargs)
 
-    async def aresolve_expression(self, table):
-        return await sync_to_async(self.resolve_expression)(table)
+    async def aresolve_expression(self):
+        return await sync_to_async(self.resolve_expression)()
 
-    async def aaggregate(self, table, *args, **kwargs):
-        return await sync_to_async(self.aggregate)(table, *args, **kwargs)
+    async def aaggregate(self, *args, **kwargs):
+        return await sync_to_async(self.aggregate)(*args, **kwargs)
 
 
 class ForeignTablesManager:

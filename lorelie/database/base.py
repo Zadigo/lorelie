@@ -4,7 +4,7 @@ from functools import wraps
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database import registry
-from lorelie.database.manager import DatabaseManager
+from lorelie.database.manager import ForeignTablesManager
 from lorelie.database.migrations import Migrations
 from lorelie.exceptions import TableExistsError
 from lorelie.queries import Query
@@ -156,7 +156,6 @@ class Database:
     query_class = Query
     migrations_class = Migrations
     backend_class = SQLiteBackend
-    objects = DatabaseManager()
 
     def __init__(self, *tables, name=None, path=None, log_queries=False):
         self.database_name = name
@@ -185,8 +184,9 @@ class Database:
                 raise ValueError('Value should be an instance of Table')
 
             table.load_current_connection()
-            setattr(table, 'database', self)
+            # setattr(table, 'database', self)
             self.table_map[table.name] = table
+            setattr(self, table.name, table)
 
         self.table_instances = list(tables)
         self.relationships = OrderedDict()

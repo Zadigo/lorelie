@@ -1,3 +1,4 @@
+import dataclasses
 from typing import (Any, List, Literal, Optional, OrderedDict, Tuple, Type,
                     override)
 
@@ -5,9 +6,9 @@ from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
 from lorelie.database.indexes import Index
+from lorelie.database.manager import DatabaseManager
 from lorelie.fields.base import Field
 from lorelie.queries import Query
-
 
 @dataclasses.dataclass
 class RelationshipMap:
@@ -58,6 +59,7 @@ class AbstractTable(metaclass=BaseTable):
     is_prepared: bool = Literal[False]
     field_types: OrderedDict[str, str] = ...
     database: Database = ...
+    objects: DatabaseManager = ...
 
     def __init__(self) -> None: ...
     def __hash__(self) -> int: ...
@@ -85,6 +87,8 @@ class AbstractTable(metaclass=BaseTable):
         values: List[Any]
     ) -> Tuple[list[str], dict[str, Any]]: ...
 
+    def load_current_connection(self) -> None: ...
+
 
 class Table(AbstractTable):
     name: str = ...
@@ -102,6 +106,7 @@ class Table(AbstractTable):
     # TODO: Remove Query on the class
     query: type[Query] = ...
     backend_class = type[SQLiteBackend] = ...
+    objects: DatabaseManager = ...
 
     def __init__(
         self,

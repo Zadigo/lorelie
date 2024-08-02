@@ -15,7 +15,6 @@ db = Database(table1, table2)
 db.migrate()
 
 
-
 # names__age__eq = 1
 # names__eq = 1
 # names__age__another__eq = 1

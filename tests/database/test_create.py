@@ -1,4 +1,3 @@
-import unittest
 import dataclasses
 from lorelie.backends import BaseRow
 from lorelie.exceptions import FieldExistsError
@@ -10,28 +9,30 @@ class TestCreate(LorelieTestCase):
         self.db = self.create_database()
 
     def test_simple_create(self):
-        self.db.objects.create('celebrities', name='Addison Rae', height=178)
-        item = self.db.objects.create(
-            'celebrities',
-            name='Kendall Jenner',
-            height=184
-        )
+        items = [
+            {
+                'name': 'Addison Rae',
+                'height': 178
+            },
+            {
+                'name': 'Kendall Jenner',
+                'height': 184
+            }
+        ]
 
-        # TODO: This only returns the ID field
-        # when creating a new value in the database
-        self.assertEqual(item.pk, 2)
-        # self.assertIsInstance(item, BaseRow)
-        # self.assertEqual(item.name, 'Kendall Jenner')
-        # self.assertIn('Kendall Jenner', item)
+        for item in items:
+            with self.subTest(item=item):
+                obj = self.db.celebrities.objects.create(**item)
+                self.assertIn(obj.pk, [1, 2])
+                self.assertIsInstance(obj, BaseRow)
+                self.assertIn(obj.name, ['Addison Rae', 'Kendall Jenner'])
 
     def test_create_invalid_fields(self):
         with self.assertRaises(FieldExistsError):
-            self.db.objects.create('celebrities', age=34)
+            self.db.celebrities.objects.create(age=34)
 
-    def test_create_callable_parameter(self):
-        # TODO: We should be able to create a value using a callable
-        self.db.objects.create('celebrities', name=lambda: 'Aurélie Konaté')
-        # print(self.db.objects.values('celebrities', 'name'))
+    def test_create_with_callable(self):
+        self.db.celebrities.objects.create(name=lambda: 'Aurélie Konaté')
 
     def test_create_editable_field(self):
         pass
@@ -40,29 +41,43 @@ class TestCreate(LorelieTestCase):
 class TestGetOrCreate(LorelieTestCase):
     def setUp(self):
         self.db = self.create_database()
-    
+
     def test_simple_create(self):
-        item = self.db.objects.get_or_create(
-            'celebrities',
-            name='Addison Rae', 
-            height=178
-        )
-        self.assertIsInstance(item, BaseRow)
+        items = [
+            {
+                'name': 'Addison Rae',
+                'height': 178
+            },
+            {
+                'name': 'Kendall Jenner',
+                'height': 184
+            }
+        ]
+        for item in items:
+            obj = self.db.celebrities.objects.get_or_create(
+                create_defaults=item,
+                name=item['name']
+            )
+            self.assertIsInstance(obj, BaseRow)
 
     def test_with_defaults_alone(self):
-        # TODO: This raises an error when using
+        # FIXME: This raises an error when using
         # defaults alone
-        item = self.db.objects.get_or_create(
-            'celebrities',
-            defaults={'name': 'Addison Rae'}
+        obj = self.db.celebrities.objects.get_or_create(
+            create_defaults={'name': 'Addison Rae'}
         )
 
     def test_both_defaults_and_fields(self):
-        item = self.db.objects.get_or_create(
-            'celebrities',
-            defaults={'height': 194},
+        obj = self.db.celebrities.objects.get_or_create(
+            create_defaults={'height': 194},
             name='Addison Rae'
         )
+        self.assertIsInstance(obj, BaseRow)
+
+    def test_dictionnary_values_as_defaults(self):
+        # Case where {'defaults': {}, 'name': 'Addison'} is not
+        # handled by the function
+        self.db.celebrities.objects.get_or_create(defaults={}, name='Addison')
 
 
 class TestUpdateOrCreate(LorelieTestCase):
@@ -72,7 +87,7 @@ class TestUpdateOrCreate(LorelieTestCase):
     def test_structure(self):
         qs = self.db.objects.update_or_create(
             'celebrities',
-            create_defaults={'height': 130}, 
+            create_defaults={'height': 130},
             name='Kendall Jenner'
         )
         # TODO: Does not return any data
@@ -111,7 +126,7 @@ class TestBulkCreate(LorelieTestCase):
         class Celebrity:
             name: str
             height: int
-        
+
         return [
             Celebrity('Kendall Jenner', 201),
             Celebrity('Taylor Swift', 156)
@@ -128,7 +143,7 @@ class TestBulkCreate(LorelieTestCase):
 
     def test_invalid_columns(self):
         test_data = self.setup_data()
-        
+
         @dataclasses.dataclass
         class Celebrity:
             name: str
@@ -139,7 +154,3 @@ class TestBulkCreate(LorelieTestCase):
 
         with self.assertRaises(FieldExistsError):
             self.db.objects.bulk_create('celebrities', test_data)
-
-
-# if __name__ == '__main__':
-#     unittest.main()

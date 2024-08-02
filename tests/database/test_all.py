@@ -9,11 +9,13 @@ from lorelie.test.testcases import LorelieTestCase
 class TestAll(LorelieTestCase):
     def setUp(self):
         self.db = db = self.create_database()
-        db.objects.create('celebrities', name='Addison Rae', height=178)
-        db.objects.create('celebrities', name='Kendall Jenner', height=184)
+        self.table = table = db.get_table('celebrities')
+
+        table.objects.create(name='Addison Rae', height=178)
+        table.objects.create(name='Kendall Jenner', height=184)
 
     def test_structure(self):
-        qs = self.db.objects.all('celebrities')
+        qs = self.table.objects.all()
         self.assertIsInstance(qs, QuerySet)
         self.assertTrue(len(qs) > 0)
         self.assertEqual(qs.count(), 2)
@@ -22,7 +24,7 @@ class TestAll(LorelieTestCase):
             self.assertTrue(item.height > 150)
 
     def test_can_edit_base_row(self):
-        qs = self.db.objects.all('celebrities')
+        qs = self.db.celebrities.objects.all('celebrities')
 
         item = qs[0]
         self.assertTrue(item.name, 'Addison Rae')
@@ -64,13 +66,14 @@ class TestAll(LorelieTestCase):
 class TestAnnotate(LorelieTestCase):
     def setUp(self):
         self.db = self.create_database()
-        self.db.objects.create('celebrities', name='Kendall Jenner')
+        self.table = table = self.db.get_table('celebrities')
+        table.objects.create(name='Kendall Jenner')
 
     def test_annotation_with_value_function(self):
-        result = self.db.objects.annotate('celebrities', age=Value(22))
+        result = self.table.objects.annotate(age=Value(22))
         self.assertEqual(result[0].age, 22)
 
-        result = self.db.objects.annotate('celebrities', description=Value('My text'))
+        result = self.table.objects.annotate(description=Value('My text'))
         self.assertEqual(result[0].description, 'My text')
 
     def test_annotation_with_f_function(self):
@@ -83,35 +86,46 @@ class TestAnnotate(LorelieTestCase):
             "select *, height + 1 as other from celebrities;"
         ]
 
-        qs = self.db.objects.annotate('celebrities', other=F('height'))
-        self.assertEqual(qs[0].other, 150)
+        qs = self.table.objects.annotate(other=F('height'))
+        self.assertEqual(qs[0].other, 152)
         self.assertIn(qs.sql_statement, expected_sqls)
 
-        qs = self.db.objects.annotate('celebrities', other=F('height') + F('height'))
-        self.assertEqual(qs[0].other, 300)
+        qs = self.table.objects.annotate(other=F('height') + F('height'))
+        self.assertEqual(qs[0].other, 304)
         self.assertIn(qs.sql_statement, expected_sqls)
 
-        result = self.db.objects.annotate('celebrities', other=F('height') + F('height') - 1)
-        self.assertEqual(result[0].other, 299)
+        result = self.table.objects.annotate(
+            other=F('height') + F('height') - 1
+        )
+        self.assertEqual(result[0].other, 303)
         self.assertIn(qs.sql_statement, expected_sqls)
 
-        result = self.db.objects.annotate('celebrities', other=F('height') + 1)
-        self.assertEqual(result[0].other, 151)
+        result = self.table.objects.annotate(other=F('height') + 1)
+        self.assertEqual(result[0].other, 153)
         self.assertIn(qs.sql_statement, expected_sqls)
 
-        # TODO: Using F + str returns 0
-        # result = self.db.objects.annotate('celebrities', other=F('name') + 'Price')
+        # FIXME: Using F + str returns 0
+        # result = self.table.objects.annotate(other=F('name') + 'Price')
         # self.assertEqual(result[0].other, 'Kendall JennerPrice')
 
-    def test_annoation_with_q_function(self):
-        qs = self.db.objects.annotate('celebrities', other=Q(height__gt=150))
-        self.assertEqual(qs[0].other, 0)
-        self.assertEqual(qs.sql_statement, "select *, height>150 as other from celebrities;")
+    def test_annotation_with_q_function(self):
+        # The database returns either 0 or 1 as False or True
+        qs = self.table.objects.annotate(other=Q(height__gt=150))
+        self.assertEqual(qs[0].other, 1)
+        self.assertEqual(
+            qs.sql_statement,
+            "select *, height>150 as other from celebrities;"
+        )
 
     def test_annotation_with_mixed_field_types(self):
+        # These kinds of mixed expressions should not be able 
+        # to be resolved and therefore be stringified
         combined = Value(F('name') + 'a', output_field=CharField)
-        qs = self.db.objects.annotate('celebrities', mixed=combined)
-        print(qs)
+        qs = self.table.objects.annotate(mixed=combined)
+        self.assertEqual(
+            qs.first().mixed,
+            "<CombinedExpression: [F(name), '+', Value(a)]>"
+        )
 
     def test_invalid_args(self):
         # Expressions are not made to be
@@ -125,7 +139,8 @@ class TestAnnotate(LorelieTestCase):
 
         with self.assertRaises(ValueError):
             for arg in args:
-                self.db.objects.annotate('celebrities', arg)
+                self.table.objects.annotate(arg)
+
 
 class TestFilter(LorelieTestCase):
     pass

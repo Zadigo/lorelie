@@ -36,7 +36,8 @@ class MigrationsExistsError(Exception):
             "You are trying to call a function on the "
             "the database while there was no existing "
             "migrations for the database tables. Call "
-            "db.migrate() before using any query functions"
+            "db.migrate() before trying to use any query "
+            "functions on the table instance"
         )
         super().__init__(message)
 

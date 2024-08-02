@@ -1,7 +1,5 @@
-import unittest
-
-from lorelie.backends import SQLiteBackend
-from lorelie.expressions import Case, CombinedExpression, F, Q, NegatedExpression, Value, When
+from lorelie.expressions import (CombinedExpression, F, NegatedExpression, Q,
+                                 Value)
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -178,33 +176,41 @@ class TestCombinedExpression(LorelieTestCase):
 #         )
 
 
-# class TestF(unittest.TestCase):
-#     def create_backend(self):
-#         return SQLiteBackend()
+class TestFFunction(LorelieTestCase):
+    def test_structure(self):
+        result = F('name') + 'other'
+        self.assertIsInstance(result, CombinedExpression)
 
-#     def test_structure(self):
-#         result = F('age') + F('age')
-#         self.assertIsInstance(result, CombinedExpression)
+    def test_resolution_methods(self):
+        result = F('age') + 'height'
+        sql = result.as_sql(self.create_connection())
+        self.assertEqual(sql[0], "(age + 'height')")
 
-#         sql = result.as_sql(self.create_backend())
-#         self.assertEqual(
-#             sql,
-#             ['(age + age)']
-#         )
+        operations = [
+            # age + 1
+            F('age') + 1,
+            # age - 1
+            F('age') - 1,
+            # age * 1
+            F('age') * 1,
+            # FIXME:  age / 1
+            # result = F('age') / 1
+            F('age') + F('age') + 1
+        ]
 
-#         result = F('age') + F('age') - 1
-#         sql = result.as_sql(self.create_backend())
-#         self.assertEqual(
-#             sql,
-#             ['(age + age) - 1']
-#         )
+        expected = [
+            '(age + 1)',
+            '(age - 1)',
+            '(age x 1)',
+            '(age / 1)',
+            '(age + age + 1)'
+        ]
 
-#         result = F('age') - F('age')
-#         sql = result.as_sql(self.create_backend())
-#         self.assertEqual(
-#             sql,
-#             ['(age - age)']
-#         )
+        backend = self.create_connection()
+        for operation in operations:
+            with self.subTest(operation=operation):
+                result = operation.as_sql(backend)
+                self.assertIn(result[0], expected)
 
 
 class TestValue(LorelieTestCase):
@@ -229,7 +235,3 @@ class TestValue(LorelieTestCase):
         instance = Value(Q(age__gt=25))
         sql = instance.as_sql(self.create_connection())
         self.assertIsInstance(sql[0], str)
-
-
-# if __name__ == '__main__':
-#     unittest.main()

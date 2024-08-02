@@ -9,7 +9,7 @@ class TestDatabaseManager(LorelieTestCase):
             table_map=db.table_map,
             database=db
         )
-        instance.create('celebrities', name='Kendall Jenner', height=156)
+        instance.(name='Kendall Jenner', height=156)
         queryset = instance.all('celebrities')
         self.assertTrue(queryset[0].name == 'Kendall Jenner')
 

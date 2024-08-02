@@ -95,11 +95,19 @@ class TestAggregation(LorelieTestCase):
         db = self.create_database()
         # FIXME: When no value is created and we run aggregate
         # we get None of the alias_field
-        db.objects.create('celebrities', name='Marion Cotillard')
-        db.objects.create('celebrities', name='Kendall Jenner', height=182)
-        db.objects.create('celebrities', name='Kylie Jenenr', height=172)
-        result = db.objects.aggregate(
-            'celebrities',
+        db.celebrities.objects.create(
+            name='Marion Cotillard'
+        )
+        db.celebrities.objects.create(
+            name='Kendall Jenner', 
+            height=182
+        )
+        db.celebrities.objects.create(
+            name='Kylie Jenenr', 
+            height=172
+        )
+        
+        result = db.celebrities.objects.aggregate(
             Sum('height'),
             Avg('height'),
             Variance('height'),

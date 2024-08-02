@@ -11,9 +11,10 @@ from lorelie.test.testcases import LorelieTestCase
 class TestDates(LorelieTestCase):
     def test_structure(self):
         db = self.create_database()
-        db.objects.create('celebrities', name='Kendall', height=202)
+        db.celebrities.objects.create(
+            'celebrities', name='Kendall', height=202)
 
-        queryset = db.objects.annotate(
+        queryset = db.celebrities.objects.annotate(
             'celebrities',
             year=Extract('created_on', 'year')
         )

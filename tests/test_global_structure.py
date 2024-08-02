@@ -40,18 +40,18 @@ class TestGlobalStructure(LorelieTestCase):
         db.migrate()
 
         for i in range(10):
-            db.objects.create('products', name=f'Product {i}')
+            db.celebrities.objects.create('products', name=f'Product {i}')
 
         # all
-        qs = db.objects.all('products')
+        qs = db.celebrities.objects.all('products')
         self.assertTrue(qs.exists())
 
         # annotate
-        qs = db.objects.annotate('products', a=Lower('name'))
+        qs = db.celebrities.objects.annotate('products', a=Lower('name'))
         self.assertEqual(qs.first().a, 'product 0')
 
         # filter
-        qs = db.objects.filter('products', Q(
+        qs = db.celebrities.objects.filter('products', Q(
             name='Product 0') | Q(name='Product 1'))
         self.assertEqual(qs.count(), 2)
 

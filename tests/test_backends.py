@@ -283,7 +283,7 @@ class TestBackendCoreFunctions(LorelieTestCase):
 #         table = self.db.get_table('celebrities')
 #         table._add_field('firstname', CharField('firstname'))
 #         table.backend.create_table_fields(table, ['firstname'])
-#         self.db.objects.all('celebrities')
+#         self.db.celebrities.objects.all('celebrities')
 
 #     def test_list_tables_sql(self):
 #         table = self.db.get_table('celebrities')
@@ -306,8 +306,7 @@ class TestBackendCoreFunctions(LorelieTestCase):
 
     def test_save_row_object(self):
         db = self.create_database()
-        row = db.objects.create(
-            'celebrities',
+        row = db.celebrities.objects.create(
             name='Kendall Jenner',
             height=170
         )
@@ -319,8 +318,7 @@ class TestBackendCoreFunctions(LorelieTestCase):
 
     def test_delete_row_object(self):
         db = self.create_database()
-        row = db.objects.create(
-            'celebrities',
+        row = db.celebrities.objects.create(
             name='Kendall Jenner',
             height=170
         )
@@ -328,4 +326,4 @@ class TestBackendCoreFunctions(LorelieTestCase):
         row['name'] = 'Kylie Jenner'
         row.delete()
 
-        self.assertFalse(db.objects.all('celebrities').exists())
+        self.assertFalse(db.celebrities.objects.all().exists())

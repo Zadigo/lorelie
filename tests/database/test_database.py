@@ -18,4 +18,4 @@ class TestDatabase(LorelieTestCase):
 
     def test_direct_table_attribute(self):
         db = self.create_database()
-        self.assertIsInstance(db.celebrities, Table)
+        self.assertIsInstance(db.celebrities.objects, Table)

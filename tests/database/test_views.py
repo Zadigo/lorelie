@@ -7,7 +7,7 @@ class TestView(LorelieTestCase):
     def test_structure(self):
         db = self.create_database()
 
-        view = View('my_view', db.objects.all('celebrities'))
+        view = View('my_view', db.celebrities.objects.all('celebrities'))
         qs = view(db.get_table('celebrities'))
         self.assertIsInstance(qs, QuerySet)
 

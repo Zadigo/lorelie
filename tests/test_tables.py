@@ -163,19 +163,22 @@ class TestTable(LorelieTestCase):
             using=self.create_complex_table(), log_queries=True)
 
         with self.assertRaises(sqlite3.IntegrityError):
-            db.objects.create('stars', height=145)
+            db.celebrities.objects.create('stars', height=145)
 
         with self.assertRaises(sqlite3.IntegrityError):
-            db.objects.create('stars', name='Kendall Jenner', height=0)
+            db.celebrities.objects.create(
+                'stars', name='Kendall Jenner', height=0)
 
         with self.assertRaises(ValidationError):
-            db.objects.create('stars', name='Taylor Swift')
+            db.celebrities.objects.create('stars', name='Taylor Swift')
 
         # TODO: Should not_null be False if we have a field
         # with a default value set
-        db.objects.create('stars', name='Lucie Safarova', height=165)
+        db.celebrities.objects.create(
+            'stars', name='Lucie Safarova', height=165)
         with self.assertRaises(sqlite3.IntegrityError):
-            db.objects.create('stars', name='Lucie Safarova', height=165)
+            db.celebrities.objects.create(
+                'stars', name='Lucie Safarova', height=165)
 
     def test_list_contains_table(self):
         table = self.create_table()

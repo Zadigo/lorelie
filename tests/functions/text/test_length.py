@@ -13,9 +13,9 @@
 #     ])
 #     db = Database(table)
 #     db.migrate()
-#     db.objects.create('celebrities', name='Julie', height=176)
-#     db.objects.create('celebrities', name='Pauline', height=190)
-#     db.objects.create('celebrities', name='Aurélie', height=210)
+#     db.celebrities.objects.( name='Julie', height=176)
+#     db.celebrities.objects.( name='Pauline', height=190)
+#     db.celebrities.objects.( name='Aurélie', height=210)
 #     return db, table
 
 
@@ -31,7 +31,7 @@
 #         self.assertEqual('length(name)', expected_sql)
 
 #     def test_transform(self):
-#         qs = self.db.objects.annotate(
+#         qs = self.db.celebrities.objects.annotate(
 #             'celebrities',
 #             name_length=Length('name')
 #         )

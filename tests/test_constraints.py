@@ -33,10 +33,10 @@ class TestCheckConstraint(LorelieTestCase):
         db.migrate()
 
         with self.assertRaises(IntegrityError):
-            db.objects.create('celebrities', name='Kendall')
+            table.objects.create(name='Kendall')
 
         with self.assertRaises(IntegrityError):
-            db.objects.create('celebrities', name='Aurélie', height=110)
+            table.objects.create(name='Aurélie', height=110)
 
 
 class TestUniqueConstraint(LorelieTestCase):
@@ -50,10 +50,10 @@ class TestUniqueConstraint(LorelieTestCase):
         db = Database(table)
         db.migrate()
 
-        db.objects.create('celebrities', name='Kendall', height=175)
+        table.objects.create(name='Kendall', height=175)
 
         with self.assertRaises(IntegrityError):
-            db.objects.create('celebrities', name='Kendall', height=175)
+            table.objects.create(name='Kendall', height=175)
 
 
 class TestMinValueConstraint(LorelieTestCase):

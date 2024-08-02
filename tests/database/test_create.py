@@ -32,7 +32,8 @@ class TestCreate(LorelieTestCase):
             self.db.celebrities.objects.create(age=34)
 
     def test_create_with_callable(self):
-        self.db.celebrities.objects.create(name=lambda: 'Aurélie Konaté')
+        self.db.celebrities.objects.create(
+            name=lambda: 'Aurélie Konaté')
 
     def test_create_editable_field(self):
         pass
@@ -77,7 +78,8 @@ class TestGetOrCreate(LorelieTestCase):
     def test_dictionnary_values_as_defaults(self):
         # Case where {'defaults': {}, 'name': 'Addison'} is not
         # handled by the function
-        self.db.celebrities.objects.get_or_create(defaults={}, name='Addison')
+        self.db.celebrities.objects.get_or_create(
+            defaults={}, name='Addison')
 
 
 class TestUpdateOrCreate(LorelieTestCase):
@@ -85,7 +87,7 @@ class TestUpdateOrCreate(LorelieTestCase):
         self.db = self.create_database()
 
     def test_structure(self):
-        qs = self.db.objects.update_or_create(
+        qs = self.db.celebrities.objects.update_or_create(
             'celebrities',
             create_defaults={'height': 130},
             name='Kendall Jenner'
@@ -99,7 +101,7 @@ class TestUpdateOrCreate(LorelieTestCase):
         # If we have no create defaults,
         # use the parameters in the kwargs
         # to create the new value
-        qs = self.db.objects.update_or_create(
+        qs = self.db.celebrities.objects.update_or_create(
             'celebrities',
             name='Kendall Jenner'
         )
@@ -111,7 +113,7 @@ class TestUpdateOrCreate(LorelieTestCase):
 
     def test_create_defaults_alone(self):
         with self.assertRaises(ValueError):
-            self.db.objects.update_or_create(
+            self.db.celebrities.objects.update_or_create(
                 'celebrities',
                 create_defaults={'name': 'Kendall Jenner'}
             )
@@ -134,7 +136,7 @@ class TestBulkCreate(LorelieTestCase):
 
     def test_structure(self):
         test_data = self.setup_data()
-        qs = self.db.objects.bulk_create('celebrities', test_data)
+        qs = self.db.celebrities.objects.bulk_create('celebrities', test_data)
         self.assertEqual(
             qs.sql_statement,
             "insert into celebrities (name, height) values ('Kendall Jenner', 201), ('Taylor Swift', 156) returning id, height, name;"
@@ -153,4 +155,4 @@ class TestBulkCreate(LorelieTestCase):
         test_data.append(Celebrity('Kylie Jenner', 156, 34))
 
         with self.assertRaises(FieldExistsError):
-            self.db.objects.bulk_create('celebrities', test_data)
+            self.db.celebrities.objects.bulk_create('celebrities', test_data)

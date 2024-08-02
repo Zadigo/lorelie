@@ -54,7 +54,7 @@ class TestMigrations(LorelieTestCase):
 #             CharField('name', null=True)
 #         ])
 #         db = Database(table)
-#         db.objects.all('celebrities')
+#         db.celebrities.objects.all('celebrities')
 
 #     def test_check_with_tables(self):
 #         table = Table('celebrities', fields=[
@@ -65,7 +65,7 @@ class TestMigrations(LorelieTestCase):
 #         db.migrate()
 
 #         self.assertTrue(db.migrations.migrated)
-#         db.objects.all('celebrities')
+#         db.celebrities.objects.all('celebrities')
 
 #         self.assertEqual(db.migrations.database_name, 'memory')
-#         db.objects.all('lorelie_migrations')
+#         db.celebrities.objects.all('lorelie_migrations')

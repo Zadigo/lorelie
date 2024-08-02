@@ -33,34 +33,34 @@ class TestAll(LorelieTestCase):
         item.save()
 
 # # Invalid usage
-# # db.objects.annotate('products', F('price'))
-# # db.objects.annotate('products', F('price') + F('price'))
-# # db.objects.annotate('products', Value(1))
-# # db.objects.annotate('products', Value(F('unit_price')))
-# # db.objects.annotate('products', Q(price__gt=1))
+# # db.celebrities.objects.annotate('products', F('price'))
+# # db.celebrities.objects.annotate('products', F('price') + F('price'))
+# # db.celebrities.objects.annotate('products', Value(1))
+# # db.celebrities.objects.annotate('products', Value(F('unit_price')))
+# # db.celebrities.objects.annotate('products', Q(price__gt=1))
 # # a = Value(Q(firstname='Kendall'))
 
 # Valid usage
-# db.objects.filter('products', price=Value('price'))
-# db.objects.annotate('products', my_price=Value(1))
-# db.objects.annotate('products', my_price=F('price'))
-# db.objects.annotate('products', my_price=F('price') + F('price'))
-# db.objects.annotate('products', my_price=F('price') + F('price') - 1)
-# db.objects.annotate('products', my_price=F('price') + 1)
-# # db.objects.filter('products', price=F('name') + 'a')
-# db.objects.annotate('products', my_price=Q(price__gt=1))
-# db.objects.annotate(my_name=Value(F('name') + 'a', output_field=CharField()))
+# db.celebrities.objects.filter('products', price=Value('price'))
+# db.celebrities.objects.annotate('products', my_price=Value(1))
+# db.celebrities.objects.annotate('products', my_price=F('price'))
+# db.celebrities.objects.annotate('products', my_price=F('price') + F('price'))
+# db.celebrities.objects.annotate('products', my_price=F('price') + F('price') - 1)
+# db.celebrities.objects.annotate('products', my_price=F('price') + 1)
+# # db.celebrities.objects.filter('products', price=F('name') + 'a')
+# db.celebrities.objects.annotate('products', my_price=Q(price__gt=1))
+# db.celebrities.objects.annotate(my_name=Value(F('name') + 'a', output_field=CharField()))
 
 # Should raise error
-# db.objects.filter('products', price=Value('a') + Value('a'))
-# db.objects.filter('products', price=Value('a') + F('a'))
+# db.celebrities.objects.filter('products', price=Value('a') + Value('a'))
+# db.celebrities.objects.filter('products', price=Value('a') + F('a'))
 
 # # case = Case(When('price__eq=10', then_case=1), default=30)
-# # db.objects.annotate('products', my_price=case)
+# # db.celebrities.objects.annotate('products', my_price=case)
 
-# # db.objects.annotate('products', Count('price'))
-# # db.objects.annotate('products', count_price=Count('price'))
-# # db.objects.annotate('products', Count('price'), Count('unit_price'))
+# # db.celebrities.objects.annotate('products', Count('price'))
+# # db.celebrities.objects.annotate('products', count_price=Count('price'))
+# # db.celebrities.objects.annotate('products', Count('price'), Count('unit_price'))
 
 
 class TestAnnotate(LorelieTestCase):
@@ -118,7 +118,7 @@ class TestAnnotate(LorelieTestCase):
         )
 
     def test_annotation_with_mixed_field_types(self):
-        # These kinds of mixed expressions should not be able 
+        # These kinds of mixed expressions should not be able
         # to be resolved and therefore be stringified
         combined = Value(F('name') + 'a', output_field=CharField)
         qs = self.table.objects.annotate(mixed=combined)

@@ -1,5 +1,6 @@
+import unittest
 from lorelie.expressions import (CombinedExpression, F, NegatedExpression, Q,
-                                 Value)
+                                 Value, When, Case)
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -142,38 +143,34 @@ class TestCombinedExpression(LorelieTestCase):
         print(c.as_sql(self.create_connection()))
 
 
-# class TestWhen(unittest.TestCase):
-#     def create_backend(self):
-#         return SQLiteBackend()
+class TestWhen(LorelieTestCase):
+    def test_structure(self):
+        instance = When(Q(name='Kendall'), 'Kylie')
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(sql, "when name='Kendall' then 'Kylie'")
 
-#     def test_structure(self):
-#         instance = When('firstname=Kendall', 'kendall')
-#         sql = instance.as_sql(self.create_backend())
-#         self.assertRegex(
-#             sql,
-#             r"^when\sfirstname\=\'Kendall\'\sthen\s\'kendall\'$"
-#         )
+    def test_with_string(self):
+        instance = When('name=Kendall', then_case='Kylie')
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(sql, "when name='Kendall' then 'Kylie'")
 
 
-# class TestCase(unittest.TestCase):
-#     def create_backend(self):
-#         return SQLiteBackend()
+class TestCase(LorelieTestCase):
+    @unittest.expectedFailure
+    def test_no_alias_name(self):
+        condition = When('firstname=Kendall', 'kendall')
+        case = Case(condition)
+        case.as_sql(self.create_connection())
 
-#     @unittest.expectedFailure
-#     def test_no_alias_name(self):
-#         condition = When('firstname=Kendall', 'kendall')
-#         case = Case(condition)
-#         case.as_sql(self.create_backend())
+    def test_structure(self):
+        condition = When('firstname=Kendall', 'Kylie')
+        case = Case(condition, default='Aurélie')
+        case.alias_field_name = 'firstname_alias'
 
-#     def test_structure(self):
-#         condition = When('firstname=Kendall', 'Kylie')
-#         case = Case(condition, default='Aurélie')
-#         case.alias_field_name = 'firstname_alias'
-
-#         self.assertEqual(
-#             case.as_sql(self.create_backend()),
-#             "case when firstname='Kendall' then 'Kylie' else 'Aurélie' end firstname_alias"
-#         )
+        self.assertEqual(
+            case.as_sql(self.create_connection()),
+            "case when firstname='Kendall' then 'Kylie' else 'Aurélie' end firstname_alias"
+        )
 
 
 class TestFFunction(LorelieTestCase):

@@ -1,8 +1,8 @@
-from typing import Any, Callable, List, Literal, TypedDict, Unpack, override
+from typing import Any, Callable, List, Literal, Optional, TypedDict, Unpack, override
 
 from lorelie.database.base import Database, RelationshipMap
 from lorelie.fields.base import Field
-
+from lorelie.tables import Table
 
 class FieldOptions(TypedDict):
     null: bool
@@ -34,17 +34,18 @@ class ForeignKeyActions:
 
 
 class BaseRelationshipField(Field):
+    table: Table = ...
     database: Database = ...
     related_name: str = ...
     relationship_map: RelationshipMap = ...
     is_relationship_field: bool = ...
     relationship_field_params: List[str] = ...
+    reverse: bool = ...
 
     def __init__(
         self,
-        relationship_map: RelationshipMap = ...,
-        related_name: str = ...,
-        reverse: bool = ...,
+        related_name: Optional[str] = ...,
+        reverse: Optional[bool] = ...,
         **kwargs: Unpack[FieldOptions]
     ) -> None: ...
 
@@ -56,8 +57,10 @@ class ForeignKeyField(BaseRelationshipField):
     on_delete: ForeignKeyAction = ...
 
     def __init__(
-        self, 
-        on_delete: ForeignKeyAction = ...,
+        self,
+        table: Table,
+        name: str,
+        on_delete: Optional[ForeignKeyAction] = ...,
         **kwargs
     ) -> None: ...
 

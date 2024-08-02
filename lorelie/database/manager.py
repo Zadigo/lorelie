@@ -6,7 +6,7 @@ from dataclasses import is_dataclass
 from asgiref.sync import sync_to_async
 
 from lorelie.database.functions.aggregation import Count
-from lorelie.database.nodes import (InsertNode, IntersectNode, OrderByNode, SelectNode,
+from lorelie.database.nodes import (InsertNode, IntersectNode, JoinNode, OrderByNode, SelectNode,
                                     UpdateNode, WhereNode)
 from lorelie.exceptions import (FieldExistsError, MigrationsExistsError,
                                 TableExistsError)
@@ -36,10 +36,8 @@ class DatabaseManager:
         return self
 
     @classmethod
-    def as_manager(cls, table_map={}, database=None):
+    def as_manager(cls):
         instance = cls()
-        instance.table_map = table_map
-        instance.database = database
         instance.auto_created = False
         return instance
 
@@ -874,13 +872,6 @@ class ForeignTablesManager:
         self.relationship_map = relationship_map
         self.left_table = relationship_map.left_table
         self.right_table = relationship_map.right_table
-
-        if not self.right_table.is_foreign_key_table:
-            raise ValueError(
-                "Trying to access a table which has no "
-                "foreign key relationship with the related "
-                f"table: {self.left_table} -> {self.right_table}"
-            )
         self.current_row = None
 
     def __repr__(self):
@@ -913,11 +904,14 @@ class ForeignTablesManager:
     #     else:
     #         return partial(method, table=self.right_table.name)
 
-    # def all(self):
-    #     select_node = SelectNode(self.right_table)
-    #     query = Query(table=self.right_table)
-    #     query.add_sql_node(select_node)
-    #     return QuerySet(query)
+    def all(self):
+        select_node = SelectNode(self.right_table)
+        join_node = JoinNode(self.left_table, self.relationship_map)
+
+        query = self.right_table.query_class(table=self.right_table)
+        query.add_sql_nodes([select_node, join_node])
+        
+        return QuerySet(query)
 
     # def last(self):
     #     select_node = SelectNode(self.right_table)

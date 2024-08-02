@@ -1,12 +1,120 @@
+import dataclasses
 import re
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.database.indexes import Index
+from lorelie.database.manager import ForeignTablesManager
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
 from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
 from lorelie.queries import Query
+
+
+@dataclasses.dataclass
+class RelationshipMap:
+    left_table: type
+    right_table: type
+    junction_table: type = None
+    relationship_type: str = dataclasses.field(default='foreign')
+    can_be_validated: bool = False
+    error_message: str = None
+
+    def __post_init__(self):
+        accepted_types = ['foreign', 'one', 'many']
+        if self.relationship_type not in accepted_types:
+            self.error_message = (
+                f"The relationship type is "
+                "not valid: {self.relationship_type}"
+            )
+
+        # If both tables are exactly the same
+        # in name and fields, this cannot be
+        # a valid relationship
+        if self.left_table == self.right_table:
+            self.error_message = (
+                "Cannot create a relationship between "
+                f"two same tables: {self.left_table}, {self.right_table}"
+            )
+
+        if self.error_message is None:
+            self.can_be_validated = True
+
+    def __repr__(self):
+        relationship = '/'
+        template = '<RelationshipMap[{value}]>'
+        if self.relationship_type == 'foreign':
+            relationship = f"{self.left_table.name} -> {self.right_table.name}"
+        return template.format_map({'value': relationship})
+
+    @property
+    def relationship_name(self):
+        """Creates a default relationship name by using
+        the respective name of each table"""
+        if self.left_table is not None and self.right_table is not None:
+            left_table_name = getattr(self.left_table, 'name')
+            right_table_name = getattr(self.right_table, 'name')
+            return f'{left_table_name}_{right_table_name}'
+        return None
+
+    @property
+    def forward_field_name(self):
+        # db.objects.first().followers.all()
+        return getattr(self.left_table, 'name')
+
+    @property
+    def backward_field_name(self):
+        # db.objects.first().names_set.all()
+        name = getattr(self.right_table, 'name')
+        return f'{name}_set'
+
+    @property
+    def foreign_backward_related_field_name(self):
+        """Returns the database field that will
+        relate the right table to the ID field
+        of the left table so if we have tables
+        A (fields name) and B (fields age), then
+        the age_id which is the backward related
+        field name will be the name of the field
+        created in A: `age_id <- id`"""
+        name = getattr(self.right_table, 'name')
+        return f'{name}_id'
+
+    @property
+    def foreign_forward_related_field_name(self):
+        """Returns the database field that will
+        relate the right table to the ID field
+        of the left table so if we have tables
+        A (fields name) and B (fields age), then
+        the age_id which is the backward related
+        field name will be the name of the field
+        created in A: `id -> age_id`"""
+        name = getattr(self.left_table, 'name')
+        return f'{name}_id'
+
+    def get_relationship_condition(self, table):
+        tables = (self.right_table, self.left_table)
+        if table not in tables:
+            raise ValueError(
+                "Cannot create conditions for none "
+                "existing tables"
+            )
+
+        selected_table = list(filter(lambda x: table == x, tables))
+        other_table = list(filter(lambda x: table != x, tables))
+
+        lhv = f"{selected_table[-1].name}.id"
+        rhv = f"{
+            other_table[-1].name}.{self.foreign_forward_related_field_name}"
+
+        return lhv, rhv
+
+    def creates_relationship(self, table):
+        """The relationship is created from left
+        to right. This function allows us to determine
+        if a table can create a relationship if it matches
+        the left table registed in this map"""
+        return table == self.left_table
 
 
 class BaseTable(type):
@@ -130,6 +238,8 @@ class Table(AbstractTable):
         self.table_constraints = constraints
         self.field_constraints = {}
         self.is_foreign_key_table = False
+        self.relationship_maps = {}
+        self.relationships = {}
         # The str_field is the name of the
         # field to be used for representing
         # the column in the BaseRow
@@ -166,6 +276,9 @@ class Table(AbstractTable):
 
             self.field_types[field.name] = field.field_type
 
+            if getattr(field, 'is_relationship_field', False):
+                continue
+
             field.prepare(self)
             # If the user uses the same keys multiple
             # times, leave the error for him to resolve
@@ -190,6 +303,30 @@ class Table(AbstractTable):
             if not isinstance(index, Index):
                 raise ValueError(f'{index} should be an instance of Index')
             index.prepare(self)
+
+        # Once all the basic fields were prepared,
+        # prepare the relationship fields. The reason
+        # we do it last is because some items require
+        # other parts of the table to be prepared
+        # before continuing
+        for field in fields:
+            if getattr(field, 'is_relationship_field', False):
+                if field.field_python_name == 'ManyToManyField':
+                    continue
+                else:
+                    relationship_map = RelationshipMap(
+                        field.foreign_table, 
+                        self
+                    )
+
+                field.relationship_map = relationship_map
+                self.relationship_maps[field.name] = relationship_map
+
+                manager = ForeignTablesManager(relationship_map)
+                self.relationships[field.name] = manager
+
+            field.prepare(self)
+            self.fields_map[field.name] = field
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
@@ -239,6 +376,10 @@ class Table(AbstractTable):
         unique_types = set(seen_types)
 
         return len(unique_types) > 1
+
+    @property
+    def has_relationships(self):
+        return len(self.relationship_maps.keys()) > 0
 
     def _add_field(self, field_name, field):
         """Internala function to add a field on the
@@ -318,7 +459,7 @@ class Table(AbstractTable):
         for field in self.fields_map.values():
             yield field.field_parameters()
 
-            if field.is_relationship_field:
+            if getattr(field, 'is_relationship_field', False):
                 yield field.relationship_field_params
 
     def prepare(self, database):
@@ -333,8 +474,8 @@ class Table(AbstractTable):
             for params in field_params
         ]
 
-        if database.has_relationships:
-            for _, manager in database.relationships.items():
+        if self.has_relationships:
+            for _, manager in self.relationships.items():
                 if not manager.relationship_map.can_be_validated:
                     raise ValueError(manager.relationship_map.error_message)
 

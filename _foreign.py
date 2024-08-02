@@ -1,22 +1,20 @@
 from lorelie.database.base import Database
 from lorelie.fields.base import CharField, IntegerField
+from lorelie.fields.relationships import ForeignKeyActions, ForeignKeyField
 from lorelie.tables import Table
 
-table1 = Table('names', fields=[
+table1 = Table('celebrities', fields=[
     CharField('firstname')
 ])
 
-table2 = Table('ages', fields=[
-    IntegerField('age')
+table2 = Table('pictures', fields=[
+    ForeignKeyField(table1, 'r_pictures', on_delete=ForeignKeyActions.CASCADE)
 ])
 
 db = Database(table1, table2)
-db.foreign_key(
-    table1,
-    table2,
-    related_name='custom_name'
-)
 db.migrate()
+
+
 
 # names__age__eq = 1
 # names__eq = 1

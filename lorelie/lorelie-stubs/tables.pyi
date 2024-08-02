@@ -8,6 +8,38 @@ from lorelie.database.indexes import Index
 from lorelie.fields.base import Field
 from lorelie.queries import Query
 
+
+@dataclasses.dataclass
+class RelationshipMap:
+    left_table: Table
+    right_table: Table
+    junction_table: Optional[Table] = None
+    relationship_type: Literal['foreign'] = 'foreign'
+    can_be_validated: bool = ...
+    error_message: str = ...
+
+    def __post_init__(self) -> None: ...
+    def __repr__(self) -> str: ...
+
+    @property
+    def relationship_name(self) -> Union[str, None]: ...
+
+    @property
+    def forward_field_name(self) -> str: ...
+
+    @property
+    def backward_field_name(self) -> str: ...
+
+    @property
+    def foreign_backward_related_field_name(self) -> str: ...
+
+    @property
+    def foreign_forward_related_field_name(self) -> str: ...
+
+    def get_relationship_condition(self, table: str) -> tuple[str, str]: ...
+    def creates_relationship(self, table: Table) -> bool: ...
+
+
 class BaseTable(type):
     def __new__(
         cls, name: str,
@@ -97,6 +129,9 @@ class Table(AbstractTable):
 
     @staticmethod
     def compare_field_types(*fields: Field) -> bool: ...
+
+    @property
+    def has_relationships(self) -> bool: ...
 
     def _add_field(self, field_name: str, field: Field) -> list[str]: ...
 

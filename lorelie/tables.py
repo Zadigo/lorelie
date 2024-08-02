@@ -142,7 +142,6 @@ class AbstractTable(metaclass=BaseTable):
         self.backend = None
         self.is_prepared = False
         self.field_types = OrderedDict()
-        self.database = None
 
     def __hash__(self):
         return hash((self.name, self.verbose_name, *self.field_names))
@@ -464,12 +463,16 @@ class Table(AbstractTable):
             if getattr(field, 'is_relationship_field', False):
                 yield field.relationship_field_params
 
-    def prepare(self, database):
+    def prepare(self, database, skip_creation=False):
         """Prepares the table with additional parameters, 
         gets all the field parameters to be used in order to
         create the current table and then creates the create SQL
         statement that will then be used to creates the
         different tables in the database using the database"""
+        if skip_creation:
+            self.attached_to_database = database
+            return True
+
         field_params = self.build_all_field_parameters()
         field_params = [
             self.backend.simple_join(params)

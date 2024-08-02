@@ -211,6 +211,12 @@ class Migrations:
                 table = table_instances.get(table_name, None)
                 if table is None:
                     continue
+                
+                # By security, skip any tables that would
+                # overrun the previous check for existing
+                # tables to not be created
+                if table_name in database_tables:
+                    continue
 
                 # This is the specific section
                 # that actually creates the table
@@ -247,6 +253,12 @@ class Migrations:
             if table_instance is None:
                 continue
 
+            # If the tables already exist, we
+            # still need to have them prepared
+            # by attaching the database to them
+            # otherwise we might get errors when
+            # trying to run operations later on
+            table_instance.prepare(self.database, skip_creation=True)
             self.check_fields(table_instance, backend)
 
         database_indexes = backend.list_database_indexes()
@@ -299,14 +311,25 @@ class Migrations:
         database_table_columns = backend.list_table_columns(table)
 
         columns_to_create = set()
-        for field_name in table.fields_map.keys():
-            if field_name not in database_table_columns:
-                columns_to_create.add(field_name)
+        for name, field in table.fields_map.items():
+            # Relationship fields are different and
+            # require checking the related name as
+            # opposed to the field name
+            if getattr(field, 'is_relationship_field', False):
+                if field.related_name not in database_table_columns:
+                    columns_to_create.add(field.related_name)
+                continue
+
+            if name not in database_table_columns:
+                columns_to_create.add(name)
 
         # TODO: Drop columns that were dropped in the database
 
         self.schemas[table.name].fields = list(
-            map(lambda x: x['name'], database_table_columns)
+            map(
+                lambda x: x['name'], 
+                    database_table_columns
+            )
         )
         backend.create_table_fields(table, columns_to_create)
 

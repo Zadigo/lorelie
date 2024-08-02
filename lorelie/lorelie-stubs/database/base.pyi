@@ -8,7 +8,7 @@ from lorelie.backends import BaseRow, SQLiteBackend
 from lorelie.database.manager import ForeignTablesManager
 from lorelie.database.migrations import Migrations
 from lorelie.queries import Query, QuerySet
-from lorelie.tables import Table
+from lorelie.tables import RelationshipMap, Table
 
 TableType = TypeVar('TableType', bound=Table)
 
@@ -63,50 +63,13 @@ class Database:
 
     def _add_table(self, table: Table) -> None: ...
 
-    def _prepare_relationship_map(
-        right_table: Table,
-        left_table: Table
-    ) -> RelationshipMap: ...
-
     def get_table(self, table_name: str) -> Table: ...
     def make_migrations(self) -> None: ...
     def migrate(self) -> None: ...
     def simple_load(self) -> None: ...
-
-    # TODO: Remove this line
-    def create_view(
-        self,
-        name: str,
-        queryset: QuerySet,
-        temporary: bool = ...
-    ) -> None: ...
 
     def register_trigger(
         self,
         trigger: str,
         table: Optional[Table] = ...,
     ) -> Callable[[Callable[..., None]], T]: ...
-
-    def foreign_key(
-        self,
-        name: str,
-        left_table: TableType,
-        right_table: TableType,
-        on_delete: str = ...
-    ) -> None: ...
-
-    def many_to_many(
-        self,
-        left_table: Table,
-        right_table: Table,
-        primary_key: Optional[bool] = True,
-        related_name: Optional[str] = ...
-    ) -> None: ...
-
-    def one_to_one_key(
-        self,
-        left_table: Table,
-        right_table: Table,
-        on_delete,
-        related_name: Optional[str] = ...
-    ) -> None: ...

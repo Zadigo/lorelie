@@ -192,7 +192,7 @@ class AbstractTable(metaclass=BaseTable):
             # TODO: Allow creation with id field
             if field == 'rowid' or field == 'id':
                 continue
-            print(self)
+
             try:
                 field = self.fields_map[field]
             except KeyError:

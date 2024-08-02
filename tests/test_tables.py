@@ -11,6 +11,8 @@ from lorelie.test.testcases import LorelieTestCase
 
 
 class TestTable(LorelieTestCase):
+    maxDiff = None
+
     def test_structure(self):
         table = self.create_table()
         self.assertTrue(table == table)
@@ -89,8 +91,10 @@ class TestTable(LorelieTestCase):
             parameters,
             [
                 ['name', 'text', 'not null'],
-                ['height', 'integer', 'default', 150,
-                    'not null', 'check(height>150)'],
+                ['height', 'integer', 'default', 152,
+                    'not null', 'check(height>150)'
+                 ],
+                ['created_on', 'datetime', 'null'],
                 ['id', 'integer', 'primary key', 'autoincrement', 'not null']
             ]
         )
@@ -122,7 +126,8 @@ class TestTable(LorelieTestCase):
         self.assertListEqual(
             create_table_sql,
             [
-                'create table if not exists celebrities (name text not null, height integer default 150 not null check(height>150), '
+                'create table if not exists celebrities (name text not null, ',
+                'height integer default 152 not null check(height>150), created_on datetime null, '
                 'id integer primary key autoincrement not null)'
             ]
         )
@@ -160,25 +165,25 @@ class TestTable(LorelieTestCase):
 
     def test_database_field_creation_validation(self):
         db = self.create_database(
-            using=self.create_complex_table(), log_queries=True)
+            using=self.create_complex_table(),
+            log_queries=True
+        )
+        table = db.get_table('stars')
 
         with self.assertRaises(sqlite3.IntegrityError):
-            db.celebrities.objects.create('stars', height=145)
+            table.objects.create(height=145)
 
         with self.assertRaises(sqlite3.IntegrityError):
-            db.celebrities.objects.create(
-                'stars', name='Kendall Jenner', height=0)
+            table.objects.create(name='Kendall Jenner', height=0)
 
         with self.assertRaises(ValidationError):
-            db.celebrities.objects.create('stars', name='Taylor Swift')
+            table.objects.create(name='Taylor Swift')
 
         # TODO: Should not_null be False if we have a field
         # with a default value set
-        db.celebrities.objects.create(
-            'stars', name='Lucie Safarova', height=165)
+        table.objects.create(name='Lucie Safarova', height=165)
         with self.assertRaises(sqlite3.IntegrityError):
-            db.celebrities.objects.create(
-                'stars', name='Lucie Safarova', height=165)
+            table.objects.create(name='Lucie Safarova', height=165)
 
     def test_list_contains_table(self):
         table = self.create_table()

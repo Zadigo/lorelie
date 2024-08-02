@@ -4,20 +4,34 @@ from lorelie.fields.relationships import ForeignKeyActions, ForeignKeyField
 from lorelie.tables import Table
 from lorelie import log_queries
 
-table1 = Table('celebrities', fields=[
+table = Table('celebrities', fields=[
     CharField('firstname')
 ])
 
-table2 = Table('pictures', fields=[
-    CharField('url'),
-    ForeignKeyField(table1, 'r_pictures', on_delete=ForeignKeyActions.CASCADE)
+other_table = Table('images', fields=[
+    ForeignKeyField(table, 'other_celebes')
 ])
 
-db = Database(table1, table2, name='foreign_db')
+db = Database(table, other_table, name='my_database')
 db.migrate()
 
-table1.objects.create(firstname='Kendall Jenner')
-table2.objects.create(url='https://example.com/1.jpg')
+qs = other_table.objects.all()
+print(qs)
+
+# table1 = Table('celebrities', fields=[
+#     CharField('firstname')
+# ])
+
+# table2 = Table('pictures', fields=[
+#     CharField('url'),
+#     ForeignKeyField(table1, 'r_pictures', on_delete=ForeignKeyActions.CASCADE)
+# ])
+
+# db = Database(table1, table2, name='foreign_db')
+# db.migrate()
+
+# table1.objects.create(firstname='Kendall Jenner')
+# table2.objects.create(url='https://example.com/1.jpg')
 
 # qs = table2.objects.all()
 # print(qs)

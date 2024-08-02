@@ -277,10 +277,6 @@ class CombinedExpression:
                 self.children.append(operator)
 
     def as_sql(self, backend):
-        # if self.is_math:
-        #     for child in self.children:
-        #         print(child)
-        # else:
         sql_statement = []
         for child in self.children:
             if isinstance(child, (str, int, float)):

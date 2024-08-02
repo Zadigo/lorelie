@@ -31,19 +31,29 @@ class DatabaseManager:
         return f'<{self.__class__.__name__}: {self.database}>'
 
     def __get__(self, instance, cls=None):
-        if not self.table_map:
-            self.table = instance
-            try:
-                self.database = instance.attached_to_database
-                self.table_map = instance.attached_to_database.table_map
-            except Exception as e:
-                raise ExceptionGroup(
-                    e.args[0],
-                    [
-                        MigrationsExistsError()
-                    ]
-                )
-        return self
+        # FIXME: "objects" is on the cls which
+        # means that it's the same object and
+        # therefore keeps the same table in mind
+        # NOTE: Maybe we can create a unique inidivual
+        # manager instance for each table instead of
+        # using a shared global objects instance for 
+        # each table
+        self.table = instance
+
+        try:
+            self.database = instance.attached_to_database
+        except Exception as e:
+            raise ExceptionGroup(
+                e.args[0],
+                [
+                    MigrationsExistsError()
+                ]
+            )
+        else:
+            self.table_map = self.database.table_map
+            self.table.backend.current_table = instance
+        finally:
+            return self
 
     @classmethod
     def as_manager(cls):
@@ -860,7 +870,7 @@ class ForeignTablesManager:
 
         query = self.right_table.query_class(table=self.right_table)
         query.add_sql_nodes([select_node, join_node])
-        
+
         return QuerySet(query)
 
     # def last(self):

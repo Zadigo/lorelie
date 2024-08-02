@@ -137,7 +137,6 @@ class AbstractTable(metaclass=BaseTable):
     # TODO: Remove
     query_class = Query
     backend_class = SQLiteBackend
-    objects = DatabaseManager()
 
     def __init__(self):
         self.backend = None
@@ -194,7 +193,7 @@ class AbstractTable(metaclass=BaseTable):
             # TODO: Allow creation with id field
             if field == 'rowid' or field == 'id':
                 continue
-
+            print(self)
             try:
                 field = self.fields_map[field]
             except KeyError:
@@ -231,6 +230,7 @@ class Table(AbstractTable):
     ... database.objects.create('url', url='http://example.com')
     ... database.objects.all('url')
     """
+    objects = DatabaseManager()
 
     def __init__(self, name, *, fields=[], indexes=[], constraints=[], ordering=[], str_field='id'):
         self.name = self.validate_table_name(name)
@@ -248,11 +248,11 @@ class Table(AbstractTable):
         self.str_field = str_field
 
         self.ordering = set(ordering)
-
-        super().__init__()
         self.fields_map = OrderedDict()
         self.auto_add_fields = set()
         self.auto_update_fields = set()
+
+        super().__init__()
 
         non_authorized_names = ['rowid', 'id']
         for field in fields:

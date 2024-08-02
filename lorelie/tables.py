@@ -5,11 +5,7 @@ from collections import OrderedDict, defaultdict
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.database.indexes import Index
-<<<<<<< HEAD
-from lorelie.database.manager import ForeignTablesManager
-=======
-from lorelie.database.manager import DatabaseManager
->>>>>>> develop
+from lorelie.database.manager import DatabaseManager, ForeignTablesManager
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
 from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
 from lorelie.queries import Query
@@ -321,7 +317,7 @@ class Table(AbstractTable):
                     continue
                 else:
                     relationship_map = RelationshipMap(
-                        field.foreign_table, 
+                        field.foreign_table,
                         self
                     )
 

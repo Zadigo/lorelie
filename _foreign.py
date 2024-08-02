@@ -14,6 +14,7 @@ table2 = Table('pictures', fields=[
 db = Database(table1, table2)
 db.migrate()
 
+table2.objects.all()
 
 # names__age__eq = 1
 # names__eq = 1

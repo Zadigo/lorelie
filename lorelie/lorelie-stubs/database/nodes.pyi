@@ -2,18 +2,18 @@ import dataclasses
 from typing import (Any, Callable, Dict, Literal, Optional, Tuple, Union,
                     override)
 
-from database.base import RelationshipMap
 from expressions import Q
 from tables import Table
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database.functions.base import Functions
 from lorelie.queries import QuerySet
-
+from lorelie.tables import RelationshipMap
 
 @dataclasses.dataclass
 class SelectMap:
     select: type[SelectNode] = None
+    join: type[JoinNode] = None
     where: type[WhereNode] = None
     order_by: type[OrderByNode] = None
     limit: int = None
@@ -25,6 +25,7 @@ class SelectMap:
     @property
     def should_resolve_map(self) -> bool: ...
 
+    def valid_select_node_statement(self, node: BaseNode) -> bool: ...
     def resolve(self, backend) -> list[str]: ...
     def add_ordering(self, other: OrderByNode) -> None: ...
 
@@ -175,6 +176,10 @@ class JoinNode(BaseNode):
 
 class IntersectNode(BaseNode):
     def __init__(self, left_select: str, right_select: str) -> None: ...
+
+
+class InnerJoinNode(BaseNode):
+    def __init__(self, relationship_map: RelationshipMap) -> None: ...
 
 
 class ViewNode(BaseNode):

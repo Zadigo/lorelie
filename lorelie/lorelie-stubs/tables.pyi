@@ -15,6 +15,7 @@ class RelationshipMap:
     left_table: Table
     right_table: Table
     junction_table: Optional[Table] = None
+    relationship_field: Field = None
     relationship_type: Literal['foreign'] = 'foreign'
     can_be_validated: bool = ...
     error_message: str = ...

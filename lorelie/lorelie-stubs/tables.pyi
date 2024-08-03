@@ -1,5 +1,5 @@
 import dataclasses
-from typing import (Any, List, Literal, Optional, OrderedDict, Tuple, Type,
+from typing import (Any, List, Literal, Optional, OrderedDict, Tuple, Type, Union,
                     override)
 
 from lorelie.backends import SQLiteBackend
@@ -40,6 +40,22 @@ class RelationshipMap:
     def get_relationship_condition(self, table: str) -> tuple[str, str]: ...
     def creates_relationship(self, table: Table) -> bool: ...
 
+
+@dataclasses.dataclass
+class Column:
+    field: Field
+    index: int = 1
+    name: str = None
+    relationship_map: RelationshipMap = None
+
+    def __post_init__(self) -> None: ...
+    def __eq__(self, item: Column) -> bool: ...
+    def __hash__(self) -> int: ...
+
+    @property
+    def is_foreign_column(self) -> bool: ...
+    
+    def copy(self) -> Column: ...
 
 class BaseTable(type):
     def __new__(
@@ -107,6 +123,7 @@ class Table(AbstractTable):
     query: type[Query] = ...
     backend_class = type[SQLiteBackend] = ...
     objects: DatabaseManager = ...
+    columns: set[Column] = ...
 
     def __init__(
         self,

@@ -1,6 +1,6 @@
 import dataclasses
 import re
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
@@ -13,9 +13,14 @@ from lorelie.queries import Query
 
 @dataclasses.dataclass
 class RelationshipMap:
+    """This map reunites all the components
+    that inform on the different elements that
+    create a foreign relationship in the database"""
+
     left_table: type
     right_table: type
     junction_table: type = None
+    relationship_field: Field = None
     relationship_type: str = dataclasses.field(default='foreign')
     can_be_validated: bool = False
     error_message: str = None
@@ -60,13 +65,12 @@ class RelationshipMap:
     @property
     def forward_field_name(self):
         # db.objects.first().followers.all()
-        return getattr(self.left_table, 'name')
+        return self.relationship_field.name
 
     @property
     def backward_field_name(self):
         # db.objects.first().names_set.all()
-        name = getattr(self.right_table, 'name')
-        return f'{name}_set'
+        return f'{self.relationship_field.name}_set'
 
     @property
     def foreign_backward_related_field_name(self):
@@ -115,6 +119,38 @@ class RelationshipMap:
         if a table can create a relationship if it matches
         the left table registed in this map"""
         return table == self.left_table
+
+
+@dataclasses.dataclass
+class Column:
+    field: Field
+    index: int = 1
+    name: str = None
+    relationship_map: RelationshipMap = None
+
+    def __post_init__(self):
+        if self.name is None:
+            self.name = self.field.name
+
+    def __eq__(self, item):
+        if not isinstance(item, Column):
+            return NotImplemented
+        return item.name == self.name
+
+    def __hash__(self):
+        return hash((self.name, self.index))
+    
+    @property
+    def is_foreign_column(self):
+        return self.relationship_map is not None
+
+    def copy(self):
+        new_column  = self.__class__(
+            self.name, 
+            self.field, 
+            relationship_map=self.relationship_map
+        )
+        return new_column
 
 
 class BaseTable(type):
@@ -226,8 +262,8 @@ class Table(AbstractTable):
     ... database = Database('my_database', table)
     ... database.make_migrations()
     ... database.migrate()
-    ... database.objects.create('url', url='http://example.com')
-    ... database.objects.all('url')
+    ... table.objects.create('url', url='http://example.com')
+    ... table.objects.all('url')
     """
     objects = DatabaseManager()
 
@@ -250,11 +286,12 @@ class Table(AbstractTable):
         self.fields_map = OrderedDict()
         self.auto_add_fields = set()
         self.auto_update_fields = set()
+        self.columns = set()
 
         super().__init__()
 
         non_authorized_names = ['rowid', 'id']
-        for field in fields:
+        for i, field in enumerate(fields):
             if not hasattr(field, 'prepare'):
                 raise ValueError(f"{field} should be an instance of Field")
 
@@ -310,24 +347,39 @@ class Table(AbstractTable):
         # we do it last is because some items require
         # other parts of the table to be prepared
         # before continuing
-        for field in fields:
+        for i, field in enumerate(fields):
+            column = Column(field, index=i)
+
             if getattr(field, 'is_relationship_field', False):
+                params = {
+                    'left_table': field.foreign_table, 
+                    'right_table': self, 
+                    'relationship_field': field
+                }
+
                 if field.field_python_name == 'ManyToManyField':
                     continue
-                else:
-                    relationship_map = RelationshipMap(
-                        field.foreign_table,
-                        self
-                    )
+                
+                # TODO: Simplify this whole section
 
+                relationship_map = RelationshipMap(**params)
+                column.relationship_map = relationship_map
+                # TODO: Unify this on a single column element
                 field.relationship_map = relationship_map
                 self.relationship_maps[field.name] = relationship_map
 
                 manager = ForeignTablesManager(relationship_map)
-                self.relationships[field.name] = manager
+                # left_table.field.manager <-> right_table.field_set.manager
+                self.relationships[relationship_map.forward_field_name] = manager
+                field.foreign_table.relationships[relationship_map.backward_field_name] = manager
 
-            field.prepare(self)
-            self.fields_map[field.name] = field
+                # setattr(self, relationship_map.forward_field_name, manager)
+                # setattr(field.foreign_table, relationship_map.backward_field_name, manager)
+
+                field.prepare(self)
+                self.fields_map[field.name] = field
+            
+            self.columns.add(column)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'

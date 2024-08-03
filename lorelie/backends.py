@@ -15,7 +15,6 @@ from lorelie.database.functions.aggregation import (CoefficientOfVariation,
                                                     MeanAbsoluteDifference,
                                                     StDev, Variance)
 from lorelie.database.functions.text import MD5Hash, SHA256Hash
-from lorelie.database.manager import ForeignTablesManager
 from lorelie.database.nodes import (DeleteNode, SelectNode, UpdateNode,
                                     WhereNode)
 from lorelie.exceptions import ConnectionExistsError
@@ -180,15 +179,12 @@ class BaseRow:
         return value in self._cached_data.values()
 
     def __getattr__(self, key):
-        if key.endswith('_rel'):
-            backend = self.__dict__['_backend']
-            right_table_name, _ = key.split('_')
-            manager = ForeignTablesManager(
-                right_table_name,
-                backend.current_table
-            )
-            setattr(manager, 'current_row', self)
-            return manager
+        backend = self.__dict__['_backend']
+        database = getattr(backend, 'database_instance', None)
+        if database is not None:
+            table = database.get_table(self.__dict__['linked_to_table'])
+            if key in table.relationships:
+                return table.relationships[key]
         return key
 
     def save(self):

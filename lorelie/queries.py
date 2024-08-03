@@ -1,10 +1,8 @@
-import datetime
 import sqlite3
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
 
 from lorelie import log_queries, lorelie_logger
-from lorelie.database.functions.aggregation import Count
 from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
                                     SelectNode, WhereNode)
 
@@ -338,7 +336,7 @@ class QuerySet:
         self.load_cache()
         try:
             return self.result_cache[index]
-        except KeyError:
+        except (KeyError, IndexError):
             return None
 
     def __iter__(self):

@@ -25,9 +25,10 @@ from lorelie.expressions import CombinedExpression, Q
 class SelectMap:
     """A map that resolves the correct
     positions for the different parameters
-    for the select sql statemment"""
+    for the select sql statement"""
 
     select: type = None
+    join: type = None
     where: type = None
     order_by: type = None
     limit: int = None
@@ -44,6 +45,9 @@ class SelectMap:
     def resolve(self, backend):
         nodes = []
         nodes.extend(self.select.as_sql(backend))
+
+        if self.join is not None:
+            nodes.extend(self.join.as_sql(backend))
 
         if self.where is not None:
             nodes.extend(self.where.as_sql(backend))
@@ -523,7 +527,7 @@ class JoinNode(BaseNode):
 
         join_sql = self.template_sql.format_map({
             'join_type': self.join_type,
-            'table': self.table,
+            'table': self.table.name,
             'condition': condition
         })
         return [join_sql]

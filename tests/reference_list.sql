@@ -104,7 +104,7 @@ values("Kendall", 0);
 
 -- followers__id=1
 select *
-from celebrities
-inner join followers on celebrities.id = followers.celebrity_id
-where celebrities.id = 1
-order by followers.total_count desc
+from celebrity
+inner join follower on celebrity.id = follower.celebrity_id
+where celebrity.id = 1
+order by follower.id desc

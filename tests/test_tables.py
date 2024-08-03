@@ -2,6 +2,7 @@ import sqlite3
 
 from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
+from lorelie.database.manager import ForeignTablesManager
 from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
                                 ImproperlyConfiguredError, ValidationError)
 from lorelie.expressions import Q
@@ -197,11 +198,23 @@ class TestTable(LorelieTestCase):
         t1 = db.get_table('celebrities')
         t2 = db.get_table('followers')
 
+        # We can create on both tables
         t1.objects.create(name='Kendall', age=25)
-        t2.objects.create(number_of_follower=1000)
+        t2.objects.create(name='Julie Margot')
 
+        # We can query both tables
         qs1 = t1.objects.all()
         qs2 = t2.objects.all()
 
         self.assertTrue(qs1.exists())
         self.assertTrue(qs2.exists())
+
+        celebrity = qs1[0]
+        self.assertIsInstance(celebrity.celebrity_set, ForeignTablesManager)
+
+        follower = qs1[0]
+        self.assertIsInstance(follower.celebrity, ForeignTablesManager)
+
+        # We can expand the foreign field
+        # t1.objects.filter(celebrities__number_of_followers=1000)
+

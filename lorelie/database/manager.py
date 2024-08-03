@@ -7,10 +7,10 @@ from asgiref.sync import sync_to_async
 
 from lorelie.database.functions.aggregation import Count
 from lorelie.database.functions.dates import Extract
-from lorelie.database.nodes import (InsertNode, IntersectNode, OrderByNode,
+from lorelie.database.nodes import (InsertNode, IntersectNode, JoinNode, OrderByNode,
                                     SelectNode, UpdateNode, WhereNode)
 from lorelie.exceptions import FieldExistsError, MigrationsExistsError
-from lorelie.queries import QuerySet, ValuesIterable
+from lorelie.queries import QuerySet, ValuesIterable, Query
 
 
 class DatabaseManager:
@@ -830,9 +830,6 @@ class ForeignTablesManager:
     def __init__(self, relationship_map, reverse=False):
         self.reverse = reverse
         self.relationship_map = relationship_map
-        self.left_table = relationship_map.left_table
-        self.right_table = relationship_map.right_table
-        self.current_row = None
 
     def __repr__(self):
         direction = '->'
@@ -840,79 +837,13 @@ class ForeignTablesManager:
             direction = '<-'
         return f'<{self.__class__.__name__} [from {direction} to]>'
 
-    # def __getattribute__(self, name):
-    #     manager = DatabaseManager.as_manager()
-    #     if hasattr(manager, name):
-    #         func = getattr(manager, name)
-    #         if func is None:
-    #             raise AttributeError()
-    #         return func
-    #     return super().__getattribute__(name)
-
-    # def __getattr__(self, name):
-    #     methods = {}
-    #     for name, value in self.manager.__dict__:
-    #         if value.startswith('__'):
-    #             continue
-
-    #         if inspect.ismethod(value):
-    #             methods[name] = value
-    #     try:
-    #         method = methods[name]
-    #     except KeyError:
-    #         raise AttributeError('Method does not exist')
-    #     else:
-    #         return partial(method, table=self.right_table.name)
-
     def all(self):
-        select_node = SelectNode(self.right_table)
-        join_node = JoinNode(self.left_table, self.relationship_map)
+        if self.reverse:
+            pass
+        
+        select_node = SelectNode(self.relationship_map.left_table)
+        join_node = JoinNode(self.relationship_map.right_table, self.relationship_map)
 
-        query = self.right_table.query_class(table=self.right_table)
+        query = Query(table=self.relationship_map.left_table)
         query.add_sql_nodes([select_node, join_node])
-
         return QuerySet(query)
-
-    # def last(self):
-    #     select_node = SelectNode(self.right_table)
-    #     orderby_node = OrderByNode(self.right_table, '-id')
-
-    #     query = self.right_table.database.query_class(table=self.right_table)
-    #     query.add_sql_nodes([select_node, orderby_node])
-    #     queryset = QuerySet(query)
-    #     return queryset[-0]
-
-    # def create(self, **kwargs):
-    #     fields, values = self.right_table.backend.dict_to_sql(
-    #         kwargs,
-    #         quote_values=False
-    #     )
-    #     values = self.right_table.validate_values(fields, values)
-
-    #     # pre_saved_values = self.pre_save(self.right_table, fields, values)
-
-    #     # TODO: Create functions for datetimes and timezones
-    #     current_date = datetime.datetime.now(tz=pytz.UTC)
-    #     if self.right_table.auto_add_fields:
-    #         for field in self.right_table.auto_add_fields:
-    #             fields.append(field)
-    #             date = self.right_table.backend.quote_value(str(current_date))
-    #             values.append(date)
-
-    #     fields.insert(0, self.relationship.backward_related_field)
-    #     values.insert(0, self.current_row.id)
-
-    #     joined_fields = self.right_table.backend.comma_join(fields)
-    #     joined_values = self.right_table.backend.comma_join(values)
-
-    #     query = self.right_table.database.query_class(table=self.right_table)
-
-    #     insert_sql = self.right_table.backend.INSERT.format(
-    #         table=self.right_table.name,
-    #         fields=joined_fields,
-    #         values=joined_values
-    #     )
-
-    #     query.add_sql_nodes([insert_sql])
-    #     query.run(commit=True)
-    #     return self.last()

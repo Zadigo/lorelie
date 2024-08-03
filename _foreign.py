@@ -4,19 +4,32 @@ from lorelie.fields.relationships import ForeignKeyActions, ForeignKeyField
 from lorelie.tables import Table
 from lorelie import log_queries
 
-table = Table('celebrities', fields=[
-    CharField('firstname')
+celebrity = Table('celebrity', fields=[
+    CharField('name')
 ])
 
-other_table = Table('images', fields=[
-    ForeignKeyField(table, 'other_celebes')
+image = Table('image', fields=[
+    ForeignKeyField(celebrity, 'celebrity_image')
 ])
 
-db = Database(table, other_table, name='my_database')
+db = Database(celebrity, image)
 db.migrate()
 
-qs = other_table.objects.all()
-print(qs)
+item = celebrity.objects.create(name='Addison Rae')
+print(item.celebrity_image_set.all())
+print(log_queries.container)
+
+# qs = image.objects.all()
+# item = qs[0]
+# print(item.celebrity_image)
+
+# qs = other_table.objects.all()
+# print(qs)
+
+# table.objects.create(firstname='Kendall')
+# qs = table.objects.all()
+# item = qs[0]
+# print(item.names)
 
 # table1 = Table('celebrities', fields=[
 #     CharField('firstname')

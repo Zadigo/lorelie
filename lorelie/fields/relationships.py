@@ -37,12 +37,6 @@ class BaseRelationshipField(Field):
         self.related_name = related_name
         self.relationship_map = None
         self.reverse = reverse
-        # By default, the id on the parent table is linked
-        # to a child field on the child table: id -> tablename_id
-        # if reverse:
-        #     name = relationship_map.foreign_backward_related_field_name
-        # else:
-        #     name = relationship_map.foreign_forward_related_field_name
 
         # Instead of using the default tablename_id
         # related name, the user can provide his own

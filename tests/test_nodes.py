@@ -1,9 +1,11 @@
 import unittest
 
-from lorelie.database.nodes import (BaseNode, ComplexNode, DeleteNode, InsertNode, IntersectNode, JoinNode,
-                                    OrderByNode, SelectNode, UpdateNode, ViewNode,
-                                    WhereNode)
+from lorelie.database.nodes import (BaseNode, ComplexNode, DeleteNode,
+                                    InsertNode, IntersectNode, JoinNode,
+                                    OrderByNode, SelectMap, SelectNode,
+                                    UpdateNode, ViewNode, WhereNode)
 from lorelie.expressions import Q
+from lorelie.tables import RelationshipMap
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -298,16 +300,18 @@ class TestDeleteNode(LorelieTestCase):
 
 class TestJoinNode(LorelieTestCase):
     def test_structure(self):
-        # celebrities -> followers
         db = self.create_foreign_key_database()
-        manager = db.relationships['followers']
+        
+        celebrity = db.get_table('celebrity')
+        follower = db.get_table('follower')
 
-        node = JoinNode('followers', manager.relationship_map)
-        result = node.as_sql(db.get_table('celebrities').backend)
-        expected = [
-            'inner join followers on followers.id = celebrities.celebrities_id'
-        ]
-        self.assertListEqual(result, expected)
+        relationship_map = RelationshipMap(celebrity, follower)
+        node = JoinNode(celebrity, relationship_map)
+        result = node.as_sql(self.create_connection())
+        self.assertEqual(
+            result,
+            ['inner join celebrity on celebrity.id = follower.celebrity_id']
+        )
 
 
 class TestComplexNode(LorelieTestCase):
@@ -341,4 +345,21 @@ class TestViewNode(LorelieTestCase):
             [
                 "create view if not exists my_view as select * from celebrities;"
             ]
+        )
+
+
+class TestSelectMap(LorelieTestCase):
+    def test_structure(self):
+        db = self.create_foreign_key_database()
+        
+        t1 = db.get_table('celebrity')
+
+        select_node = SelectNode(t1)
+        orderby_node = OrderByNode(t1, 'id')
+
+        select_map = SelectMap(select_node, order_by=orderby_node)
+        resolution = select_map.resolve(self.create_connection())
+        self.assertListEqual(
+            resolution,
+            ['select * from celebrity', 'order by id asc']
         )

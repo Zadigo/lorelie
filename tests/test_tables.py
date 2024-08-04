@@ -4,10 +4,10 @@ from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
 from lorelie.database.manager import ForeignTablesManager
 from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
-                                ImproperlyConfiguredError, ValidationError)
+                                ValidationError)
 from lorelie.expressions import Q
 from lorelie.fields.base import CharField, Field, IntegerField
-from lorelie.tables import Table
+from lorelie.tables import RelationshipMap, Table
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -218,3 +218,18 @@ class TestTable(LorelieTestCase):
         # We can expand the foreign field
         # t1.objects.filter(celebrities__number_of_followers=1000)
 
+
+class TestRelationshipMap(LorelieTestCase):
+    def test_structure(self):
+        db = self.create_foreign_key_database()
+
+        t1 = db.get_table('celebrity')
+        t2 = db.get_table('follower')
+        
+        relationship_map = RelationshipMap(t1, t2)
+        relationship_map.relationship_field = t2.get_field('celebrity')
+        self.assertEqual(relationship_map.forward_field_name, 'celebrity')
+        self.assertEqual(relationship_map.backward_field_name, 'celebrity_set')
+
+        print(relationship_map.get_relationship_condition(t1))
+        print(relationship_map.get_relationship_condition(t2))

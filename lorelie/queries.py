@@ -118,8 +118,9 @@ class Query:
             if node.node_name == 'order_by':
                 if self.select_map.order_by is not None:
                     node = self.select_map.order_by & node
-            # FIXME: Other nodes are added to the select map?
-            self.select_map[node.node_name] = node
+
+            if self.select_map.valid_select_node_statement(node):
+                self.select_map[node.node_name] = node
 
         self.statements.append(node)
 
@@ -155,16 +156,23 @@ class Query:
 
         sql = self.backend.simple_join(text_statements)
         finalized_sql = self.backend.finalize_sql(sql)
-        is_valid = sqlite3.complete_statement(finalized_sql)
+        is_valid = all([
+            sqlite3.complete_statement(finalized_sql),
+            finalized_sql != ';',
+            finalized_sql != ''
+        ])
         if not is_valid:
-            pass
+            raise sqlite3.Error(
+                f"SQL statement '{finalized_sql}' is "
+                "is not valid and/or is incomplete"
+            )
         self.sql = finalized_sql
 
     def run(self, commit=False):
         """Runs an sql statement and stores the
         return data in the `result_cache`"""
         self.pre_sql_setup()
-        # print(self.sql)
+
         try:
             result = self.backend.connection.execute(self.sql)
         except OperationalError as e:

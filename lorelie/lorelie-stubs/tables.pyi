@@ -1,14 +1,15 @@
 import dataclasses
-from typing import (Any, List, Literal, Optional, OrderedDict, Tuple, Type, Union,
+from typing import (Any, Dict, List, Literal, Optional, OrderedDict, Tuple, Type, Union,
                     override)
 
 from lorelie.backends import SQLiteBackend
-from lorelie.constraints import CheckConstraint
+from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.database.base import Database
 from lorelie.database.indexes import Index
-from lorelie.database.manager import DatabaseManager
+from lorelie.database.manager import BackardForeignTableManager, DatabaseManager, ForwardForeignTableManager
 from lorelie.fields.base import Field
 from lorelie.queries import Query
+
 
 @dataclasses.dataclass
 class RelationshipMap:
@@ -45,9 +46,12 @@ class RelationshipMap:
 @dataclasses.dataclass
 class Column:
     field: Field
+    table: Table
     index: int = 1
     name: str = None
     relationship_map: RelationshipMap = None
+    reverse_relation: bool = False
+    double_relation: bool = False
 
     def __post_init__(self) -> None: ...
     def __eq__(self, item: Column) -> bool: ...
@@ -55,8 +59,9 @@ class Column:
 
     @property
     def is_foreign_column(self) -> bool: ...
-    
+
     def copy(self) -> Column: ...
+
 
 class BaseTable(type):
     def __new__(
@@ -119,7 +124,14 @@ class Table(AbstractTable):
     auto_add_fields: set = ...
     auto_update_fields: set = ...
     field_names: list[str] = ...
-    is_foreign_key_table: bool = Literal[False]
+    is_foreign_key_table: bool = ...
+    relationship_maps: Dict[str, RelationshipMap] = ...
+
+    foreign_managers: Dict[
+        str,
+        Union[ForwardForeignTableManager, BackardForeignTableManager]
+    ] = ...
+    attached_to_database: Database = ...
     # TODO: Remove Query on the class
     query: type[Query] = ...
     backend_class = type[SQLiteBackend] = ...
@@ -132,7 +144,7 @@ class Table(AbstractTable):
         *,
         fields: Optional[list[Field]] = ...,
         indexes: Optional[list[Index]] = ...,
-        constraints: Optional[list[CheckConstraint]] = ...,
+        constraints: Optional[list[CheckConstraint, UniqueConstraint]] = ...,
         ordering: Optional[list[str]] = ...,
         str_field: Optional[str] = ...
     ) -> None: ...

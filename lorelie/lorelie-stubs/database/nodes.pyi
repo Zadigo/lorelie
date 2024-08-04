@@ -179,7 +179,7 @@ class IntersectNode(BaseNode):
 
 
 class InnerJoinNode(BaseNode):
-    def __init__(self, relationship_map: RelationshipMap) -> None: ...
+    def __init__(self, table: Table, relationship_map: RelationshipMap) -> None: ...
 
 
 class ViewNode(BaseNode):

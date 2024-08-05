@@ -41,6 +41,12 @@ class SelectMap:
     @property
     def should_resolve_map(self):
         return self.select is not None
+    
+    def valid_select_node_statement(self, node):
+        """Checks if a nodes name is a valid select
+        element for the select statement"""
+        valid_names = list(map(lambda x: x.name, dataclasses.fields(self)))
+        return node.node_name in valid_names
 
     def resolve(self, backend):
         nodes = []

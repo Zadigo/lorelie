@@ -444,6 +444,17 @@ class Table(AbstractTable):
     def has_relationships(self):
         return len(self.relationship_maps.keys()) > 0
 
+    @lru_cache(maxsize=10)
+    def get_column(self, name):
+        columns = list(filter(lambda x: name == x, self.columns))
+        if len(columns) == 0:
+            raise FieldExistsError(name, self)
+        return columns[-1]
+    
+    @lru_cache(maxsize=10)
+    def get_field(self, name):
+        return self.fields_map[name]
+
     def _add_field(self, field_name, field):
         """Internala function to add a field on the
         database. Returns the newly constructued
@@ -477,10 +488,7 @@ class Table(AbstractTable):
         if not result and raise_exception:
             raise FieldExistsError(name, self)
         return result
-
-    def get_field(self, name):
-        return self.fields_map[name]
-
+    
     def create_table_sql(self, fields):
         unique_constraints = []
         check_constraints = []

@@ -179,15 +179,6 @@ class AbstractTable(metaclass=BaseTable):
         self.is_prepared = False
         self.field_types = OrderedDict()
 
-    def __hash__(self):
-        return hash((self.name, self.verbose_name, *self.field_names))
-
-    def __eq__(self, value):
-        return self.name == value
-
-    def __bool__(self):
-        return self.is_prepared
-
     @staticmethod
     def validate_table_name(name):
         if name == 'objects':
@@ -348,7 +339,7 @@ class Table(AbstractTable):
         # other parts of the table to be prepared
         # before continuing
         for i, field in enumerate(fields):
-            column = Column(field, index=i)
+            column = Column(field, self, index=i + 1)
 
             if getattr(field, 'is_relationship_field', False):
                 params = {

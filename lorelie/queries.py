@@ -201,6 +201,11 @@ class Query:
                     setattr(row, 'linked_to_table', 'sqlite_schema')
                     updated_rows.append(row)
                 self.result_cache = updated_rows
+            else:
+                # Instead of setting the table to which
+                # the row is linked, we do it here
+                for row in self.result_cache:
+                    setattr(row, 'linked_to_table', self.table.name)
 
             self.is_evaluated = True
         finally:

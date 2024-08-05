@@ -500,7 +500,8 @@ class InsertNode(BaseNode):
 
 class JoinNode(BaseNode):
     """Node used to create the SQL statement
-    that allows foreign key joins"""
+    that allows the creation of a foreign key 
+    join on a database"""
 
     template_sql = '{join_type} join {table} on {condition}'
 
@@ -540,6 +541,27 @@ class JoinNode(BaseNode):
             'condition': condition
         })
         return [join_sql]
+    
+
+class InnerJoinNode(BaseNode):
+    template_sql = 'inner join {right_table} on {left_field}={right_field}'
+
+    def __init__(self, table, relationship_map):
+        self.table = table
+        self.relationship_map = relationship_map
+
+    @property
+    def node_name(self):
+        return 'join'
+    
+    def as_sql(self, backend):
+        condition = self.relationship_map.get_relationship_condition(self.table)
+        sql = self.template_sql.format_map({
+            'right_table': self.relationship_map.right_table.name,
+            'left_field': condition[0],
+            'right_field': condition[1]
+        })
+        return [sql]
 
 
 class IntersectNode(BaseNode):

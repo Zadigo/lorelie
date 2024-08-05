@@ -275,7 +275,7 @@ class Table(AbstractTable):
         self.field_constraints = {}
         self.is_foreign_key_table = False
         self.relationship_maps = {}
-        self.relationships = {}
+        self.foreign_managers = {}
         self.attached_to_database = None
         # The str_field is the name of the
         # field to be used for representing
@@ -550,7 +550,7 @@ class Table(AbstractTable):
         ]
 
         if self.has_relationships:
-            for _, manager in self.relationships.items():
+            for _, manager in self.foreign_managers.items():
                 if not manager.relationship_map.can_be_validated:
                     raise ValueError(manager.relationship_map.error_message)
 

@@ -133,9 +133,23 @@ class Column:
             self.name = self.field.name
 
     def __eq__(self, item):
-        if not isinstance(item, Column):
+        if not isinstance(item, (str, Column)):
             return NotImplemented
-        return item.name == self.name
+
+        bits = self.full_column_name.split('.')
+
+        if isinstance(item, str):
+            return any([
+                item == self.name,
+                item == self.full_column_name,
+                item == bits[-1]
+            ])
+
+        return any([
+            item.name == self.name,
+            item.name == self.full_column_name,
+            item == bits[-1]
+        ])
 
     def __hash__(self):
         return hash((self.name, self.index))

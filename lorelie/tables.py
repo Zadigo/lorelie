@@ -131,6 +131,13 @@ class Column:
     def __post_init__(self):
         if self.name is None:
             self.name = self.field.name
+        else:
+            if self.name != self.field.name:
+                raise ValueError(
+                    "Ambiguous names were used for the "
+                    f"field: {self.name} <> {self.field.name}"
+                )
+        self.full_column_name = f'{self.table.name}.{self.field.name}'
 
     def __eq__(self, item):
         if not isinstance(item, (str, Column)):

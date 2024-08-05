@@ -103,8 +103,12 @@ values("Kendall", 0);
 
 
 -- followers__id=1
-select *
-from celebrity
+select * from celebrity
 inner join follower on celebrity.id = follower.celebrity_id
 where celebrity.id = 1
 order by follower.id desc
+
+
+select * from celebrity 
+inner join image on celebrity.id = image.celebrity_id 
+where celebrity.id = 1

@@ -2,12 +2,12 @@ import sqlite3
 
 from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
-from lorelie.database.manager import ForeignTablesManager
+from lorelie.database.manager import BackwardForeignTableManager, ForeignTablesManager, ForwardForeignTableManager
 from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
                                 ValidationError)
 from lorelie.expressions import Q
 from lorelie.fields.base import CharField, Field, IntegerField
-from lorelie.tables import RelationshipMap, Table
+from lorelie.tables import Column, RelationshipMap, Table
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -195,8 +195,8 @@ class TestTable(LorelieTestCase):
     def test_foreign_key_tables(self):
         db = self.create_foreign_key_database()
 
-        t1 = db.get_table('celebrities')
-        t2 = db.get_table('followers')
+        t1 = db.get_table('celebrity')
+        t2 = db.get_table('follower')
 
         # We can create on both tables
         t1.objects.create(name='Kendall', age=25)
@@ -210,10 +210,18 @@ class TestTable(LorelieTestCase):
         self.assertTrue(qs2.exists())
 
         celebrity = qs1[0]
-        self.assertIsInstance(celebrity.celebrity_set, ForeignTablesManager)
+        self.assertEqual(qs1.first().linked_to_table, 'celebrity')
+        self.assertIsInstance(
+            celebrity.celebrity_follower_set,
+            BackwardForeignTableManager
+        )
 
-        follower = qs1[0]
-        self.assertIsInstance(follower.celebrity, ForeignTablesManager)
+        follower = qs2[0]
+        self.assertEqual(qs2.first().linked_to_table, 'follower')
+        self.assertIsInstance(
+            follower.celebrity_follower,
+            ForwardForeignTableManager
+        )
 
         # We can expand the foreign field
         # t1.objects.filter(celebrities__number_of_followers=1000)
@@ -225,7 +233,7 @@ class TestRelationshipMap(LorelieTestCase):
 
         t1 = db.get_table('celebrity')
         t2 = db.get_table('follower')
-        
+
         relationship_map = RelationshipMap(t1, t2)
         relationship_map.relationship_field = t2.get_field('celebrity')
         self.assertEqual(relationship_map.forward_field_name, 'celebrity')
@@ -233,3 +241,12 @@ class TestRelationshipMap(LorelieTestCase):
 
         print(relationship_map.get_relationship_condition(t1))
         print(relationship_map.get_relationship_condition(t2))
+
+
+class TestColumn(LorelieTestCase):
+    def test_stucture(self):
+        table = self.create_table()
+        field = table.get_field('name')
+        column = Column(field, table)
+
+        self.assertEqual('name', column)

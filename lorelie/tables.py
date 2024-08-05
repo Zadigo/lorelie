@@ -368,17 +368,21 @@ class Table(AbstractTable):
                 field.relationship_map = relationship_map
                 self.relationship_maps[field.name] = relationship_map
 
-                manager = ForeignTablesManager(relationship_map)
-                # left_table.field.manager <-> right_table.field_set.manager
-                self.relationships[relationship_map.forward_field_name] = manager
-                field.foreign_table.relationships[relationship_map.backward_field_name] = manager
-
-                # setattr(self, relationship_map.forward_field_name, manager)
-                # setattr(field.foreign_table, relationship_map.backward_field_name, manager)
+                foward_manager = ForwardForeignTableManager.new(
+                    self,
+                    relationship_map
+                )
+                backward_manager = BackwardForeignTableManager.new(
+                    field.foreign_table,
+                    relationship_map
+                )
+                # left_table.field_set.manager <-> right_table.field.manager
+                self.foreign_managers[relationship_map.forward_field_name] = foward_manager
+                field.foreign_table.foreign_managers[relationship_map.backward_field_name] = backward_manager
 
                 field.prepare(self)
                 self.fields_map[field.name] = field
-            
+
             self.columns.add(column)
 
     def __repr__(self):

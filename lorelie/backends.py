@@ -105,8 +105,9 @@ class BaseRow:
         self._cached_data = data
         self._backend = connections.get_last_connection()
 
-        table = getattr(self._backend, 'current_table', None)
-        self.linked_to_table = getattr(table, 'name', None)
+        # table = getattr(self._backend, 'current_table', None)
+        # self.linked_to_table = getattr(table, 'name', None)
+        self.linked_to_table = None
 
         self.updated_fields = {}
         self.pk = data.get('rowid', data.get('id', None))
@@ -183,8 +184,9 @@ class BaseRow:
         database = getattr(backend, 'database_instance', None)
         if database is not None:
             table = database.get_table(self.__dict__['linked_to_table'])
-            if key in table.relationships:
-                return table.relationships[key]
+            if key in table.foreign_managers:
+                return table.foreign_managers[key]
+        # TODO: This might be a problem
         return key
 
     def save(self):

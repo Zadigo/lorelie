@@ -146,19 +146,21 @@ class Column:
         self.full_column_name = f'{self.table.name}.{self.field.name}'
 
     def __eq__(self, item):
-        if not isinstance(item, (str, Column)):
+        if not isinstance(item, (str, Column, Field)):
             return NotImplemented
 
         bits = self.full_column_name.split('.')
 
         if isinstance(item, str):
             return any([
+                item == self.field.name,
                 item == self.name,
                 item == self.full_column_name,
                 item == bits[-1]
             ])
 
         return any([
+            item == self.field,
             item.name == self.name,
             item.name == self.full_column_name,
             item == bits[-1]

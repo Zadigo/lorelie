@@ -131,7 +131,7 @@ class LorelieTestCase(unittest.TestCase):
             'follower',
             fields=[
                 CharField('name'),
-                ForeignKeyField(celebrity, 'celebrity', on_delete=ForeignKeyActions.CASCADE)
+                ForeignKeyField(celebrity, 'celebrity_follower', on_delete=ForeignKeyActions.CASCADE)
             ]
         )
         db = Database(celebrity, follower)

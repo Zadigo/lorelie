@@ -255,6 +255,15 @@ class AbstractTable(metaclass=BaseTable):
                 raise FieldExistsError(field, self)
 
             value = list(values)[i]
+
+            if field.is_foreign_column:
+                if not isinstance(value, BaseRow):
+                    raise ValueError(
+                        f"{value} is expected to be an instance "
+                        f"of BaseRow but got {type(value)}"
+                    )
+                value = str(value.pk)
+
             clean_value = field.to_database(value)
             validated_value = self.backend.quote_value(clean_value)
             validated_values.append(validated_value)

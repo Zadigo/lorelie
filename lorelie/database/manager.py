@@ -7,10 +7,23 @@ from asgiref.sync import sync_to_async
 
 from lorelie.database.functions.aggregation import Count
 from lorelie.database.functions.dates import Extract
-from lorelie.database.nodes import (InsertNode, IntersectNode, JoinNode, OrderByNode,
-                                    SelectNode, UpdateNode, WhereNode)
+from lorelie.database.nodes import (InnerJoinNode, InsertNode, IntersectNode,
+                                    OrderByNode, SelectNode, UpdateNode,
+                                    WhereNode)
 from lorelie.exceptions import FieldExistsError, MigrationsExistsError
-from lorelie.queries import QuerySet, ValuesIterable, Query
+from lorelie.queries import Query, QuerySet, ValuesIterable
+
+
+class ManagerMixin:
+    def get_query(self, nodes, **kwargs):
+        query = Query(**kwargs)
+        if nodes:
+            query.add_sql_nodes(nodes)
+        return query
+
+    def resolve_queryset_from_query(self, nodes, **kwargs):
+        query = self.get_query(nodes, **kwargs)
+        return QuerySet(query)
 
 
 class DatabaseManager:
@@ -36,7 +49,7 @@ class DatabaseManager:
         # therefore keeps the same table in mind
         # NOTE: Maybe we can create a unique inidivual
         # manager instance for each table instead of
-        # using a shared global objects instance for 
+        # using a shared global objects instance for
         # each table
         self.table = instance
 
@@ -823,13 +836,16 @@ class DatabaseManager:
         return await sync_to_async(self.aggregate)(*args, **kwargs)
 
 
-class ForeignTablesManager:
+class ForeignTablesManager(ManagerMixin):
     """This is the main manager used to access/reverse
     access tables linked by a relationship"""
+    reverse = False
 
-    def __init__(self, relationship_map, reverse=False):
-        self.reverse = reverse
+    def __init__(self, relationship_map):
+        self.parent_table = None
+        self.joined_table = None
         self.relationship_map = relationship_map
+        self.row_instance = None
 
     def __repr__(self):
         direction = '->'
@@ -837,13 +853,59 @@ class ForeignTablesManager:
             direction = '<-'
         return f'<{self.__class__.__name__} [from {direction} to]>'
 
-    def all(self):
-        if self.reverse:
-            pass
-        
-        select_node = SelectNode(self.relationship_map.left_table)
-        join_node = JoinNode(self.relationship_map.right_table, self.relationship_map)
+    @classmethod
+    def new(cls, parent_table, relationship_map):
+        instance = cls(relationship_map)
+        instance.parent_table = parent_table
+        instance.joined_table = relationship_map.right_table
+        return instance
 
-        query = Query(table=self.relationship_map.left_table)
-        query.add_sql_nodes([select_node, join_node])
-        return QuerySet(query)
+    def all(self):
+        select_node = SelectNode(self.parent_table)
+        join_node = InnerJoinNode(self.parent_table, self.relationship_map)
+        return self.resolve_queryset_from_query([select_node, join_node], table=self.parent_table)
+
+    def filter(self, *args, **kwargs):
+        select_node = SelectNode(self.parent_table)
+        join_node = InnerJoinNode(self.parent_table, self.relationship_map)
+        where_node = WhereNode(*args, **kwargs)
+        nodes = [select_node, join_node, where_node]
+        return self.resolve_queryset_from_query(nodes, table=self.parent_table)
+        
+
+    # def create(self, **kwargs):
+    #     # kwargs = self._validate_auto_fields(self.table, kwargs)
+    #     # values, kwargs = self.table.validate_values_from_dict(kwargs)
+
+    #     related_table = self.relationship_map.right_table
+
+    #     query = Query(table=related_table)
+    #     kwargs[self.relationship_map.forward_field_name] = self.row_instance.pk
+    #     insert_node = InsertNode(
+    #         related_table,
+    #         insert_values=kwargs,
+    #         returning=related_table.field_names
+    #     )
+
+    #     query.add_sql_node(insert_node)
+    #     return QuerySet(query)[0]
+
+
+class ForwardForeignTableManager(ForeignTablesManager):
+    """A manager that manages the relationship from
+    the parent table to the child table `parent -> child`
+    """
+
+    def __init__(self, relationship_map, **kwargs):
+        super().__init__(relationship_map)
+        self.parent_table = relationship_map.left_table
+
+
+class BackwardForeignTableManager(ForeignTablesManager):
+    """A manager that manages the relationship from
+    the child table to the parent tabel `parent <- child`
+    """
+
+    def __init__(self, relationship_map, **kwargs):
+        super().__init__(relationship_map)
+        self.reverse = True

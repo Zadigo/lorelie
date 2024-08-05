@@ -124,9 +124,11 @@ class RelationshipMap:
 @dataclasses.dataclass
 class Column:
     field: Field
+    table: type
     index: int = 1
     name: str = None
-    relationship_map: RelationshipMap = None
+    full_column_name: str = None
+    double_relation: bool = False
 
     def __post_init__(self):
         if self.name is None:

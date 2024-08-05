@@ -123,6 +123,10 @@ class RelationshipMap:
 
 @dataclasses.dataclass
 class Column:
+    """Represents a column for the SQLite database
+    which also maps the relationship between the `Field`
+    instance on the local table """
+
     field: Field
     table: type
     index: int = 1

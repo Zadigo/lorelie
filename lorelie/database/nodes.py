@@ -74,7 +74,10 @@ class SelectMap:
 
     def add_ordering(self, other):
         if not isinstance(other, OrderByNode):
-            raise ValueError()
+            raise ValueError(
+                f"{other} should be an instance "
+                "of OrderByNode"
+            )
 
         if self.order_by is not None:
             self.order_by = self.order_by & other

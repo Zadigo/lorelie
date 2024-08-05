@@ -9,7 +9,7 @@ from lorelie.backends import BaseRow
 from lorelie.database.base import Database
 from lorelie.database.functions.aggregation import Avg, Count, Sum
 from lorelie.queries import Query, QuerySet, ValuesIterable
-from lorelie.tables import RelationshipMap, Table
+from lorelie.database.tables.base import RelationshipMap, Table
 
 
 class DataclassProtocol(Protocol):

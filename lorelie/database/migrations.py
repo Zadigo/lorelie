@@ -10,7 +10,7 @@ from lorelie.backends import SQLiteBackend, connections
 from lorelie.database.nodes import InsertNode
 from lorelie.fields.base import CharField, DateTimeField, Field, JSONField
 from lorelie.queries import Query
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 
 @dataclass
@@ -129,7 +129,7 @@ class Migrations:
         """Creates a migrations table in the database
         which stores the different configuration for
         the current database"""
-        from lorelie.tables import Table
+        from lorelie.database.tables.base import Table
         table_fields = [
             CharField('name', null=False, unique=True),
             CharField('table_name', null=False),
@@ -148,7 +148,7 @@ class Migrations:
         self.database._add_table(table)
 
     def migrate(self, table_instances):
-        from lorelie.tables import Table
+        from lorelie.database.tables.base import Table
 
         # Safeguard that avoids calling
         # this function in a loop over and

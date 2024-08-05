@@ -5,11 +5,11 @@ from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.database.base import Database
 from lorelie.database.indexes import Index
+from lorelie.database.tables.base import Table
 from lorelie.exceptions import ValidationError
 from lorelie.expressions import Q
 from lorelie.fields.base import (BooleanField, CharField, DateTimeField,
                                  FloatField, IntegerField)
-from lorelie.tables import Table
 from lorelie.fields.relationships import ForeignKeyActions, ForeignKeyField
 
 __all__ = [
@@ -56,6 +56,9 @@ class LorelieTestCase(unittest.TestCase):
     def create_table(self):
         table = Table('celebrities', fields=[
             CharField('name'),
+            IntegerField('age', default=22),
+            CharField('city', default='Los Angeles'),
+            CharField('country', default='USA'),
             IntegerField('height', min_value=150, default=152),
             DateTimeField('created_on', auto_add=True)
         ])

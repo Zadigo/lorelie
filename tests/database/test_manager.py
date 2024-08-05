@@ -1,6 +1,6 @@
 from lorelie.database.manager import DatabaseManager, ForeignTablesManager
 from lorelie.queries import QuerySet
-from lorelie.tables import RelationshipMap
+from lorelie.database.tables.base import RelationshipMap
 from lorelie.test.testcases import LorelieTestCase
 
 

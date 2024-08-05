@@ -7,7 +7,7 @@ from lorelie.database import registry
 from lorelie.database.migrations import Migrations
 from lorelie.exceptions import TableExistsError
 from lorelie.queries import Query
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 
 class Database:

@@ -1,11 +1,15 @@
 import dataclasses
 import re
 from collections import OrderedDict
+from functools import lru_cache
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.database.indexes import Index
-from lorelie.database.manager import DatabaseManager, ForeignTablesManager
+from lorelie.database.manager import (BackwardForeignTableManager,
+                                      DatabaseManager,
+                                      ForwardForeignTableManager)
+from lorelie.database.tables.columns import Column
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
 from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
 from lorelie.queries import Query
@@ -121,67 +125,6 @@ class RelationshipMap:
         return table == self.left_table
 
 
-@dataclasses.dataclass
-class Column:
-    """Represents a column for the SQLite database
-    which also maps the relationship between the `Field`
-    instance on the local table """
-
-    field: Field
-    table: type
-    index: int = 1
-    name: str = None
-    full_column_name: str = None
-    double_relation: bool = False
-
-    def __post_init__(self):
-        if self.name is None:
-            self.name = self.field.name
-        else:
-            if self.name != self.field.name:
-                raise ValueError(
-                    "Ambiguous names were used for the "
-                    f"field: {self.name} <> {self.field.name}"
-                )
-        self.full_column_name = f'{self.table.name}.{self.field.name}'
-
-    def __eq__(self, item):
-        if not isinstance(item, (str, Column, Field)):
-            return NotImplemented
-
-        bits = self.full_column_name.split('.')
-
-        if isinstance(item, str):
-            return any([
-                item == self.field.name,
-                item == self.name,
-                item == self.full_column_name,
-                item == bits[-1]
-            ])
-
-        return any([
-            item == self.field,
-            item.name == self.name,
-            item.name == self.full_column_name,
-            item == bits[-1]
-        ])
-
-    def __hash__(self):
-        return hash((self.name, self.index))
-    
-    @property
-    def is_foreign_column(self):
-        return self.relationship_map is not None
-
-    def copy(self):
-        new_column  = self.__class__(
-            self.name, 
-            self.field, 
-            relationship_map=self.relationship_map
-        )
-        return new_column
-
-
 class BaseTable(type):
     def __new__(cls, name, bases, attrs):
         super_new = super().__new__
@@ -228,22 +171,31 @@ class AbstractTable(metaclass=BaseTable):
             raise ValueError("Table name contains invalid spaces")
         return name.lower()
 
-    def validate_values_from_list(self, values):
+    def prepare_field_names(self, field_names):
+        for field_name in field_names:
+            yield self.get_column(field_name)
+
+    def pre_save_setup_from_list(self, values):
         for value in values:
-            yield self.validate_values_from_dict(value)
+            yield self.pre_save_setup_from_dict(value)
 
-    def validate_values_from_dict(self, values):
+    def pre_save_setup_from_dict(self, values):
         fields, values = self.backend.dict_to_sql(values, quote_values=False)
-        return self.validate_values(fields, values)
+        return self.pre_save_setup(fields, values)
 
-    def validate_values(self, fields, values):
+    def pre_save_setup(self, fields, values):
         """Validate a set of values that the user is 
         trying to insert or update in the database
 
         >>> validate_values(['name'], ['Kendall'])
         ... (["'Kendall'"], {'name': "'Kendall'"})
         """
+        from lorelie.backends import BaseRow
+
         validated_values = []
+        # TODO: We have to able to create data
+        # using the relationship field from another
+        # table
         for i, field in enumerate(fields):
             # TODO: Allow creation with id field
             if field == 'rowid' or field == 'id':
@@ -269,7 +221,21 @@ class AbstractTable(metaclass=BaseTable):
             validated_values.append(validated_value)
 
         validated_dict_values = dict(zip(fields, validated_values))
-        return validated_values, validated_dict_values
+
+        validated_for_relationships = {}
+        if self.relationship_maps:
+            for key, value in validated_dict_values.items():
+                if key in self.relationship_maps:
+                    relationship_map = self.relationship_maps[key]
+                    validated_for_relationships.update({
+                        relationship_map.foreign_forward_related_field_name: value
+                    })
+                    continue
+                validated_for_relationships[key] = value
+        else:
+            validated_for_relationships = validated_dict_values
+
+        return validated_values, validated_for_relationships
 
     def load_current_connection(self):
         from lorelie.backends import connections
@@ -315,7 +281,7 @@ class Table(AbstractTable):
         self.fields_map = OrderedDict()
         self.auto_add_fields = set()
         self.auto_update_fields = set()
-        self.columns = set()
+        # self.columns = set()
 
         super().__init__()
 
@@ -343,10 +309,13 @@ class Table(AbstractTable):
 
             self.field_types[field.name] = field.field_type
 
-            if getattr(field, 'is_relationship_field', False):
+            # We set the relationship fields
+            # differently from the classic fields
+            if field.is_relationship_field:
                 continue
 
             field.prepare(self)
+            field.index = i + 1
             # If the user uses the same keys multiple
             # times, leave the error for him to resolve
             # since this will just override the first
@@ -377,25 +346,24 @@ class Table(AbstractTable):
         # other parts of the table to be prepared
         # before continuing
         for i, field in enumerate(fields):
-            column = Column(field, self, index=i + 1)
+            # column = Column(field, self, index=i + 1)
 
-            if getattr(field, 'is_relationship_field', False):
+            if field.is_relationship_field:
                 params = {
-                    'left_table': field.foreign_table, 
-                    'right_table': self, 
+                    'left_table': field.foreign_table,
+                    'right_table': self,
                     'relationship_field': field
                 }
 
                 if field.field_python_name == 'ManyToManyField':
                     continue
-                
-                # TODO: Simplify this whole section
 
+
+                # TODO: Simplify this whole section
                 relationship_map = RelationshipMap(**params)
-                column.relationship_map = relationship_map
-                # TODO: Unify this on a single column element
-                field.relationship_map = relationship_map
                 self.relationship_maps[field.name] = relationship_map
+
+                field.prepare(self)
 
                 foward_manager = ForwardForeignTableManager.new(
                     self,
@@ -405,14 +373,14 @@ class Table(AbstractTable):
                     field.foreign_table,
                     relationship_map
                 )
+
                 # left_table.field_set.manager <-> right_table.field.manager
                 self.foreign_managers[relationship_map.forward_field_name] = foward_manager
                 field.foreign_table.foreign_managers[relationship_map.backward_field_name] = backward_manager
-
-                field.prepare(self)
                 self.fields_map[field.name] = field
-
-            self.columns.add(column)
+            
+            # column.prepare()
+            # self.columns.add(column)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
@@ -475,10 +443,13 @@ class Table(AbstractTable):
 
     @lru_cache(maxsize=10)
     def get_column(self, name):
-        columns = list(filter(lambda x: name == x, self.columns))
-        if len(columns) == 0:
-            raise FieldExistsError(name, self)
-        return columns[-1]
+        # columns = list(filter(lambda x: name == x, self.columns))
+        # if len(columns) == 0:
+        #     raise FieldExistsError(name, self)
+        # return columns[-1]
+        column = Column(self.get_field(name), self)
+        column.prepare()
+        return column
     
     @lru_cache(maxsize=10)
     def get_field(self, name):
@@ -588,11 +559,12 @@ class Table(AbstractTable):
                     # used for creating the relationship on table
                     continue
 
+        self.attached_to_database = database
+        self.is_prepared = True
+
         joined_fields = self.backend.comma_join(field_params)
         create_sql = self.create_table_sql(joined_fields)
 
         query = self.query_class(table=self)
         query.add_sql_nodes(create_sql)
         query.run(commit=True)
-        self.attached_to_database = database
-        self.is_prepared = True

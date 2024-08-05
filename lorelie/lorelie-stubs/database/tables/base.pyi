@@ -1,3 +1,4 @@
+from collections.abc import Generator
 import dataclasses
 from functools import lru_cache
 from typing import (Any, Dict, List, Literal, Optional, OrderedDict, Tuple,
@@ -12,6 +13,7 @@ from lorelie.database.manager import (BackwardForeignTableManager,
                                       ForwardForeignTableManager)
 from lorelie.fields.base import Field
 from lorelie.queries import Query
+
 
 @dataclasses.dataclass
 class RelationshipMap:
@@ -45,26 +47,6 @@ class RelationshipMap:
     def creates_relationship(self, table: Table) -> bool: ...
 
 
-@dataclasses.dataclass
-class Column:
-    field: Field
-    table: Table
-    index: int = 1
-    name: str = None
-    relationship_map: RelationshipMap = None
-    reverse_relation: bool = False
-    double_relation: bool = False
-
-    def __post_init__(self) -> None: ...
-    def __eq__(self, item: Column) -> bool: ...
-    def __hash__(self) -> int: ...
-
-    @property
-    def is_foreign_column(self) -> bool: ...
-
-    def copy(self) -> Column: ...
-
-
 class BaseTable(type):
     def __new__(
         cls, name: str,
@@ -90,19 +72,24 @@ class AbstractTable(metaclass=BaseTable):
     @staticmethod
     def validate_table_name(name: str) -> str: ...
 
-    def validate_values_from_list(
+    def prepare_field_names(
+        self,
+        field_names: Union[list[str], tuple[str]]
+    ) -> Generator[Column]: ...
+
+    def pre_save_setup_from_list(
         self,
         fields: List[str],
         values: List[Any]
     ) -> List[Tuple[list[str], dict[str, Any]]]: ...
 
-    def validate_values_from_dict(
+    def pre_save_setup_from_dict(
         self,
         fields: List[str],
         values: List[Any]
     ) -> Tuple[list[str], dict[str, Any]]: ...
 
-    def validate_values(
+    def pre_save_setup(
         self,
         fields: List[str],
         values: List[Any]
@@ -139,7 +126,7 @@ class Table(AbstractTable):
     query: type[Query] = ...
     backend_class = type[SQLiteBackend] = ...
     objects: DatabaseManager = ...
-    columns: set[Column] = ...
+    # columns: set[Column] = ...
 
     def __init__(
         self,

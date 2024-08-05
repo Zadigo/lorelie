@@ -150,7 +150,7 @@ class DatabaseManager:
         >>> db.objects.create('celebrities', firstname='Kendall')
         """
         kwargs = self._validate_auto_fields(self.table, kwargs)
-        values, kwargs = self.table.validate_values_from_dict(kwargs)
+        values, kwargs = self.table.pre_save_setup_from_dict(kwargs)
 
         query = self.database.query_class(table=self.table)
         insert_node = InsertNode(
@@ -607,7 +607,7 @@ class DatabaseManager:
                 self.table,
                 create_defaults
             )
-            _, create_defaults = self.table.validate_values_from_dict(
+            _, create_defaults = self.table.pre_save_setup_from_dict(
                 create_defaults
             )
 
@@ -670,7 +670,7 @@ class DatabaseManager:
             # We'll just let the error raise itself.
             create_defaults.update(**kwargs)
 
-        _, create_defaults = self.table.validate_values_from_dict(
+        _, create_defaults = self.table.pre_save_setup_from_dict(
             create_defaults
         )
         ids = list(map(lambda x: x['id'], queryset))
@@ -875,7 +875,7 @@ class ForeignTablesManager(ManagerMixin):
 
     # def create(self, **kwargs):
     #     # kwargs = self._validate_auto_fields(self.table, kwargs)
-    #     # values, kwargs = self.table.validate_values_from_dict(kwargs)
+    #     # values, kwargs = self.table.pre_save_setup_from_dict(kwargs)
 
     #     related_table = self.relationship_map.right_table
 

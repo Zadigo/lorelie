@@ -5,7 +5,7 @@ import pandas
 
 from lorelie.backends import BaseRow, SQLiteBackend
 from lorelie.database.nodes import BaseNode, SelectMap
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 
 class Query:

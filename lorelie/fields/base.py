@@ -31,6 +31,7 @@ class Field:
         self.base_validators = self.base_validators + validators
         self.standard_field_types = ['text', 'integer', 'blob', 'real', 'null']
         self.is_relationship_field = False
+        self.index = 0
         self.base_field_parameters = {
             'primary key': False,
             'null': False,
@@ -206,7 +207,7 @@ class Field:
         return base_field_parameters
 
     def prepare(self, table):
-        from lorelie.tables import Table
+        from lorelie.database.tables.base import Table
         if not isinstance(table, Table):
             raise ValueError(
                 f"{table} should be an "

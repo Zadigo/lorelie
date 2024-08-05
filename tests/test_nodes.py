@@ -1,41 +1,50 @@
+import dataclasses
 import unittest
 
 from lorelie.database.nodes import (BaseNode, ComplexNode, DeleteNode,
                                     InsertNode, IntersectNode, JoinNode,
                                     OrderByNode, SelectMap, SelectNode,
                                     UpdateNode, ViewNode, WhereNode)
+from lorelie.database.tables.columns import Column
 from lorelie.expressions import Q
-from lorelie.tables import RelationshipMap
+from lorelie.database.tables.base import RelationshipMap
 from lorelie.test.testcases import LorelieTestCase
 
 
 class TestBaseNode(LorelieTestCase):
     def test_structure(self):
-        node = BaseNode(self.create_table())
+        node = BaseNode(table=self.create_table())
         self.assertEqual(node.node_name, NotImplemented)
+
+        columns = node.pre_sql_setup(['name'])
+        for column in columns:
+            with self.subTest(column=column):
+                self.assertIsInstance(column, Column)
+                self.assertTrue(dataclasses.is_dataclass(column))
+                self.assertTrue('name', column.name)
 
 
 class TestInsertNode(LorelieTestCase):
     def test_structure(self):
         table = self.create_table()
-        insert_values = {'firstname': 'Kendall'}
+        insert_values = {'name': 'Kendall'}
         node = InsertNode(table, insert_values=insert_values)
         sql = node.as_sql(self.create_connection())
         self.assertListEqual(
             sql,
             [
-                "insert into celebrities (firstname) values('Kendall')",
+                "insert into celebrities (name) values('Kendall')",
                 'returning id'
             ]
         )
 
-        batch_values = [{'firstname': 'Kendall'}, {'firstname': 'Jaime'}]
+        batch_values = [{'name': 'Kendall'}, {'name': 'Jaime'}]
         node = InsertNode(table, batch_values=batch_values)
         sql = node.as_sql(self.create_connection())
         self.assertListEqual(
             sql,
             [
-                "insert into celebrities (firstname) values ('Kendall'), ('Jaime')",
+                "insert into celebrities (name) values ('Kendall'), ('Jaime')",
                 'returning id'
             ]
         )
@@ -301,7 +310,7 @@ class TestDeleteNode(LorelieTestCase):
 class TestJoinNode(LorelieTestCase):
     def test_structure(self):
         db = self.create_foreign_key_database()
-        
+
         celebrity = db.get_table('celebrity')
         follower = db.get_table('follower')
 
@@ -351,7 +360,7 @@ class TestViewNode(LorelieTestCase):
 class TestSelectMap(LorelieTestCase):
     def test_structure(self):
         db = self.create_foreign_key_database()
-        
+
         t1 = db.get_table('celebrity')
 
         select_node = SelectNode(t1)

@@ -2,7 +2,7 @@ from typing import Any, Callable, List, Literal, Optional, TypedDict, Unpack, ov
 
 from lorelie.database.base import Database, RelationshipMap
 from lorelie.fields.base import Field
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 class FieldOptions(TypedDict):
     null: bool

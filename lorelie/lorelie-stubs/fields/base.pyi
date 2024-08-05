@@ -5,7 +5,7 @@ from typing import (Any, Callable, Literal, Tuple, Type, TypedDict, Union,
                     Unpack, override)
 
 from lorelie.constraints import MaxLengthConstraint, MaxValueConstraint, MinValueConstraint
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 
 class FieldOptions(TypedDict):
@@ -20,7 +20,6 @@ class Field:
     python_type: Type[Union[str, bool, list, dict]] = ...
     base_validators: list[Callable[[Union[str, int]], None]]
     default_field_errors: dict[str, str] = ...
-
 
     constraints: list[
         Union[
@@ -41,6 +40,7 @@ class Field:
     max_length: int = ...,
     standard_field_types: list[str] = ...
     is_relationship_field: bool = ...
+    index: int = ...
     base_field_parameters: dict[str, bool] = ...
 
     def __init__(

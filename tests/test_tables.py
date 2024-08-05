@@ -7,7 +7,7 @@ from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
                                 ValidationError)
 from lorelie.expressions import Q
 from lorelie.fields.base import CharField, Field, IntegerField
-from lorelie.tables import Column, RelationshipMap, Table
+from lorelie.database.tables.base import Column, RelationshipMap, Table
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -247,6 +247,7 @@ class TestColumn(LorelieTestCase):
     def test_stucture(self):
         table = self.create_table()
         field = table.get_field('name')
-        column = Column(field, table)
 
+        column = Column(field)
+        column.prepare()
         self.assertEqual('name', column)

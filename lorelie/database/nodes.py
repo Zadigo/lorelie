@@ -41,7 +41,7 @@ class SelectMap:
     @property
     def should_resolve_map(self):
         return self.select is not None
-    
+
     def valid_select_node_statement(self, node):
         """Checks if a nodes name is a valid select
         element for the select statement"""
@@ -179,6 +179,14 @@ class BaseNode:
     def node_name(self):
         return NotImplemented
 
+    def pre_sql_setup(self, fields):
+        """Convert the string fields that were 
+        passed column objects"""
+        column_objects = []
+        for field in fields:
+            column_objects.append(self.table.get_column(field))
+        return column_objects
+
     def as_sql(self, backend):
         return NotImplemented
 
@@ -201,8 +209,9 @@ class SelectNode(BaseNode):
         return 'select'
 
     def as_sql(self, backend):
+        joined_fields = backend.comma_join(self.fields)
         select_sql = self.template_sql.format_map({
-            'fields': backend.comma_join(self.fields),
+            'fields': joined_fields,
             # We can query a table or view that was previously
             # created in the current database using View
             'table': self.view_name or self.table.name
@@ -484,6 +493,9 @@ class InsertNode(BaseNode):
             columns, values = backend.dict_to_sql(self.insert_values)
             joined_values = backend.comma_join(backend.quote_values(values))
 
+        test_columns = self.pre_sql_setup(columns)
+        print(test_columns)
+
         insert_sql = template.format_map({
             'table': self.table.name,
             'columns': backend.comma_join(columns),
@@ -541,7 +553,7 @@ class JoinNode(BaseNode):
             'condition': condition
         })
         return [join_sql]
-    
+
 
 class InnerJoinNode(BaseNode):
     template_sql = 'inner join {right_table} on {left_field}={right_field}'
@@ -553,9 +565,10 @@ class InnerJoinNode(BaseNode):
     @property
     def node_name(self):
         return 'join'
-    
+
     def as_sql(self, backend):
-        condition = self.relationship_map.get_relationship_condition(self.table)
+        condition = self.relationship_map.get_relationship_condition(
+            self.table)
         sql = self.template_sql.format_map({
             'right_table': self.relationship_map.right_table.name,
             'left_field': condition[0],

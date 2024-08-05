@@ -10,7 +10,7 @@ from lorelie.database.functions.base import Functions
 from lorelie.database.manager import ForeignTablesManager
 from lorelie.expressions import BaseExpression, CombinedExpression
 from lorelie.queries import Query, QuerySet
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 
 class Connections:

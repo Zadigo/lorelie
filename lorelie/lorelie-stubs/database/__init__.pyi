@@ -5,7 +5,7 @@ from typing import Any, OrderedDict, Protocol, TypeVar, Union
 
 from lorelie.backends import BaseRow
 from lorelie.database.base import Database
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 TableType = TypeVar('TableType', bound=Table)
 

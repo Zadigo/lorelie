@@ -1,6 +1,6 @@
 from lorelie.backends import SQLiteBackend
 from lorelie.fields.base import IntegerField
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 
 def get_backend():

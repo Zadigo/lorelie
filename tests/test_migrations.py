@@ -4,7 +4,7 @@ from lorelie.database.base import Database
 from lorelie.database.migrations import Migrations
 from lorelie.exceptions import ImproperlyConfiguredError
 from lorelie.fields.base import CharField
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 from lorelie.test.testcases import LorelieTestCase
 
 

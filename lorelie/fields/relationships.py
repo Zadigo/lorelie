@@ -38,13 +38,13 @@ class BaseRelationshipField(Field):
         self.relationship_map = None
         self.reverse = reverse
 
-        # Instead of using the default tablename_id
-        # related name, the user can provide his own
-        # name. There might be cases where a names clash
-        # and therefore we need to force the user to provide
-        # a custom name for the relationship
-        if related_name is not None:
-            pass
+        # # Instead of using the default tablename_id
+        # # related name, the user can provide his own
+        # # name. There might be cases where a names clash
+        # # and therefore we need to force the user to provide
+        # # a custom name for the relationship
+        # if related_name is not None:
+        #     pass
 
         super().__init__(name, **kwargs)
         self.null = True
@@ -57,10 +57,14 @@ class BaseRelationshipField(Field):
 
     def prepare(self, table):
         self.table = table
+        
+        relationship_maps = getattr(table, 'relationship_maps')
+        relationship_map = relationship_maps[self.name]
+
         if self.reverse:
-            self.related_name = self.relationship_map.foreign_backward_related_field_name
+            self.related_name = relationship_map.foreign_backward_related_field_name
         else:
-            self.related_name = self.relationship_map.foreign_forward_related_field_name
+            self.related_name = relationship_map.foreign_forward_related_field_name
 
 
 class ForeignKeyField(BaseRelationshipField):

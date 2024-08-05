@@ -1,14 +1,15 @@
 import dataclasses
-from typing import (Any, Callable, Dict, Literal, Optional, Tuple, Union,
+from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
                     override)
 
 from expressions import Q
-from tables import Table
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database.functions.base import Functions
+from lorelie.database.tables.base import Table
+from lorelie.database.tables.columns import Column
 from lorelie.queries import QuerySet
-from lorelie.tables import RelationshipMap
+from lorelie.database.tables.base import RelationshipMap
 
 @dataclasses.dataclass
 class SelectMap:
@@ -78,6 +79,7 @@ class BaseNode:
     @property
     def node_name(self) -> str: ...
 
+    def pre_sql_setup(self, fields: list[str]) -> List[Column]: ...
     def as_sql(self, backend: SQLiteBackend) -> list[str]: ...
 
 

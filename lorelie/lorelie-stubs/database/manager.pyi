@@ -259,8 +259,7 @@ class ForeignTablesManager:
     def new(
         cls,
         table: Table,
-        relationship_map: RelationshipMap,
-        reverse: Optional[bool] = ...
+        relationship_map: RelationshipMap
     ) -> ForeignTablesManager: ...
 
     def all(self) -> QuerySet: ...

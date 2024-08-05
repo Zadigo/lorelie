@@ -388,6 +388,12 @@ class Table(AbstractTable):
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
 
+    def __hash__(self):
+        return hash((self.name, self.verbose_name, *self.field_names))
+
+    def __bool__(self):
+        return self.is_prepared
+
     def __eq__(self, value):
         if not isinstance(value, Table):
             return any([

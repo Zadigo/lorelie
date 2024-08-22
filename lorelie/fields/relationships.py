@@ -91,6 +91,10 @@ class ForeignKeyField(BaseRelationshipField):
 
     def field_parameters(self):
         initial_field_parameters = super().field_parameters()
+
+        relationship_maps = getattr(self.table, 'relationship_maps')
+        relationship_map = relationship_maps[self.name]
+
         # Do not use the user provided name which is just a
         # name to facilitate the querying on the database.
         # We want to use a "field_id" type (ideally) if the
@@ -100,8 +104,8 @@ class ForeignKeyField(BaseRelationshipField):
 
         template = 'foreign key ({field}) references {table}({parent_field_name})'
         relationship_sql = template.format_map({
-            'field': self.relationship_map.foreign_forward_related_field_name,
-            'table': self.relationship_map.left_table.name,
+            'field': relationship_map.foreign_forward_related_field_name,
+            'table': relationship_map.left_table.name,
             'parent_field_name': 'id'
         })
 
@@ -113,9 +117,5 @@ class ForeignKeyField(BaseRelationshipField):
 
         if self.on_delete is None:
             self.on_delete = ForeignKeyActions.SET_NULL
-
-        # self.relationship_field_params.append(
-        #     self.on_delete.as_sql()
-        # )
 
         return initial_field_parameters

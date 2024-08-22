@@ -420,15 +420,13 @@ class DateField(DateFieldMixin, Field):
             self.run_validators(d)
             clean_data = self.python_type(d)
 
+        if isinstance(data, datetime.date):
+            clean_data = str(data)
+
         if hasattr(data, 'date'):
-            data = getattr(data, 'date')
-            d = data()
+            d = getattr(data, 'date')()
             self.run_validators(d)
             clean_data = self.python_type(d)
-
-        # TODO: Auto update the times at the field level
-        # if self.auto_add or self.auto_update:
-        #     clean_data = str(datetime.datetime.now())
         return clean_data
 
 

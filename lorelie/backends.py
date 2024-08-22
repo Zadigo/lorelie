@@ -813,9 +813,13 @@ class SQLiteBackend(SQL):
             for field in self.current_table.auto_update_fields:
                 row.updated_fields.update({field: value})
 
+        validated_data = self.current_table.pre_save_setup_from_dict(
+            row.updated_fields
+        )
+
         update_node = UpdateNode(
             self.current_table,
-            row.updated_fields,
+            validated_data.data,
             Q(id=row.id)
         )
 

@@ -181,7 +181,10 @@ class BaseNode:
 
     def pre_sql_setup(self, fields):
         """Convert the string fields that were 
-        passed column objects"""
+        passed column objects. This allows use to
+        also use namespaced fields e.g. 
+        `table_name.field_name` an prevent confusions
+        when using joins"""
         column_objects = []
         for field in fields:
             column_objects.append(self.table.get_column(field))
@@ -271,7 +274,9 @@ class WhereNode(BaseNode):
         for _, value in self.expressions.items():
             if isinstance(value, (Q, CombinedExpression)):
                 raise ValueError(
-                    f'{value} cannot be a Q or CombinedExpression value')
+                    f"{value} cannot be a Q or "
+                    "CombinedExpression value"
+                )
 
         # Resolve base expressions e.g. firstname__eq which
         # are "and" operations which go after the more complexe ones
@@ -490,11 +495,18 @@ class InsertNode(BaseNode):
             joined_values = backend.comma_join(values)
             template = self.bactch_insert_sql
         else:
-            columns, values = backend.dict_to_sql(self.insert_values)
+            data = self.insert_values.data
+            if dataclasses.is_dataclass(self.insert_values):
+                try:
+                    data = self.insert_values.get_data_to_save
+                except AttributeError:
+                    raise ValueError(f'Node received a dataclass that does not contain get_data_to_save property: {self.insert_values}')
+            
+            columns, values = backend.dict_to_sql(data)
             joined_values = backend.comma_join(backend.quote_values(values))
 
         test_columns = self.pre_sql_setup(columns)
-        print(test_columns)
+        # print(test_columns)
 
         insert_sql = template.format_map({
             'table': self.table.name,

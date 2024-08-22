@@ -1,6 +1,8 @@
+import datetime
 import unittest
-from lorelie.expressions import (CombinedExpression, F, NegatedExpression, Q,
-                                 Value, When, Case)
+
+from lorelie.expressions import (Case, CombinedExpression, F,
+                                 NegatedExpression, Q, Value, When)
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -84,6 +86,31 @@ class TestQ(LorelieTestCase):
         instance = ~Q(name='Kendall') & F('name')
         sql = instance.as_sql(self.create_connection())
         print(sql)
+
+    def test_with_special_filters(self):
+        connection = self.create_connection()
+
+        instance = Q(firstname__isnull=True)
+        sql = instance.as_sql(connection)
+        self.assertListEqual(
+            sql,
+            ['firstname is null']
+        )
+
+        instance = Q(date_of_birth__month=1)
+        sql = instance.as_sql(connection)
+        self.assertListEqual(
+            sql,
+            ['strftime(%m, date_of_birth)=1']
+        )
+
+        d = datetime.datetime.now()
+        instance = Q(date_of_birth__month=d)
+        sql = instance.as_sql(connection)
+        self.assertListEqual(
+            sql,
+            [f'strftime(%m, date_of_birth)={d.month}']
+        )
 
 
 class TestCombinedExpression(LorelieTestCase):

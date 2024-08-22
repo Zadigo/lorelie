@@ -2,12 +2,13 @@ import sqlite3
 
 from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
-from lorelie.database.manager import BackwardForeignTableManager, ForeignTablesManager, ForwardForeignTableManager
+from lorelie.database.manager import (BackwardForeignTableManager,
+                                      ForwardForeignTableManager)
+from lorelie.database.tables.base import RelationshipMap, Table
 from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
                                 ValidationError)
 from lorelie.expressions import Q
 from lorelie.fields.base import CharField, Field, IntegerField
-from lorelie.database.tables.base import Column, RelationshipMap, Table
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -241,13 +242,3 @@ class TestRelationshipMap(LorelieTestCase):
 
         print(relationship_map.get_relationship_condition(t1))
         print(relationship_map.get_relationship_condition(t2))
-
-
-class TestColumn(LorelieTestCase):
-    def test_stucture(self):
-        table = self.create_table()
-        field = table.get_field('name')
-
-        column = Column(field)
-        column.prepare()
-        self.assertEqual('name', column)

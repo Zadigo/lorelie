@@ -143,4 +143,10 @@ class TestAnnotate(LorelieTestCase):
 
 
 class TestFilter(LorelieTestCase):
-    pass
+    def setUp(self):
+        self.db = self.create_database()
+        self.table = table = self.db.get_table('celebrities')
+        table.objects.create(name='Kendall Jenner')
+
+    def test_structure(self):
+        self.table.objects.filter(name='Kendall Jenner')

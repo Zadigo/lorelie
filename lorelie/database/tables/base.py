@@ -253,21 +253,16 @@ class AbstractTable(metaclass=BaseTable):
             validated_values.append(validated_value)
 
         validated_dict_values = dict(zip(fields, validated_values))
+        validated_data = ValidatedData(validated_values, validated_dict_values)
 
-        validated_for_relationships = {}
         if self.relationship_maps:
-            for key, value in validated_dict_values.items():
+            for key, value in validated_data.data.items():
                 if key in self.relationship_maps:
                     relationship_map = self.relationship_maps[key]
-                    validated_for_relationships.update({
-                        relationship_map.foreign_forward_related_field_name: value
-                    })
-                    continue
-                validated_for_relationships[key] = value
-        else:
-            validated_for_relationships = validated_dict_values
+                    true_field_name = relationship_map.foreign_forward_related_field_name
+                    validated_data.relationship_fields[key] = true_field_name
 
-        return validated_values, validated_for_relationships
+        return validated_data
 
     def load_current_connection(self):
         from lorelie.backends import connections

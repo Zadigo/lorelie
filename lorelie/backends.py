@@ -397,15 +397,13 @@ class SQL(ExpressionFiltersMixin):
         >>> self.simple_join(["select * from table", "where name = 'Kendall'"])
         ... "select * from table where name = 'Kendall'"
         """
-        def check_integers(value):
-            if isinstance(value, (int, float)):
-                return str(value)
-
-            if getattr(value, 'to_python', None) is not None:
-                return value.to_python()
-            return value
-        values = map(check_integers, values)
-
+        def check_functions(value):
+            if hasattr(value, 'to_python'):
+                return getattr(value, 'to_python')()
+            return str(value)
+        
+        values = map(check_functions, values)
+        
         if space_characters:
             return ' '.join(values)
         return ''.join(values)

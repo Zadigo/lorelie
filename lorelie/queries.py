@@ -67,6 +67,18 @@ class Query:
 
         joined_statements = instance.backend.simple_join(statements)
         script = template.format(statements=joined_statements)
+
+        if not sqlite3.complete_statement(script):
+            raise sqlite3.Error(
+                f"SQL statement '{script}' is "
+                "is not valid and/or is incomplete"
+            )
+
+        result = re.match(r'begin\;\s+commit\;', script)
+        if result:
+            instance.is_evaluated = True
+            return instance
+
         instance.add_sql_node(script)
 
         try:

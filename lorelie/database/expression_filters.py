@@ -301,6 +301,16 @@ class ExpressionFiltersMixin:
                     'rhv': rhv
                 })
                 built_filters.append(operator_and_value)
+                value = self.quote_value(value)
+                continue
+
+            if 'strftime' in field:
+                built_filters.append(
+                    self.simple_join(
+                        (field, operator, value),
+                        space_characters=False
+                    )
+                )
                 continue
 
             if operator == 'isnull':

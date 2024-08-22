@@ -313,12 +313,13 @@ class ExpressionFiltersMixin:
                 )
                 continue
 
-            if operator == 'isnull':
-                if value:
-                    operator_and_value = f'{field} is null'
-                else:
-                    operator_and_value = f'{field} is not null'
-                built_filters.append(operator_and_value)
+            if operator == 'is' or operator == 'is not':
+                built_filters.append(
+                    self.simple_join(
+                        (field, operator, value),
+                        space_characters=True
+                    )
+                )
                 continue
 
             value = self.quote_value(value)

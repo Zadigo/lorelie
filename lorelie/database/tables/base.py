@@ -15,7 +15,32 @@ from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
 from lorelie.queries import Query
 
 
-@dataclasses.dataclass
+@dataclass
+class ValidatedData:
+    values: list
+    data: dict= dataclasses.field(default_factory=dict)
+    relationship_fields: dict = dataclasses.field(default_factory=dict)
+
+    @cached_property
+    def columns(self):
+        return list(self.data.keys())
+
+    @property
+    def get_data_to_save(self):
+        """Swaps the name of the field provided
+        by the user with the true foreign fields
+        present on the database e.g.
+        `celebrity_follower -> celebrity_id`"""
+        data = {}
+        for key, value in self.data.items():
+            if key in self.relationship_fields:
+                data[self.relationship_fields[key]] = value
+                continue
+            data[key] = value
+        return data
+
+
+@dataclass
 class RelationshipMap:
     """This map reunites all the components
     that inform on the different elements that

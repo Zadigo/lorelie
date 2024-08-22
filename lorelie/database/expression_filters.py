@@ -24,16 +24,16 @@ class ExpressionFiltersMixin:
         'range': 'between',
         'ne': '!=',
         'in': 'in',
-        'isnull': 'isnull',
+        'isnull': 'is',
         'regex': 'regexp',
-        'day': '',
-        'month': '',
-        'iso_year': '',
-        'year': '',
-        'minute': '',
-        'second': '',
-        'hour': '',
-        'time': ''
+        'day': 'day',
+        'month': 'month',
+        'year': 'year',
+        'iso_year': 'iso_year',
+        'minute': 'minute',
+        'second': 'second',
+        'hour': 'hour',
+        'time': 'time'
     }
 
     @cached_property

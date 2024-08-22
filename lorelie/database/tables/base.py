@@ -184,8 +184,15 @@ class AbstractTable(metaclass=BaseTable):
         return self.pre_save_setup(fields, values)
 
     def pre_save_setup(self, fields, values):
-        """Validate a set of values that the user is 
-        trying to insert or update in the database
+        """Validates a set of values that the user is 
+        trying to insert or update in the database by
+        doing the following things:
+        
+            * Calls `Field.to_database` in order to transform the
+              data to a valid database value
+
+            * Returns a `ValidatedData` object with the list of valid
+              values that can be saved into the database
 
         >>> validate_values(['name'], ['Kendall'])
         ... (["'Kendall'"], {'name': "'Kendall'"})

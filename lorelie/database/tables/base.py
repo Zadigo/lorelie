@@ -480,7 +480,25 @@ class Table(AbstractTable):
     
     @lru_cache(maxsize=10)
     def get_field(self, name):
-        return self.fields_map[name]
+        try:
+            return self.fields_map[name]
+        except:
+            # The name of the field could be the actual
+            # name of the column on the table so we should
+            # be able to re-map them in order to get the
+            # local field
+            if self.foreign_fields_map:
+                resolved_name = None
+                for key, value in self.foreign_fields_map.items():
+                    if name == value:
+                        resolved_name = key
+                        break
+
+                try:
+                    return self.fields_map[resolved_name]
+                except:
+                    raise FieldExistsError(name, self)
+            raise FieldExistsError(name, self)
 
     def _add_field(self, field_name, field):
         """Internala function to add a field on the

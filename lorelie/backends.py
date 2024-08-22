@@ -356,6 +356,9 @@ class SQL(ExpressionFiltersMixin):
         if isinstance(value, (int, float)):
             return value
 
+        if isinstance(value, datetime.date):
+            value = str(value)
+
         if value.startswith("'"):
             return value
 

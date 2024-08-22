@@ -47,7 +47,7 @@ class Field:
         return f'<{self.__class__.__name__}[{self.name}]>'
 
     def __hash__(self):
-        return hash((self.name, self.field_type))
+        return hash((self.name, self.table.name, self.field_type))
 
     def __eq__(self, value):
         if not isinstance(value, Field):

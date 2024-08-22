@@ -1,3 +1,4 @@
+import re
 import sqlite3
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError

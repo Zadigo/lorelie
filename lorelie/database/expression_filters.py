@@ -1,16 +1,16 @@
 import re
 from dataclasses import dataclass, field
-from typing import Union
 from functools import cached_property
+from typing import Union
+import datetime
 
 
 class ExpressionFiltersMixin:
-    """This mixin class is used to decompose filter
-    expressions used for example in query methods
-    e.g. filter(age=1) and can be implemented in 
+    """This mixin class implements methods to decompose
+    filter expressions used primarily in query methods
+    e.g. filter(age=1) and can be implemented in
     any class that requires the analysis and decomposition
     of these kinds of values
-
     """
     base_filters = {
         'eq': '=',
@@ -97,7 +97,7 @@ class ExpressionFiltersMixin:
 
     def decompose_filters_from_string(self, value):
         """Decompose a set of filters to a list of
-        key, operator and value list from a filter 
+        key, operator and value list from a filter
         passed as a string
 
         >>> self.decompose_filters_from_string('rowid__eq=1')
@@ -259,6 +259,7 @@ class ExpressionFiltersMixin:
                     'values': self.comma_join(quoted_list_values)
                 })
                 built_filters.append(operator_and_value)
+                value = self.quote_value(value)
                 continue
 
             if operator == 'like':
@@ -321,7 +322,9 @@ class ExpressionFiltersMixin:
                     )
                 )
                 continue
-
+            
+            # For any other types of values, just
+            # quote and implement as is
             value = self.quote_value(value)
             built_filters.append(
                 self.simple_join(
@@ -399,10 +402,13 @@ class ExpressionFilter(ExpressionFiltersMixin):
     """An ExpressionFilter parses expressions in order
     to be used efficiently by other parts of program
 
-    >>> connection = SQLiteBackend()
-    ... ExpressionFilter('age__eq=1', connection)
-    ... ExpressionFilter({'age__eq': 1}, connection)
-    ... ExpressionFilter([('age', 'eq', 1)], connection)
+    >>> instance = ExpressionFilter('age__eq=1')
+    ... instance.parsed_expressions
+    ... [('age', '=', '1')]
+    
+    >>> ExpressionFilter({'age__isnull': True}})
+    ... instance.parsed_expressions
+    ... [('age', 'is null')]
     """
 
     def __init__(self, expression, table=None):
@@ -412,31 +418,9 @@ class ExpressionFilter(ExpressionFiltersMixin):
         if isinstance(expression, str):
             result = self.decompose_filters_from_string(expression)
             self.parsed_expressions.extend(result)
-            # tokens = expression.split('__')
-
-            # # Case where a single word is passed to
-            # # the __init__ e.g. age instead or age=1
-            # if len(tokens) == 1 and '=' not in tokens[-1]:
-            #     raise ValueError(
-            #         "An expression should contain at least "
-            #         f"a column, an operator and value. Got: {tokens}"
-            #     )
-
-            # lhv, rhv = tokens[-1].split('=')
-            # result = [*tokens[:-1], lhv, rhv]
-
-            # if len(result) == 2:
-            #     result.insert(1, 'eq')
-
-            # self.check_tokens(result)
-            # self.parsed_expressions.append(result)
         elif isinstance(expression, dict):
             result = self.decompose_filters(**expression)
             self.parsed_expressions.extend(result)
-            # for key, value in expression.items():
-            #     tokens = key.split('__')
-            #     tokens.append(value)
-            #     self.parsed_expressions.append(tokens)
         elif isinstance(expression, (list, tuple)):
             for item in expression:
                 if not isinstance(item, (list, tuple)):
@@ -463,7 +447,7 @@ class ExpressionFilter(ExpressionFiltersMixin):
 
     @staticmethod
     def check_tokens(tokens):
-        # If the user uses too much underscores
+        # When the user uses too much underscores -;
         # we can have cases where tokens will
         # start with a _ like in ages___eq=1
         # where instead of eq we'll get _eq

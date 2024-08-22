@@ -325,7 +325,7 @@ class JSONField(Field):
             return json.loads(data)
         except json.JSONDecodeError:
             raise ValidationError(
-                "The value for {name} is not valid",
+                "The value for {name} is not valid in the database",
                 name=self.name
             )
 
@@ -403,6 +403,10 @@ class DateField(DateFieldMixin, Field):
         return 'date'
 
     def to_database(self, data):
+        # TODO: Auto update the times at the field level
+        # if self.auto_add or self.auto_update:
+        #     return str(datetime.datetime.now())
+
         if data == '' or data is None:
             return data
 

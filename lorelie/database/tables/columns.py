@@ -17,7 +17,10 @@ class Column:
 
     def __post_init__(self):
         if self.name is None:
-            self.name = self.field.name
+            name = self.field.name
+            if self.field.is_relationship_field:
+                name = self.field.related_name
+            self.name = name
         else:
             if self.name != self.field.name:
                 raise ValueError(
@@ -51,8 +54,14 @@ class Column:
             item == bits[-1]
         ])
 
+    def __str__(self):
+        return self.full_column_name
+
+    def __repr__(self):
+        return f'<Column: {self.full_column_name}>'
+
     def __hash__(self):
-        return hash((self.name, self.index))
+        return hash((self.name, self.table.name, self.index))
 
     @property
     def is_foreign_column(self):

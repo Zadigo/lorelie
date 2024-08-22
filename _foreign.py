@@ -1,9 +1,9 @@
+from lorelie import log_queries
 from lorelie.database.base import Database
+from lorelie.database.tables.base import RelationshipMap, Table
+from lorelie.expressions import F, Q
 from lorelie.fields.base import CharField, IntegerField
 from lorelie.fields.relationships import ForeignKeyActions, ForeignKeyField
-from lorelie.database.tables.base import Table
-from lorelie import log_queries
-from lorelie.database.tables.base import RelationshipMap
 
 RelationshipMap.forward_field_name
 
@@ -17,6 +17,11 @@ image_table = Table('image', fields=[
 
 db = Database(celebrity, image_table, name='google')
 db.migrate()
+
+# print(celebrity.objects.filter(
+#     Q(name__contains='Kendall') | ~Q(name__contains='Addison')))
+# print(celebrity.objects.filter(Q(name=F('name') + 'Google')))
+print(log_queries.container)
 
 # for i in range(3):
 #     new_celebrity = celebrity.objects.create(name='Addison Rae')

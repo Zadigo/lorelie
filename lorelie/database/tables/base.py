@@ -1,7 +1,8 @@
 import dataclasses
 import re
 from collections import OrderedDict
-from functools import lru_cache
+from dataclasses import dataclass
+from functools import cached_property, lru_cache
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
@@ -225,7 +226,7 @@ class AbstractTable(metaclass=BaseTable):
         from lorelie.backends import BaseRow
 
         validated_values = []
-        # TODO: We have to able to create data
+        # TODO: We have to be able to create data
         # using the relationship field from another
         # table
         for i, field in enumerate(fields):
@@ -240,7 +241,7 @@ class AbstractTable(metaclass=BaseTable):
 
             value = list(values)[i]
 
-            if field.is_foreign_column:
+            if field.is_relationship_field:
                 if not isinstance(value, BaseRow):
                     raise ValueError(
                         f"{value} is expected to be an instance "
@@ -308,9 +309,12 @@ class Table(AbstractTable):
         self.fields_map = OrderedDict()
         self.auto_add_fields = set()
         self.auto_update_fields = set()
-        # self.columns = set()
 
         super().__init__()
+
+        # Maps the local field name to its 
+        # true name on the foreign table
+        self.foreign_fields_map = {}
 
         non_authorized_names = ['rowid', 'id']
         for i, field in enumerate(fields):
@@ -373,8 +377,6 @@ class Table(AbstractTable):
         # other parts of the table to be prepared
         # before continuing
         for i, field in enumerate(fields):
-            # column = Column(field, self, index=i + 1)
-
             if field.is_relationship_field:
                 params = {
                     'left_table': field.foreign_table,
@@ -384,7 +386,6 @@ class Table(AbstractTable):
 
                 if field.field_python_name == 'ManyToManyField':
                     continue
-
 
                 # TODO: Simplify this whole section
                 relationship_map = RelationshipMap(**params)
@@ -405,9 +406,8 @@ class Table(AbstractTable):
                 self.foreign_managers[relationship_map.forward_field_name] = foward_manager
                 field.foreign_table.foreign_managers[relationship_map.backward_field_name] = backward_manager
                 self.fields_map[field.name] = field
-            
-            # column.prepare()
-            # self.columns.add(column)
+
+                self.foreign_fields_map[field.name] = relationship_map.foreign_forward_related_field_name
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
@@ -470,14 +470,10 @@ class Table(AbstractTable):
 
     @lru_cache(maxsize=10)
     def get_column(self, name):
-        # columns = list(filter(lambda x: name == x, self.columns))
-        # if len(columns) == 0:
-        #     raise FieldExistsError(name, self)
-        # return columns[-1]
         column = Column(self.get_field(name), self)
         column.prepare()
         return column
-    
+
     @lru_cache(maxsize=10)
     def get_field(self, name):
         try:
@@ -533,7 +529,7 @@ class Table(AbstractTable):
         if not result and raise_exception:
             raise FieldExistsError(name, self)
         return result
-    
+
     def create_table_sql(self, fields):
         unique_constraints = []
         check_constraints = []

@@ -133,15 +133,15 @@ class DatabaseManager:
         of a new row in the specified table within the 
         current database
 
-        >>> db.objects.create('celebrities', firstname='Kendall')
+        >>> table.objects.create('celebrities', firstname='Kendall')
         """
         kwargs = self._validate_auto_fields(self.table, kwargs)
-        values, kwargs = self.table.pre_save_setup_from_dict(kwargs)
+        validated_data = self.table.pre_save_setup_from_dict(kwargs)
 
         query = self.database.query_class(table=self.table)
         insert_node = InsertNode(
             self.table,
-            insert_values=kwargs,
+            insert_values=validated_data,
             returning=self.table.field_names
         )
 
@@ -152,15 +152,15 @@ class DatabaseManager:
         """Filter the data in the database based on
         a set of criteria using filter keyword arguments
 
-        >>> db.objects.filter('celebrities', firstname='Kendall')
-        ... db.objects.filter('celebrities', age__gt=20)
-        ... db.objects.filter('celebrities', firstname__in=['Kendall'])
+        >>> table.objects.filter('celebrities', firstname='Kendall')
+        ... table.objects.filter('celebrities', age__gt=20)
+        ... table.objects.filter('celebrities', firstname__in=['Kendall'])
 
         Filtering can also be done using more complexe logic via database
         functions such as the `Q` function:
 
-        >>> db.objects.filter('celebrities', Q(firstname='Kendall') | Q(firstname='Kylie'))
-        ... db.objects.filter('celebrities', Q(firstname='Margot') | Q(firstname='Kendall') & Q(followers__gte=1000))
+        >>> table.objects.filter('celebrities', Q(firstname='Kendall') | Q(firstname='Kylie'))
+        ... table.objects.filter('celebrities', Q(firstname='Margot') | Q(firstname='Kendall') & Q(followers__gte=1000))
         """
         select_node = SelectNode(self.table)
         where_node = WhereNode(*args, **kwargs)
@@ -209,8 +209,8 @@ class DatabaseManager:
 
         For example, returning each values of the name in lower or uppercase:
 
-        >>> db.objects.annotate('celebrities', lowered_name=Lower('name'))
-        ... db.objects.annotate('celebrities', uppered_name=Upper('name'))
+        >>> table.objects.annotate('celebrities', lowered_name=Lower('name'))
+        ... table.objects.annotate('celebrities', uppered_name=Upper('name'))
 
         Returning only the year for a given column:
 
@@ -221,27 +221,27 @@ class DatabaseManager:
 
         >>> condition = When('price=1', 2)
         ... case = Case(condition, default=3, output_field=CharField())
-        ... db.objects.annotate('celebrities', custom_price=case)
+        ... table.objects.annotate('celebrities', custom_price=case)
 
         Suppose you have two columns `price` and `tax` we can return a new
         column with `price + tax`:
 
-        >>> db.objects.annotate('products', new_price=F('price') + F('tax'))
+        >>> table.objects.annotate('products', new_price=F('price') + F('tax'))
 
         You can also add a constant value to a column:
 
-        >>> db.objects.annotate('products', new_price=F('price') + 10)
+        >>> table.objects.annotate('products', new_price=F('price') + 10)
 
         The `Value` expression can be used to return a specific value in a column:        
 
-        >>> db.objects.annotate('products', new_price=Value(1))
+        >>> table.objects.annotate('products', new_price=Value(1))
 
         Finally, `Q` objects are used to encapsulate a collection 
         of keyword arguments and can be used to evaluate conditions. 
         For instance, to annotate a result indicating whether the price 
         is greater than 1:
 
-        >>> db.objects.annotate('products', result=Q(price__gt=1))
+        >>> table.objects.annotate('products', result=Q(price__gt=1))
 
         Using expressions without an alias field name will raise an error.
 
@@ -249,7 +249,7 @@ class DatabaseManager:
         the result for each element grouped by a specified field. For example, to 
         count the number of occurrences of each `price`:
 
-        >>> db.objects.annotate('products', Count('price'))
+        >>> table.objects.annotate('products', Count('price'))
 
         The above will return the price count for each products. If there are
         two products with a price of 1 we will then get `[{'price': 1, 'count_price': 2}]`
@@ -376,10 +376,10 @@ class DatabaseManager:
         while providing the field name without a prefix sorts the data 
         in ascending order
 
-        >>> db.objects.aggregate('celebrities', Count('id'))
+        >>> table.objects.aggregate('celebrities', Count('id'))
         ... {'age__count': 1}
 
-        >>> db.objects.aggregate('celebrities', count_age=Count('id'))
+        >>> table.objects.aggregate('celebrities', count_age=Count('id'))
         ... {'count_age': 1}
         """
         functions = list(args)
@@ -416,7 +416,7 @@ class DatabaseManager:
         """Returns the number of items present
         in the database
 
-        >>> db.objects.count('celebrities')
+        >>> table.objects.count('celebrities')
         """
         result = self.aggregate(Count('id'))
         return result.get('id__count')
@@ -433,7 +433,7 @@ class DatabaseManager:
         """Returns items from the database which are
         distinct
 
-        >>> db.objects.distinct('celebrities', 'firstname')
+        >>> table.objects.distinct('celebrities', 'firstname')
         """
         select_node = SelectNode(self.table, *columns, distinct=True)
         query = self.table.query_class(table=self.table)
@@ -455,7 +455,7 @@ class DatabaseManager:
         ... class Celebrity:
         ...     name: str
 
-        >>> db.objects.bulk_create('celebrities', [Celebrity('Taylor Swift')])
+        >>> table.objects.bulk_create('celebrities', [Celebrity('Taylor Swift')])
         ... [<Celebrity: 1>]
         """
         invalid_objects_counter = 0
@@ -541,7 +541,7 @@ class DatabaseManager:
         """Selects all the values from the database
         that match the filters
 
-        >>> db.objects.exclude(firstname='Kendall')"""
+        >>> table.objects.exclude(firstname='Kendall')"""
         select_node = SelectNode(self.table)
         where_node = ~WhereNode(*args, **kwargs)
 
@@ -571,7 +571,7 @@ class DatabaseManager:
         will become the default `defaults`.
 
         >>> defaults = {'age': 24}
-        ... db.objects.get_or_create('celebrities', create_defaults=defaults, firstname='Margot')
+        ... table.objects.get_or_create('celebrities', create_defaults=defaults, firstname='Margot')
 
         If the queryset returns multiple elements, an error is raised.
         """
@@ -619,7 +619,7 @@ class DatabaseManager:
         will become the default `create_defaults`.
 
         >>> create_defaults = {'age': 24}
-        ... db.objects.update_or_create('celebrities', create_defaults=create_defaults, firstname='Margot')
+        ... table.objects.update_or_create('celebrities', create_defaults=create_defaults, firstname='Margot')
 
         If the queryset returns multiple elements (from the get conditions specified
         via kwargs), an error is raised.
@@ -719,9 +719,9 @@ class DatabaseManager:
         which is used to find the common records between 
         two `SELECT` statements
 
-        >>> qs1 = db.objects.all('celebrities')
-        ... qs2 = db.objects.all('celebrities')
-        ... qs3 = db.objects.intersect('celebrities', qs1, qs2)
+        >>> qs1 = table.objects.all('celebrities')
+        ... qs2 = table.objects.all('celebrities')
+        ... qs3 = table.objects.intersect('celebrities', qs1, qs2)
         """
         if not isinstance(qs1, QuerySet):
             raise ValueError(f'{qs1} should be an instance of QuerySet')

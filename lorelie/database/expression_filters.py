@@ -152,6 +152,58 @@ class ExpressionFiltersMixin:
                     raise ValueError(
                         f'Operator is not recognized. Got: {key}'
                     )
+
+                # TODO: The below sections should be independent in order
+                # to allow for foreign columns to be able to check for
+                # datetimes and "is" operator
+                datetimes = [
+                    'day', 'month', 'year', 'iso_year',
+                    'hour', 'minute', 'second', 'hour', 'time'
+                ]
+                if operator  in datetimes:
+                    final_lhv = None
+                    template = 'strftime({fmt}, {column_name})'
+
+                    if operator == 'day':
+                        fmt = '%d'
+                    elif operator == 'month':
+                        fmt = '%m'
+                    elif operator == 'year':
+                        fmt = '%Y'
+                    elif operator == 'iso_year':
+                        fmt = '%Y'
+                    elif operator == 'hour':
+                        fmt = '%H'
+                    elif operator == 'minute':
+                        fmt = '%M'
+                    elif operator == 'second':
+                        fmt = '%S'
+                    elif operator == 'time':
+                        fmt = ''
+
+                    if isinstance(value, datetime.date):
+                        value = getattr(value, operator)
+
+                    final_lhv = template.format(fmt=fmt, column_name=lhv)
+                    filters_map.append((final_lhv, '=', value))
+                    continue
+
+                if operator == 'is':
+                    if isinstance(value, str):
+                        if value not in ['True', 'False']:
+                            raise ValueError(
+                                "'__isnull' only accepts boolean as "
+                                "a value e.g. filter(name__isnull=True)"
+                            )
+                        else:
+                            value = True if value == 'True' else False
+                                            
+                    if value:
+                        filters_map.append((lhv, operator, 'null'))
+                    else:
+                        filters_map.append((lhv, f'{operator} not', 'null'))  
+                    continue
+
                 filters_map.append((lhv, operator, value))
             elif len(tokens) > 2:
                 # Foreign key sequence:

@@ -267,6 +267,7 @@ class ExpressionFiltersMixin:
                     'conditions': self.quote_like(value)
                 })
                 built_filters.append(operator_and_value)
+                value = self.quote_value(value)
                 continue
 
             if operator == 'startswith':
@@ -275,6 +276,7 @@ class ExpressionFiltersMixin:
                     'conditions': self.quote_startswith(value)
                 })
                 built_filters.append(operator_and_value)
+                value = self.quote_value(value)
                 continue
 
             if operator == 'endswith':
@@ -283,6 +285,7 @@ class ExpressionFiltersMixin:
                     'conditions': self.quote_endswith(value)
                 })
                 built_filters.append(operator_and_value)
+                value = self.quote_value(value)
                 continue
 
             if operator == 'between':

@@ -87,13 +87,11 @@ class NegatedExpression(BaseExpression):
         return self
 
     def as_sql(self, backend):
-        seen_expressions = []
-
         def map_children(node):
             if isinstance(node, str):
                 return node
-
             return backend.simple_join(node.as_sql(backend))
+        
         sql = map(map_children, self.children)
 
         return self.template_sql.format_map({
@@ -363,6 +361,8 @@ class F(BaseExpression):
 
     >>> F('age') + 1
     ... F('price') * 1.2
+    ... F('price') / 1.2
+    ... F('price') - 1.2
     ... F('price') + F('price')
 
     These operations will translate directly to database

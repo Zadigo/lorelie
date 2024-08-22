@@ -94,20 +94,6 @@ class DatabaseManager:
             params[field] = str(d)
         return params
 
-    def pre_save(self, fields, values):
-        """Pre-save stores the pre-processed data
-        into a namedtuple that is then sent to the
-        `clean` method on the table which then allows
-        the user to modify the data before sending it
-        to the database"""
-        named = collections.namedtuple(self.table.name, fields)
-        data_dict = {}
-        for i, field in enumerate(fields):
-            if field == 'id' or field == 'rowid':
-                continue
-            data_dict[field] = values[i]
-        return named(**data_dict)
-
     def first(self):
         """Returns the first row from
         a database table"""

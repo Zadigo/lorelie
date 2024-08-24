@@ -42,17 +42,14 @@ class Connections:
     def __exit__(self):
         return False
 
-    # def get_connection(self, database_name):
-    #     candidates = list(filter(
-    #         lambda x: database_name in x,
-    #             self.connections_map
-    #     ))
-
-    #     if len(candidates) == 1:
-    #         return candidates[0]
-    #     elif len(candidates) == 0:
-    #         raise ConnectionExistsError()
-    #     return candidates[-1]
+    def get_connection(self, name):
+        try:
+            return self.connections_map[name]
+        except KeyError:
+            default = self.connections_map.get('default')
+            if default is None:
+                raise ConnectionExistsError()
+            return default
 
     def get_last_connection(self):
         """Return the last connection from the
@@ -63,9 +60,7 @@ class Connections:
             raise ConnectionExistsError()
 
     def register(self, connection, name=None):
-        if name is None:
-            name = 'default'
-
+        name = name or 'default'
         self.connections_map[name] = connection
         self.created_connections.add(connection)
 

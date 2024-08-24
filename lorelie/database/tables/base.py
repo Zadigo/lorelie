@@ -294,7 +294,21 @@ class Table(AbstractTable):
         self.name = self.validate_table_name(name)
         self.verbose_name = name.lower().title()
         self.indexes = indexes
-        self.table_constraints = constraints
+        self.table_constraints = []
+
+        seen_constraints = []
+        for constraint in constraints:
+            if constraint in self.table_constraints:
+                seen_constraints.append(constraint)
+            self.table_constraints.append(constraint)
+
+        if seen_constraints:
+            raise ValueError(
+                "Found existing constraint names in your "
+                f"table: {', '.join(str(c) for c in seen_constraints)}."
+                "Constraints names should be unique."
+            )
+
         self.field_constraints = {}
         self.is_foreign_key_table = False
         self.relationship_maps = {}

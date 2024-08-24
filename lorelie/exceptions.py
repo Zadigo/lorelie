@@ -4,11 +4,24 @@ class ImproperlyConfiguredError(Exception):
 
 
 class TableExistsError(Exception):
+    message = (
+        'Table with name "{name}" '
+        'does not exist in the database'
+    )
+
     def __init__(self, name):
-        message = (
-            f'Table with name "{name}" '
-            'does not exist in the database'
-        )
+        message = self.message.format(name=name)
+        super().__init__(message)
+
+
+class NoDatabaseError(Exception):
+    message = (
+        "You are trying to load an sqlite connection from "
+        "from a table ({table}) outside of a Database class"
+    )
+
+    def __init__(self, table):
+        message = self.message.format(table=table)
         super().__init__(message)
 
 
@@ -43,9 +56,10 @@ class MigrationsExistsError(Exception):
 
 
 class ConnectionExistsError(Exception):
+    message = (
+        "No existing connection was found "
+        "in the connections pool"
+    )
+
     def __init__(self):
-        message = (
-            "No existing connections were found "
-            "in the connections pool"
-        )
-        super().__init__(message)
+        super().__init__(self.message)

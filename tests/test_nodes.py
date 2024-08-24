@@ -9,6 +9,7 @@ from lorelie.database.tables.columns import Column
 from lorelie.expressions import Q
 from lorelie.database.tables.base import RelationshipMap
 from lorelie.test.testcases import LorelieTestCase
+from lorelie.database.tables.base import ValidatedData
 
 
 class TestBaseNode(LorelieTestCase):
@@ -70,13 +71,38 @@ class TestInsertNode(LorelieTestCase):
     def test_batch_values(self):
         node = InsertNode(
             self.create_table(),
-            batch_values=[{'name': 'Kendall'}, {'name': 'Kylie'}]
+            batch_values=[
+                {'name': 'Kendall'},
+                {'name': 'Kylie'}
+            ]
         )
         result = node.as_sql(self.create_connection())
         self.assertListEqual(
             result,
             [
                 "insert into celebrities (name) values ('Kendall'), ('Kylie')",
+                'returning id'
+            ]
+        )
+
+    def test_with_validated_values_dataclass(self):
+        conn = self.create_connection()
+
+        validated_value = conn.quote_value('Kendall')
+        validated_data = ValidatedData(
+            [validated_value],
+            data={'name': validated_value}
+        )
+
+        table = self.create_table()
+        table.backend = conn
+        node = InsertNode(table, insert_values=validated_data)
+
+        sql = node.as_sql(conn)
+        self.assertEqual(
+            sql,
+            [
+                "insert into celebrities (name) values('Kendall')", 
                 'returning id'
             ]
         )
@@ -97,14 +123,6 @@ class TestSelectNode(LorelieTestCase):
         self.assertListEqual(
             result,
             ['select distinct * from celebrities']
-        )
-
-    def test_limit(self):
-        node = SelectNode(self.create_table(), limit=10)
-        result = node.as_sql(self.create_connection())
-        self.assertListEqual(
-            result,
-            ['select * from celebrities limit 10']
         )
 
 

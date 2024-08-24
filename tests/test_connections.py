@@ -12,3 +12,6 @@ class TestSQLiteConnection(LorelieTestCase):
     def test_connections(self):
         conn = connections.get_last_connection()
         self.assertEqual(conn, self.connection)
+        # If a connection is not created within a database,
+        # then there should be 'default' connection
+        self.assertIn('default', connections.connections_map)

@@ -170,10 +170,6 @@ class Database:
         """
         return NotImplemented
 
-    # TODO: Remove this line
-    def create_view(self, name, queryset, temporary=True):
-        return NotImplemented
-
     def register_trigger(self, trigger, table=None):
         """Registers a trigger function onto the database
         and that will get called at a specific stage of

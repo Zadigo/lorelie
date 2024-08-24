@@ -1,9 +1,10 @@
 import pathlib
 
+from lorelie.backends import connections
 from lorelie.database.base import Database
 from lorelie.database.manager import DatabaseManager
-from lorelie.exceptions import TableExistsError
 from lorelie.database.tables.base import Table
+from lorelie.exceptions import TableExistsError
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -36,6 +37,8 @@ class TestDatabase(LorelieTestCase):
 
         db = Database(name='test_database2', path=pathlib.Path('.'))
         self.assertFalse(db.in_memory)
+        self.assertIn(db.database_name, connections.connections_map)
+        print(connections.connections_map)
 
         # In memory
         db = Database(path=pathlib.Path('.'))

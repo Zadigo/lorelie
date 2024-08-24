@@ -271,8 +271,8 @@ class TestBackendCoreFunctions(LorelieTestCase):
         table = db.get_table('celebrities')
         conn = connections.get_last_connection()
         result = conn.list_table_columns(table)
-        print(vars(result[1]))
-        print(result)
+        # print(vars(result[1]))
+        # print(result)
 
 #     @unittest.expectedFailure
 #     def test_drop_indexes_sql(self):
@@ -300,9 +300,11 @@ class TestBackendCoreFunctions(LorelieTestCase):
     def test_list_table_indexes(self):
         db = self.create_database()
         table = db.get_table('celebrities')
+
         conn = connections.get_last_connection()
         result = conn.list_table_indexes(table)
-        print(result)
+
+        self.assertListEqual(list(result), [])
 
     def test_save_row_object(self):
         db = self.create_database()

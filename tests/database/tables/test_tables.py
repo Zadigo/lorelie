@@ -1,11 +1,13 @@
 import sqlite3
+import unittest
+from dataclasses import is_dataclass
 
 from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
 from lorelie.database.manager import (BackwardForeignTableManager,
                                       ForwardForeignTableManager)
 from lorelie.database.tables.base import RelationshipMap, Table
-from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
+from lorelie.exceptions import (FieldExistsError, NoDatabaseError,
                                 ValidationError)
 from lorelie.expressions import Q
 from lorelie.fields.base import CharField, Field, IntegerField
@@ -34,7 +36,7 @@ class TestTable(LorelieTestCase):
 
     def test_cannot_load_connection(self):
         table = self.create_table()
-        with self.assertRaises(ConnectionExistsError):
+        with self.assertRaises(NoDatabaseError):
             table.load_current_connection()
 
     def test_fields_map(self):
@@ -48,8 +50,11 @@ class TestTable(LorelieTestCase):
         self.assertIsInstance(field, Field)
         self.assertIsInstance(field, CharField)
 
-        with self.assertRaises(KeyError):
-            table.get_field('firstname')
+        self.assertRaises(
+            FieldExistsError,
+            table.get_field,
+            name='firstname'
+        )
 
         self.assertIsNotNone(field.table)
 
@@ -57,7 +62,14 @@ class TestTable(LorelieTestCase):
         table = self.create_table()
         self.assertDictEqual(
             table.field_types,
-            {'name': 'text', 'height': 'integer'}
+            {
+                'name': 'text',
+                'age': 'integer',
+                'city': 'text',
+                'country': 'text',
+                'height': 'integer',
+                'created_on': 'datetime'
+            }
         )
 
         # When we have mixed type fields, we have to determine
@@ -81,21 +93,17 @@ class TestTable(LorelieTestCase):
         # new table in a database
         table = self.create_table()
 
-        # OLD: We should not be able to use a table outside
-        # of the Database class without having called
-        # prepare()
-        # with self.assertRaises((ImproperlyConfiguredError, AttributeError)):
-        #     table.build_all_field_parameters()
-
         table.backend = self.create_connection()
         parameters = list(table.build_all_field_parameters())
         self.assertListEqual(
             parameters,
             [
                 ['name', 'text', 'not null'],
+                ['age', 'integer', 'default', 22, 'not null'],
+                ['city', 'text', 'default', "'Los Angeles'", 'not null'],
+                ['country', 'text', 'default', "'USA'", 'not null'],
                 ['height', 'integer', 'default', 152,
-                    'not null', 'check(height>150)'
-                 ],
+                    'not null', 'check(height>150)'],
                 ['created_on', 'datetime', 'null'],
                 ['id', 'integer', 'primary key', 'autoincrement', 'not null']
             ]
@@ -104,13 +112,28 @@ class TestTable(LorelieTestCase):
     def test_value_validation(self):
         table = self.create_table()
         table.backend = self.create_connection()
-        items = table.validate_values(['name'], ['Kendall'])
-        self.assertTupleEqual(items, (["'Kendall'"], {'name': "'Kendall'"}))
 
-        with self.assertRaises((FieldExistsError, KeyError)):
-            # Validating a field that does not exist
-            # on the table should raise an error
-            table.validate_values(['age'], [23])
+        validated_data = table.pre_save_setup(['name'], ['Kendall'])
+        self.assertTrue(is_dataclass(validated_data))
+        self.assertListEqual(validated_data.values, ["'Kendall'"])
+        self.assertDictEqual(validated_data.data, {'name': "'Kendall'"})
+        print(validated_data)
+        validated_data = table.pre_save_setup_from_dict({'name': 'Kendall'})
+        self.assertDictEqual(validated_data.data, {'name': "'Kendall'"})
+
+        validated_items = table.pre_save_setup_from_list([{'name': 'Kendall'}])
+        validated_items = list(validated_items)
+        validated_data = validated_items[0]
+        self.assertDictEqual(validated_data.data, {'name': "'Kendall'"})
+
+        # Validating a field that does not exist
+        # on the table should raise an error
+        self.assertRaises(
+            FieldExistsError,
+            table.pre_save_setup,
+            fields=['firstname'],
+            values=['Kendall']
+        )
 
     def test_table_management(self):
         table = self.create_table()
@@ -125,12 +148,14 @@ class TestTable(LorelieTestCase):
         create_table_sql = table.create_table_sql(
             table.backend.comma_join(field_params)
         )
+
         self.assertListEqual(
             create_table_sql,
             [
-                'create table if not exists celebrities (name text not null, ',
-                'height integer default 152 not null check(height>150), created_on datetime null, '
-                'id integer primary key autoincrement not null)'
+                "create table if not exists celebrities (name text not null, "
+                "age integer default 22 not null, city text default 'Los Angeles' not null, "
+                "country text default 'USA' not null, height integer default 152 not null check(height>150), "
+                "created_on datetime null, id integer primary key autoincrement not null)"
             ]
         )
 
@@ -142,15 +167,20 @@ class TestTable(LorelieTestCase):
 
     def test_table_level_constraints(self):
         constraint = CheckConstraint('my_constraint', Q(name__eq='Kendall'))
+
         table = Table(
             'my_table',
             fields=[CharField('name')],
             constraints=[constraint]
         )
+
         db = Database(table)
-        table.prepare(db)
+        table = db.get_table('my_table')
+        # table.prepare(database=db)
+
         self.assertIn(constraint, table.table_constraints)
 
+    @unittest.expectedFailure
     def test_adding_an_existing_constraint_to_the_table(self):
         # TODO: Prevent the user from being able to create two
         # similar constraints in a given table
@@ -236,9 +266,15 @@ class TestRelationshipMap(LorelieTestCase):
         t2 = db.get_table('follower')
 
         relationship_map = RelationshipMap(t1, t2)
-        relationship_map.relationship_field = t2.get_field('celebrity')
-        self.assertEqual(relationship_map.forward_field_name, 'celebrity')
-        self.assertEqual(relationship_map.backward_field_name, 'celebrity_set')
+        relationship_map.relationship_field = t2.get_field('celebrity_id')
+        self.assertEqual(
+            relationship_map.forward_field_name,
+            'celebrity_follower'
+        )
+        self.assertEqual(
+            relationship_map.backward_field_name,
+            'celebrity_follower_set'
+        )
 
         print(relationship_map.get_relationship_condition(t1))
         print(relationship_map.get_relationship_condition(t2))

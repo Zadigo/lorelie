@@ -1,4 +1,4 @@
-from lorelie.database.tables.base import Column
+from lorelie.database.tables.columns import Column
 from lorelie.test.testcases import LorelieTestCase
 
 

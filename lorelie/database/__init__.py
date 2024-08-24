@@ -57,12 +57,12 @@ class TriggersMap:
 
 class MasterRegistry:
     """This class is responsible for storing and tracking 
-    the core components of Lorelie, such as tables and the database. 
-    It serves as a central registry, providing access to these 
-    elements for other parts of the project"""
+    the core components of Lorelie, such as triggers and 
+    databases. It serves as a central registry, providing 
+    access to these elements for other parts of the 
+    project"""
 
     current_database = None
-    known_tables = OrderedDict()
     registered_triggers = TriggersMap()
 
     def __repr__(self):
@@ -73,10 +73,7 @@ class MasterRegistry:
 
         if not isinstance(database, Database):
             raise ValueError(f"'{database}' should be an instance of database")
-
         self.current_database = database
-        for name, table in database.table_map.items():
-            self.known_tables[name] = table
 
 
 registry = MasterRegistry()

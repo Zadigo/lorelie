@@ -222,6 +222,7 @@ class SelectNode(BaseNode):
 
         if self.distinct:
             return [select_sql.replace('select', 'select distinct')]
+        
         return [select_sql]
 
 

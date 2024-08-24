@@ -2,6 +2,8 @@ import datetime
 import decimal
 import json
 import re
+import uuid
+from base64 import b64decode
 from decimal import Decimal
 from functools import cached_property
 from urllib.parse import unquote
@@ -290,7 +292,10 @@ class DecimalField(NumericFieldMixin, Field):
     def __init__(self, name, digits=None, **kwargs):
         super().__init__(name, **kwargs)
         if digits is None:
-            raise ValueError(f'{digits} should be an integer')
+            raise ValueError(
+                'The digits parameter should be '
+                f'an integer. Received: {digits}'
+            )
         self.digits = digits
 
     @cached_property
@@ -497,11 +502,24 @@ class FilePathField(CharField):
 
 
 class SlugField(CharField):
-    pass
+    def to_database(self, data):
+        data = super().to_database(data)
+        return data.replace(' ', '-')
 
 
 class UUIDField(CharField):
-    pass
+    def to_python(self, data):
+        if data is not None:
+            if not isinstance(data, uuid.UUID):
+                key = 'int' if isinstance(data, int) else 'hex'
+                try:
+                    data = uuid.UUID(**{key: data})
+                except:
+                    raise ValueError(
+                        f"Data for field {self.name} is not a "
+                        "valid uuid value"
+                    )
+        return data
 
 
 class URLField(CharField):
@@ -514,7 +532,17 @@ class URLField(CharField):
 
 
 class BinaryField(Field):
-    pass
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
+        self.editable = False
+
+    def to_database(self, data):
+        return b64decode(data).decode('ascii')
+
+    def to_python(self, data):
+        if isinstance(data, str):
+            encoded_data = b64decode(data.encode('ascii'))
+            return memoryview(encoded_data)
 
 
 class CommaSeparatedField(CharField):

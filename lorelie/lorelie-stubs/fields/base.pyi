@@ -157,6 +157,9 @@ class BooleanField(Field):
 class AutoField(IntegerField):
     python_type: Type[int] = ...
 
+    @override
+    def __init__(self) -> None: ...
+
 
 class DateFieldMixin:
     date_format: str = ...
@@ -228,7 +231,7 @@ class URLField(CharField):
 
 
 class BinaryField(Field):
-    pass
+    def __init__(self, name: str, **kwargs) -> None: ...
 
 
 class CommaSeparatedField(CharField):

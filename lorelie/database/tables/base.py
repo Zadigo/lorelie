@@ -326,12 +326,21 @@ class Table(AbstractTable):
 
         super().__init__()
 
-        # Maps the local field name to its 
+        # Maps the local field name to its
         # true name on the foreign table
         self.foreign_fields_map = {}
 
-        non_authorized_names = ['rowid', 'id']
-        for i, field in enumerate(fields):
+        none_relationship_fields = []
+        relationship_fields = []
+
+        for field in fields:
+            if field.is_relationship_field:
+                relationship_fields.append(field)
+                continue
+            none_relationship_fields.append(field)
+
+        non_authorized_names = ['rowid', 'id', 'table']
+        for i, field in enumerate(none_relationship_fields):
             if not hasattr(field, 'prepare'):
                 raise ValueError(f"{field} should be an instance of Field")
 

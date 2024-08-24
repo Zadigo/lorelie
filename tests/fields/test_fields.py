@@ -1,9 +1,12 @@
 import datetime
+import uuid
 
 from lorelie.exceptions import ValidationError
-from lorelie.fields.base import (BooleanField, CharField, DateField,
-                                 DateTimeField, Field, FloatField,
-                                 IntegerField, JSONField)
+from lorelie.fields.base import (AutoField, BinaryField, BooleanField,
+                                 CharField, CommaSeparatedField, DateField,
+                                 DateTimeField, DecimalField, EmailField,
+                                 Field, FloatField, IntegerField, JSONField,
+                                 SlugField, TimeField, URLField, UUIDField)
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -166,14 +169,58 @@ class TestDateTimeField(LorelieTestCase):
         self.assertEqual(f.to_database(1), '')
 
 
-# class TestAutoField(unittest.TestCase):
-#     def test_result(self):
-#         field = AutoField()
-#         field.prepare(table)
+class TestAutoField(LorelieTestCase):
+    def test_structure(self):
+        table = self.create_table()
 
-#         name, params = field.deconstruct()
-#         self.assertListEqual(
-#             params,
-#             ['id', 'integer', 'primary key', 'autoincrement', 'not null']
-#         )
+        field = AutoField()
+        field.prepare(table)
 
+        name, params = field.deconstruct()
+        self.assertListEqual(
+            params,
+            ['id', 'integer', 'primary key', 'autoincrement', 'not null']
+        )
+
+
+class TestDecimalField(LorelieTestCase):
+    def test_structure(self):
+        table = self.create_table()
+
+        f = DecimalField('rating', digits=3)
+        f.prepare(table)
+        self.assertEqual(f.to_database(2.21245), '2.21')
+
+
+class TestCommaSeparatedField(LorelieTestCase):
+    def test_structure(self):
+        table = self.create_table()
+
+        f = CommaSeparatedField('names')
+        f.prepare(table)
+
+        names = ['Julie', 'Aurélie', 'Pauline']
+        self.assertEqual(
+            f.to_database(names),
+            'Julie, Aurélie, Pauline'
+        )
+
+
+class TestUUIField(LorelieTestCase):
+    def test_structure(self):
+        table = self.create_table()
+
+        f = UUIDField('id')
+        f.prepare(table)
+
+        value = uuid.uuid4()
+        self.assertEqual(f.to_database(value), str(value))
+        self.assertEqual(f.to_python(value), value)
+
+
+class TestBinaryField (LorelieTestCase):
+    def test_structure(self):
+        table = self.create_table()
+
+        f = BinaryField('image')
+        f.prepare(table)

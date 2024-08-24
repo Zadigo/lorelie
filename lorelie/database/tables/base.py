@@ -399,38 +399,39 @@ class Table(AbstractTable):
         # we do it last is because some items require
         # other parts of the table to be prepared
         # before continuing
-        for i, field in enumerate(fields):
-            if field.is_relationship_field:
-                params = {
-                    'left_table': field.foreign_table,
-                    'right_table': self,
-                    'relationship_field': field
-                }
+        for i, field in enumerate(relationship_fields):
+            params = {
+                'left_table': field.foreign_table,
+                'right_table': self,
+                'relationship_field': field
+            }
 
-                if field.field_python_name == 'ManyToManyField':
-                    continue
+            if field.field_python_name == 'ManyToManyField':
+                continue
 
-                # TODO: Simplify this whole section
-                relationship_map = RelationshipMap(**params)
-                self.relationship_maps[field.name] = relationship_map
+            # TODO: Simplify this whole section
+            relationship_map = RelationshipMap(**params)
+            self.relationship_maps[field.name] = relationship_map
 
-                field.prepare(self)
+            field.prepare(self)
 
-                foward_manager = ForwardForeignTableManager.new(
-                    self,
-                    relationship_map
-                )
-                backward_manager = BackwardForeignTableManager.new(
-                    field.foreign_table,
-                    relationship_map
-                )
+            foward_manager = ForwardForeignTableManager.new(
+                self,
+                relationship_map
+            )
+            backward_manager = BackwardForeignTableManager.new(
+                field.foreign_table,
+                relationship_map
+            )
 
-                # left_table.field_set.manager <-> right_table.field.manager
-                self.foreign_managers[relationship_map.forward_field_name] = foward_manager
-                field.foreign_table.foreign_managers[relationship_map.backward_field_name] = backward_manager
-                self.fields_map[field.name] = field
-
-                self.foreign_fields_map[field.name] = relationship_map.foreign_forward_related_field_name
+            # left_table.field_set.manager <-> right_table.field.manager
+            self.foreign_managers[relationship_map.forward_field_name] = foward_manager
+            field.foreign_table.foreign_managers[relationship_map.backward_field_name] = backward_manager
+            self.fields_map[field.name] = field
+            # Map the actual foreign table column name e.g. column_id
+            # here so that we can get it when needed later on for example
+            # when we start running filters in the manager
+            self.foreign_fields_map[field.name] = relationship_map.foreign_forward_related_field_name
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'

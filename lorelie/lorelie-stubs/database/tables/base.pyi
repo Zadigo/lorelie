@@ -1,5 +1,5 @@
-from collections.abc import Generator
 import dataclasses
+from collections.abc import Generator
 from functools import lru_cache
 from typing import (Any, Dict, List, Literal, Optional, OrderedDict, Tuple,
                     Type, Union)
@@ -11,6 +11,7 @@ from lorelie.database.indexes import Index
 from lorelie.database.manager import (BackwardForeignTableManager,
                                       DatabaseManager,
                                       ForwardForeignTableManager)
+from lorelie.database.tables.columns import Column
 from lorelie.fields.base import Field
 from lorelie.queries import Query
 
@@ -79,14 +80,12 @@ class AbstractTable(metaclass=BaseTable):
 
     def pre_save_setup_from_list(
         self,
-        fields: List[str],
-        values: List[Any]
+        values: List[dict[str, Any]],
     ) -> List[Tuple[list[str], dict[str, Any]]]: ...
 
     def pre_save_setup_from_dict(
         self,
-        fields: List[str],
-        values: List[Any]
+        values: dict[str, Any],
     ) -> Tuple[list[str], dict[str, Any]]: ...
 
     def pre_save_setup(
@@ -171,4 +170,9 @@ class Table(AbstractTable):
     def create_table_sql(self, fields: list[str]) -> list[str]: ...
     def drop_table_sql(self) -> list[str]: ...
     def build_all_field_parameters(self) -> list[str]: ...
-    def prepare(self, database: Database) -> None: ...
+
+    def prepare(
+        self, 
+        database: Database = ...,
+        skip_creation: bool = ...
+    ) -> None: ...

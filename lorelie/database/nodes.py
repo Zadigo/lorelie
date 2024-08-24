@@ -463,7 +463,7 @@ class InsertNode(BaseNode):
     """
 
     template_sql = 'insert into {table} ({columns}) values({values})'
-    bactch_insert_sql = 'insert into {table} ({columns}) values {values}'
+    batch_insert_sql = 'insert into {table} ({columns}) values {values}'
 
     def __init__(self, table, batch_values=[], insert_values={}, returning=[]):
         super().__init__(table=table)
@@ -494,15 +494,16 @@ class InsertNode(BaseNode):
                 values.append(f"({joined})")
 
             joined_values = backend.comma_join(values)
-            template = self.bactch_insert_sql
+            template = self.batch_insert_sql
         else:
-            data = self.insert_values.data
             if dataclasses.is_dataclass(self.insert_values):
                 try:
                     data = self.insert_values.get_data_to_save
                 except AttributeError:
                     raise ValueError(f'Node received a dataclass that does not contain get_data_to_save property: {self.insert_values}')
-            
+            else:
+                data = self.insert_values
+
             columns, values = backend.dict_to_sql(data)
             joined_values = backend.comma_join(backend.quote_values(values))
 

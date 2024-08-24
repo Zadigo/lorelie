@@ -6,10 +6,10 @@ from expressions import Q
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database.functions.base import Functions
-from lorelie.database.tables.base import Table
+from lorelie.database.tables.base import RelationshipMap, Table, ValidatedData
 from lorelie.database.tables.columns import Column
 from lorelie.queries import QuerySet
-from lorelie.database.tables.base import RelationshipMap
+
 
 @dataclasses.dataclass
 class SelectMap:
@@ -155,14 +155,24 @@ class DeleteNode(BaseNode):
 
 class InsertNode(BaseNode):
     template_sql: str = ...
-    insert_values: dict[str, Union[int, float, Callable[..., Any]]] = ...
+    insert_values: Union[
+        ValidatedData,
+        dict[
+            str,
+            Union[int, float, Callable[..., Any]]
+        ]
+    ] = ...
     batch_values: list[dict[str, Union[int, float, Callable[..., Any]]]] = ...
 
     def __init__(
         self,
         table: Table,
         batch_values: Optional[list[dict[str, Any]]] = ...,
-        insert_values: Optional[dict[str, Any]] = ...,
+        insert_values: Optional[
+            Union[
+                ValidatedData,
+                dict[str, Any]]
+        ] = ...,
         returning: Optional[list[str]] = ...
     ) -> None: ...
 
@@ -181,7 +191,8 @@ class IntersectNode(BaseNode):
 
 
 class InnerJoinNode(BaseNode):
-    def __init__(self, table: Table, relationship_map: RelationshipMap) -> None: ...
+    def __init__(self, table: Table,
+                 relationship_map: RelationshipMap) -> None: ...
 
 
 class ViewNode(BaseNode):

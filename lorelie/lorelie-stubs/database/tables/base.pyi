@@ -1,6 +1,6 @@
 import dataclasses
 from collections.abc import Generator
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from typing import (Any, Dict, List, Literal, Optional, OrderedDict, Tuple,
                     Type, Union)
 
@@ -14,6 +14,19 @@ from lorelie.database.manager import (BackwardForeignTableManager,
 from lorelie.database.tables.columns import Column
 from lorelie.fields.base import Field
 from lorelie.queries import Query
+
+
+@dataclasses.dataclass
+class ValidatedData:
+    values: list[Any]
+    data: dict = dataclasses.field(default_factory=dict)
+    relationship_fields: dict = dataclasses.field(default_factory=dict)
+
+    @cached_property
+    def columns(self) -> List[str]: ...
+
+    @property
+    def get_data_to_save(self) -> List[Any]: ...
 
 
 @dataclasses.dataclass
@@ -172,7 +185,7 @@ class Table(AbstractTable):
     def build_all_field_parameters(self) -> list[str]: ...
 
     def prepare(
-        self, 
+        self,
         database: Database = ...,
         skip_creation: bool = ...
     ) -> None: ...

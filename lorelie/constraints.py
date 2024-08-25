@@ -16,16 +16,24 @@ class BaseConstraint:
     def __init__(self, name):
         self.name = name
 
+        random_string = secrets.token_hex(nbytes=5)
+        self.constraint_name = '_'.join([
+            self.prefix,
+            name,
+            random_string
+        ])
+
     def __repr__(self):
-        return f'<{self.__class__.__name__}: {self.generated_name}>'
+        klass_name = self.__class__.__name__
+        return f'<{klass_name}: {self.constraint_name}>'
 
     def __hash__(self):
         return hash((self.name))
 
-    @property
-    def generated_name(self):
-        random_string = secrets.token_hex(nbytes=5)
-        return '_'.join([self.prefix, self.name, random_string])
+    def __eq__(self, instance):
+        if not isinstance(instance, BaseConstraint):
+            return NotImplemented
+        return instance.name == self.name
 
     def as_sql(self, backend):
         return NotImplemented
@@ -68,8 +76,9 @@ class UniqueConstraint(BaseConstraint):
     >>> unique_name = UniqueConstraint(fields=['name'])
     ... table = Table('celebrities', constraints=[unique_name])
     """
-    template_sql = 'unique({fields})'
+
     prefix = 'unq'
+    template_sql = 'unique({fields})'
 
     def __init__(self, name, *, fields=[]):
         super().__init__(name)
@@ -89,8 +98,13 @@ class MinMaxMixin:
             error = self.base_errors['integer']
             raise ValueError(error.format(klass=self.__class__.__name__))
 
+        self.name = 'min_max'
+        self.constraint_name = f'{self.name}_{secrets.token_hex(nbytes=5)}'
         self.limit = limit
         self.field = field
+
+    def __hash__(self):
+        return hash((self.limit, self.field))
 
 
 class MaxLengthConstraint(MinMaxMixin, BaseConstraint):

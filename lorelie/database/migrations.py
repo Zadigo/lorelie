@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from functools import cached_property
 
 from lorelie.backends import SQLiteBackend, connections
-from lorelie.database.nodes import InsertNode
 from lorelie.fields.base import CharField, DateTimeField, Field, JSONField
 from lorelie.queries import Query
 from lorelie.database.tables.base import Table
@@ -221,6 +220,7 @@ class Migrations:
                 # This is the specific section
                 # that actually creates the table
                 # in the database
+                table.load_current_connection()
                 table.prepare(self.database)
             self.has_migrations = True
 

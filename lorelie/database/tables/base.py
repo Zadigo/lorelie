@@ -492,9 +492,7 @@ class Table(AbstractTable):
         for field in fields:
             seen_types.add(field.field_type)
 
-        unique_types = set(seen_types)
-
-        return len(unique_types) > 1
+        return len(seen_types) > 1
 
     @property
     def has_relationships(self):

@@ -484,13 +484,13 @@ class Table(AbstractTable):
 
     @staticmethod
     def compare_field_types(*fields):
-        """Compare the different field types
-        and check if we are dealing with
-        mixed types"""
-        seen_types = []
+        """Takes a set of fields and checks
+        if their type are different from one 
+        another"""
+        seen_types = set()
 
         for field in fields:
-            seen_types.append(field.field_type)
+            seen_types.add(field.field_type)
 
         unique_types = set(seen_types)
 

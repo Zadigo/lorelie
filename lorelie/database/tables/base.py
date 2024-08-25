@@ -614,6 +614,10 @@ class Table(AbstractTable):
             self.attached_to_database = database
             return True
 
+        if database is not None and self.attached_to_database is None:
+            self.attached_to_database = database
+            self.load_current_connection()
+
         field_params = self.build_all_field_parameters()
         field_params = [
             self.backend.simple_join(params)

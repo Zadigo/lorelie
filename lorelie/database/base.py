@@ -132,8 +132,12 @@ class Database:
         return 'MEMORY'
 
     def _add_table(self, table):
-        table.load_current_connection()
-        self.table_map[table.name] = table
+        if isinstance(table, Table):
+            setattr(table, 'attached_to_database', self)
+            table.load_current_connection()
+            self.table_map[table.name] = table
+            return True
+        return False
 
     def get_table(self, table_name):
         try:

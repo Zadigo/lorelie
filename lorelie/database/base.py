@@ -5,9 +5,9 @@ from functools import wraps
 from lorelie.backends import SQLiteBackend
 from lorelie.database import registry
 from lorelie.database.migrations import Migrations
+from lorelie.database.tables.base import Table
 from lorelie.exceptions import TableExistsError
 from lorelie.queries import Query
-from lorelie.database.tables.base import Table
 
 
 class Database:
@@ -63,9 +63,10 @@ class Database:
 
             self.path = path
 
-        # Create a connection to populate the
-        # connection pool for the rest of the
-        # operations
+        # Create a connection immediately in order 
+        # to populate the connection pool for the 
+        # rest of the operations that we are going
+        # to run afterwards e.g. migrations etc
         self.backend_class(
             database_or_name=self,
             path=self.path,
@@ -76,9 +77,10 @@ class Database:
         for table in tables:
             if not isinstance(table, Table):
                 raise ValueError('Value should be an instance of Table')
-
-            table.load_current_connection()
-            # setattr(table, 'database', self)
+            
+            # TODO: Don't think we need to load
+            # the connection for the table here
+            # table.load_current_connection()
             self.table_map[table.name] = table
             setattr(self, table.name, table)
             setattr(table, 'attached_to_database', self)
@@ -87,7 +89,6 @@ class Database:
         self.relationships = OrderedDict()
         self.log_queries = log_queries
 
-        # databases.register(self)
         # FIXME: Seems like if this class is not called
         # after all the elements have been set, this
         # raises an error. Maybe create a special prepare

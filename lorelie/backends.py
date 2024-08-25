@@ -53,7 +53,8 @@ class Connections:
 
     def get_last_connection(self):
         """Return the last connection from the
-        connection pool"""
+        connection pool regardless of the actual
+        database to which the connection is linked"""
         try:
             return list(self.created_connections)[-1]
         except IndexError:
@@ -399,9 +400,9 @@ class SQL(ExpressionFiltersMixin):
             if hasattr(value, 'to_python'):
                 return getattr(value, 'to_python')()
             return str(value)
-        
+
         values = map(check_functions, values)
-        
+
         if space_characters:
             return ' '.join(values)
         return ''.join(values)
@@ -693,6 +694,11 @@ class SQLiteBackend(SQL):
         self.log_queries = log_queries
 
         connections.register(self, name=self.database_name)
+
+    def __repr__(self):
+        klass_name = self.__class__.__name__
+        database_name = self.database_name or ':memory:'
+        return f'<{klass_name}: {database_name}>'
 
     def __hash__(self):
         return hash((self.database_name))

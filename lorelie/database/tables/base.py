@@ -267,7 +267,15 @@ class AbstractTable(metaclass=BaseTable):
 
     def load_current_connection(self):
         from lorelie.backends import connections
-        self.backend = connections.get_last_connection()
+        try:
+            # Safeguard for if the user is trying to call this
+            # function outside of a database class. Technically
+            # tables should be instantiated in Database wrapper
+            database_name = self.attached_to_database.database_name
+        except AttributeError:
+            raise NoDatabaseError(self)
+        else:
+            self.backend = connections.get_connection(database_name)
 
 
 class Table(AbstractTable):

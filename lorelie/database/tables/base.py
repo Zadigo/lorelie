@@ -11,7 +11,8 @@ from lorelie.database.manager import (BackwardForeignTableManager,
                                       DatabaseManager,
                                       ForwardForeignTableManager)
 from lorelie.database.tables.columns import Column
-from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
+from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
+                                ImproperlyConfiguredError, NoDatabaseError)
 from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
 from lorelie.queries import Query
 
@@ -19,7 +20,7 @@ from lorelie.queries import Query
 @dataclass
 class ValidatedData:
     values: list
-    data: dict= dataclasses.field(default_factory=dict)
+    data: dict = dataclasses.field(default_factory=dict)
     relationship_fields: dict = dataclasses.field(default_factory=dict)
 
     @cached_property
@@ -168,7 +169,6 @@ class BaseTable(type):
 
 
 class AbstractTable(metaclass=BaseTable):
-    # TODO: Remove
     query_class = Query
     backend_class = SQLiteBackend
 
@@ -213,15 +213,15 @@ class AbstractTable(metaclass=BaseTable):
         """Validates a set of values that the user is 
         trying to insert or update in the database by
         doing the following things:
-        
-            * Calls `Field.to_database` in order to transform the
-              data to a valid database value
 
-            * Returns a `ValidatedData` object with the list of valid
-              values that can be saved into the database
+        * Calls `Field.to_database` in order to transform the
+          data to a valid database value
+
+        * Returns a `ValidatedData` object with the list of valid
+          values that can be saved into the database
 
         >>> validate_values(['name'], ['Kendall'])
-        ... (["'Kendall'"], {'name': "'Kendall'"})
+        ... ValidatedData(values=["'Kendall'"], data={'name': "'Kendall'"}, relationship_fields={})
         """
         from lorelie.backends import BaseRow
 
@@ -465,11 +465,6 @@ class Table(AbstractTable):
     def __contains__(self, value):
         return value in self.field_names
 
-    def __setattr__(self, name, value):
-        if name == 'name':
-            pass
-        return super().__setattr__(name, value)
-
     def __getattribute__(self, name):
         if name == 'backend':
             backend = self.__dict__['backend']
@@ -478,7 +473,7 @@ class Table(AbstractTable):
                     self,
                     "You are trying to use a table outside of a Database "
                     "and therefore calling it without the backend being set "
-                    "on the table instance"
+                    f"on the table instance: {self}"
                 )
         return super().__getattribute__(name)
 
@@ -604,12 +599,10 @@ class Table(AbstractTable):
             if getattr(field, 'is_relationship_field', False):
                 yield field.relationship_field_params
 
-    def prepare(self, database, skip_creation=False):
-        """Prepares the table with additional parameters, 
-        gets all the field parameters to be used in order to
-        create the current table and then creates the create SQL
-        statement that will then be used to creates the
-        different tables in the database using the database"""
+    def prepare(self, database=None, skip_creation=False):
+        """Collects all the field parameters and then
+        creates and runs the query to create the table
+        """
         if skip_creation:
             self.attached_to_database = database
             return True
@@ -634,7 +627,10 @@ class Table(AbstractTable):
                     # used for creating the relationship on table
                     continue
 
-        self.attached_to_database = database
+        # TODO: We do not need to attach to the
+        # database here anymore since we are
+        # attaching directly with Database
+        # self.attached_to_database = database
         self.is_prepared = True
 
         joined_fields = self.backend.comma_join(field_params)

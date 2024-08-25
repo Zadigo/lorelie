@@ -81,6 +81,7 @@ class Database:
             # setattr(table, 'database', self)
             self.table_map[table.name] = table
             setattr(self, table.name, table)
+            setattr(table, 'attached_to_database', self)
 
         self.table_instances = list(tables)
         self.relationships = OrderedDict()

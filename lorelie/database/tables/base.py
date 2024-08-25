@@ -254,7 +254,7 @@ class AbstractTable(metaclass=BaseTable):
             validated_values.append(validated_value)
 
         validated_dict_values = dict(zip(fields, validated_values))
-        validated_data = ValidatedData(validated_values, validated_dict_values)
+        validated_data = ValidatedData(validated_values, data=validated_dict_values)
 
         if self.relationship_maps:
             for key, value in validated_data.data.items():

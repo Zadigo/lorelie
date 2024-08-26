@@ -5,13 +5,14 @@ from expressions import F, Q
 
 from lorelie.database.functions.base import Functions
 
+
 class Window(Functions):
     function: str = ...
     order_by: str = ...
 
     def __init__(
         self,
-        function: Union[Rank, PercentRank, CumeDist],
+        function: Union[Rank, PercentRank, CumeDist, DenseRank, LastValue, Lag, NthValue, NTile, Lead, RowNumber],
         partition_by: Union[str, F] = ...,
         order_by: Union[str, F] = ...
     ) -> None: ...
@@ -25,9 +26,6 @@ class WindowFunctionMixin:
     takes_partition: Union[str, F]
 
     def __init__(self, *expressions: Union[str, F]) -> None: ...
-
-    @override
-    def as_sql(self, backend: SQLiteBackend) -> str: ...
 
 
 class Rank(WindowFunctionMixin, Functions):

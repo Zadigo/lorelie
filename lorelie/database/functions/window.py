@@ -17,8 +17,12 @@ class Window(Functions):
         if function is None:
             raise ValueError("Function cannot be None")
 
-        if not isinstance(function, (Rank, PercentRank, CumeDist, Lead, Lag)):
-            raise ValueError("Function should be an instance of Rank")
+        if function.internal_type != 'window_function':
+            raise ValueError(
+                "Function should be an instance of Window functions: "
+                "CumeDist, DenseRank, FirstValue, Lag, LastValue, Lead, "
+                "LastValue, Lead, NthValue, NTile and RowNumber"
+            )
 
         if order_by is None:
             order_by = function.field_name
@@ -58,6 +62,10 @@ class WindowFunctionMixin:
         compound_name = '_'.join(names)
         field_name = f'{self.__class__.__name__.lower()}_{compound_name}'
         super().__init__(field_name)
+
+    @property
+    def internal_type(self):
+        return 'window_function'
 
     def as_sql(self, backend):
         resolved_expressions = []

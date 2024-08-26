@@ -63,6 +63,54 @@ class TestCumeDist(WindowMixin, LorelieTestCase):
         self.assertIn('cume_dist', values[0])
 
 
+class TestDenseRank(WindowMixin, LorelieTestCase):
+    def test_structure(self):
+        instance = Window(
+            DenseRank('age'),
+            partition_by='age',
+            order_by='age'
+        )
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(
+            sql,
+            'dense_rank() over (partition by age order by age)'
+        )
+
+    def test_query_window(self):
+        window = Window(DenseRank('height'))
+        qs = self.db.celebrities.objects.annotate(dense_rank=window)
+        values = qs.values('height', 'dense_rank')
+        self.assertIn('dense_rank', values[0])
+
+
+class TestFirstValue(WindowMixin, LorelieTestCase):
+    pass
+
+
+class TestLag(WindowMixin, LorelieTestCase):
+    pass
+
+
+class TestLastValue(WindowMixin, LorelieTestCase):
+    pass
+
+
+class TestLead(WindowMixin, LorelieTestCase):
+    pass
+
+
+class TestNthValue(WindowMixin, LorelieTestCase):
+    pass
+
+
+class TestNTile(WindowMixin, LorelieTestCase):
+    pass
+
+
+class TestRowNumber(WindowMixin, LorelieTestCase):
+    pass
+
+
 class TestWindowFunctions(LorelieTestCase):
     def test_window_function_with_string(self):
         window = Window(Rank('age'))

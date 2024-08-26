@@ -254,15 +254,6 @@ class CombinedExpression:
         # field name in order to be rendered
         # correctly in sqlite
         self.alias_field_name = None
-        # NOTE: Technically we will never be
-        # using the combined expression as a
-        # standalone class but we might need
-        # to build the existing children on
-        # init to avoid arrays like
-        # a = CombinedExpression(Q(firstname='Kendall'))
-        # b = Q(age__gt=26)
-        # c = a & b -> ['(and age>26)']
-        # self.build_children()
 
     def __repr__(self):
         klass_name = self.__class__.__name__
@@ -420,21 +411,22 @@ class Q(BaseExpression):
 
     def __repr__(self):
         klass_name = self.__class__.__name__
-        return f'<{klass_name}: {self.representation()}>'
+        return f'<{klass_name}: {self.representation}>'
 
     def __and__(self, other):
-        instance = CombinedExpression(self, other)
-        instance.build_children()
-        return instance
+        combined = CombinedExpression(self, other)
+        combined.build_children()
+        return combined
 
     def __or__(self, other):
-        instance = CombinedExpression(self, other)
-        instance.build_children(operator='or')
-        return instance
+        combined = CombinedExpression(self, other)
+        combined.build_children(operator='or')
+        return combined
 
     def __invert__(self):
         return NegatedExpression(self)
 
+    @property
     def representation(self):
         result = []
         items = list(self.expressions.items())

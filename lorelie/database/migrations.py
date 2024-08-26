@@ -1,19 +1,25 @@
+import dataclasses
 import datetime
 import json
 import secrets
 from collections import defaultdict
-import dataclasses
 from dataclasses import dataclass, field
 from functools import cached_property
 
 from lorelie.backends import SQLiteBackend, connections
+from lorelie.database.tables.base import Table
 from lorelie.fields.base import CharField, DateTimeField, Field, JSONField
 from lorelie.queries import Query
-from lorelie.database.tables.base import Table
+from lorelie.utils.json_encoders import DefaultJSonEncoder
 
 
 @dataclass
 class Schema:
+    """A schema is the Python representation
+    of a table in the Database. It provides
+    information on the different important parts
+    of a table"""
+    
     table: type = None
     database: type = None
     fields: list = field(default_factory=list)
@@ -150,9 +156,9 @@ class Migrations:
         which stores the different configuration for
         the current database"""
         from lorelie.database.tables.base import Table
+
         table_fields = [
             CharField('name', null=False, unique=True),
-            CharField('table_name', null=False),
             JSONField(
                 'migration',
                 null=False,
@@ -186,6 +192,7 @@ class Migrations:
             schema = self.schemas[name]
             schema.table = table_instance
             schema.database = self.database
+            schema.prepare()
 
         if errors:
             raise ValueError(*errors)
@@ -196,7 +203,7 @@ class Migrations:
         # There is a case where makemigrations() is not
         # called which infers that there is no migration
         # file. However, that does not mean that the tables
-        # cannot or should not be created. In that case,
+        # cannot should not be created. In that case,
         # use what we know which is the table_instances
         # passed to this function containing both the table
         # name and the Table instance
@@ -231,7 +238,7 @@ class Migrations:
                 table = table_instances.get(table_name, None)
                 if table is None:
                     continue
-                
+
                 # By security, skip any tables that would
                 # overrun the previous check for existing
                 # tables to not be created
@@ -348,8 +355,8 @@ class Migrations:
 
         self.schemas[table.name].fields = list(
             map(
-                lambda x: x['name'], 
-                    database_table_columns
+                lambda x: x['name'],
+                database_table_columns
             )
         )
         backend.create_table_fields(table, columns_to_create)
@@ -374,10 +381,9 @@ class Migrations:
 
     def make_migrations(self, tables):
         backend = connections.get_last_connection()
-        migration = {
+        new_migration = {
             'id': secrets.token_hex(5),
             'date': str(datetime.datetime.now()),
-            'number': 1,
             'tables': []
         }
 
@@ -388,7 +394,7 @@ class Migrations:
             schema = self.schemas[table.name]
             schema.table = table
             schema.database = self.database
-            migration['tables'].append(schema)
+            new_migration['tables'].append(schema)
 
             for constraint in table.table_constraints:
                 schema.constraints[constraint.name] = [

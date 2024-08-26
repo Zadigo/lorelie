@@ -31,7 +31,7 @@ def convert_timestamp(data):
     `sqlite3.register_converter`, to convert date fields when data is 
     fetched from the database, ensuring that date values are properly 
     interpreted as Python date objects"""
-    return datetime.datetime.fromtimestamp(int(data))
+    return datetime.datetime.fromtimestamp(data)
 
 
 def convert_boolean(data):

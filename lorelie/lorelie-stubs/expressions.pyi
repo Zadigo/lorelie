@@ -121,27 +121,27 @@ class CombinedExpression:
     ) -> CombinedExpression: ...
 
     def __and__(
-        self, 
+        self,
         other: Union[BaseExpression, Functions]
     ) -> CombinedExpression: ...
 
     def __add__(
-        self, 
+        self,
         other: Union[BaseExpression, Functions]
     ) -> CombinedExpression: ...
 
     def __sub__(
-        self, 
+        self,
         other: Union[BaseExpression, Functions]
     ) -> CombinedExpression: ...
 
     def __div__(
-        self, 
+        self,
         other: Union[BaseExpression, Functions]
     ) -> CombinedExpression: ...
 
     def __mul__(
-        self, 
+        self,
         other: Union[BaseExpression, Functions]
     ) -> CombinedExpression: ...
 
@@ -155,6 +155,8 @@ class Q(BaseExpression):
     def __and__(self, other: Q) -> CombinedExpression: ...
     def __or__(self, other: Q) -> CombinedExpression: ...
     def __invert__(self, other: Q) -> NegatedExpression: ...
+
+    def representation(self) -> str: ...
 
     @override
     def as_sql(self, backend: SQLiteBackend) -> list[str]: ...

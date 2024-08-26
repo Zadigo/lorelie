@@ -62,6 +62,7 @@ class NegatedExpression(BaseExpression):
 
     def __and__(self, other):
         self.children.append('and')
+
         if isinstance(other, NegatedExpression):
             self.children.extend(other.children)
             return self
@@ -81,8 +82,6 @@ class NegatedExpression(BaseExpression):
         # if len(unique_children) > 1:
         #     pass
 
-        # print(self.seen_expressions)
-
         self.children.append(other)
         return self
 
@@ -91,7 +90,7 @@ class NegatedExpression(BaseExpression):
             if isinstance(node, str):
                 return node
             return backend.simple_join(node.as_sql(backend))
-        
+
         sql = map(map_children, self.children)
 
         return self.template_sql.format_map({
@@ -334,7 +333,8 @@ class Q(BaseExpression):
         self.expressions = expressions
 
     def __repr__(self):
-        return f'<{self.__class__.__name__}: {self.expressions}>'
+        klass_name = self.__class__.__name__
+        return f'<{klass_name}: {self.representation()}>'
 
     def __and__(self, other):
         instance = CombinedExpression(self, other)
@@ -348,6 +348,19 @@ class Q(BaseExpression):
 
     def __invert__(self):
         return NegatedExpression(self)
+
+    def representation(self):
+        result = []
+        items = list(self.expressions.items())
+
+        for i, item in enumerate(items):
+            column, value = item
+
+            if i > 0:
+                result.append(f'AND: {column}:{value}')
+                continue
+            result.append(f'{column}:{value}')
+        return ', '.join(result)
 
     def as_sql(self, backend):
         filters = backend.decompose_filters(**self.expressions)

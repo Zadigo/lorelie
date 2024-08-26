@@ -9,6 +9,7 @@ from lorelie.test.testcases import LorelieTestCase
 class TestQ(LorelieTestCase):
     def test_structure(self):
         instance = Q(firstname='Kendall')
+
         sql = instance.as_sql(self.create_connection())
         self.assertIsInstance(sql, list)
         self.assertListEqual(sql, ["firstname='Kendall'"])
@@ -17,11 +18,16 @@ class TestQ(LorelieTestCase):
         sql = instance.as_sql(self.create_connection())
         self.assertIsInstance(sql, list)
         self.assertListEqual(
-            sql, ["firstname='Kendall' and lastname='Jenner'"])
+            sql,
+            ["firstname='Kendall' and lastname='Jenner'"]
+        )
 
         instance = Q(is_valid=True)
         sql = instance.as_sql(self.create_connection())
-        print(sql)
+        self.assertListEqual(
+            sql,
+            ['is_valid=True']
+        )
 
     def test_and(self):
         a = Q(firstname='Kendall')
@@ -120,7 +126,7 @@ class TestCombinedExpression(LorelieTestCase):
 
         instance = CombinedExpression(a, b)
         instance.build_children()
-
+        print(instance)
         self.assertTrue(len(instance.children) == 3)
         self.assertIsInstance(instance.children[0], Q)
         self.assertIsInstance(instance.children[1], str)
@@ -155,19 +161,27 @@ class TestCombinedExpression(LorelieTestCase):
         )
 
     def test_joining_combined_expressions(self):
+        # FIXME: Expected (name) and (age) but
+        # is this useful the combination of
+        # combined expressions in the grand scheme
         a = CombinedExpression(F('name'))
         b = CombinedExpression(F('age'))
 
         c = a & b
-        # TODO: This returns  ['(and ())']
-        print(c.as_sql(self.create_connection()))
+        conn = self.create_connection()
+        # FIXME: This returns  ['(and ())']
+        result = c.as_sql(conn)
+        print(result)
 
     def test_joining_combined_expression_with_simple(self):
         a = CombinedExpression(Q(firstname='Kendall'))
         b = Q(age__gt=26)
 
         c = a & b
-        print(c.as_sql(self.create_connection()))
+        conn = self.create_connection()
+        # FIXME: Returns ['(and age>26)']
+        result = c.as_sql(conn)
+        print(result)
 
 
 class TestWhen(LorelieTestCase):
@@ -259,3 +273,23 @@ class TestValue(LorelieTestCase):
         instance = Value(Q(age__gt=25))
         sql = instance.as_sql(self.create_connection())
         self.assertIsInstance(sql[0], str)
+
+
+class TestNegatedExpression(LorelieTestCase):
+    def test_structure(self):
+        expression = NegatedExpression(Q(firstname='Kendall'))
+        result = expression.as_sql(self.create_connection())
+        self.assertEqual(
+            result,
+            "not firstname='Kendall'"
+        )
+
+    def test_and_negations(self):
+        e1 = NegatedExpression(Q(firstname='Kendall'))
+        e2 = NegatedExpression(Q(firstname='Kylie'))
+        e3 = e1 & e2
+        result = e3.as_sql(self.create_connection())
+        self.assertEqual(
+            result,
+            "not firstname='Kendall' and firstname='Kylie'"
+        )

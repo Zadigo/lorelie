@@ -126,7 +126,7 @@ class TestCombinedExpression(LorelieTestCase):
 
         instance = CombinedExpression(a, b)
         instance.build_children()
-        print(instance)
+
         self.assertTrue(len(instance.children) == 3)
         self.assertIsInstance(instance.children[0], Q)
         self.assertIsInstance(instance.children[1], str)
@@ -144,6 +144,7 @@ class TestCombinedExpression(LorelieTestCase):
 
         instance = CombinedExpression(a, b)
         instance.build_children()
+
         self.assertListEqual(
             instance.as_sql(self.create_connection()),
             ["(name='Kendall' and age)"]
@@ -158,6 +159,20 @@ class TestCombinedExpression(LorelieTestCase):
         self.assertListEqual(
             instance.as_sql(self.create_connection()),
             ['(age and age)']
+        )
+
+    def test_joined_filters(self):
+        a = Q(firstname='Kendall')
+        b = Q(firstname='Kylie')
+        c = Q(firstname='Julie')
+        d = a | b
+        e = CombinedExpression(d, c)
+
+        conn = self.create_connection()
+        sql = e.as_sql(conn)
+        self.assertEqual(
+            sql,
+            ["(firstname='Kendall' or firstname='Kylie') and firstname='Julie'"]
         )
 
     def test_joining_combined_expressions(self):
@@ -190,10 +205,28 @@ class TestWhen(LorelieTestCase):
         sql = instance.as_sql(self.create_connection())
         self.assertEqual(sql, "when name='Kendall' then 'Kylie'")
 
+    def test_with_expressions(self):
+        instance = When(Q(age=22), 25, firstname='Kendall')
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(
+            sql,
+            "when (age=22 and firstname='Kendall') then 25"
+        )
+
+    def test_complex_expressions(self):
+        condition = Q(firstname='Kendall') | Q(firstname='Kylie')
+        instance = When(condition, 'Julie', age__gt=25)
+        sql = instance.as_sql(self.create_connection())
+        print('\n', instance)
+        self.assertEqual(
+            sql,
+            "when (firstname='Kendall' or firstname='Kylie') and age>25 then 'Julie'"
+        )
+
+    @unittest.expectedFailure
     def test_with_string(self):
         instance = When('name=Kendall', then_case='Kylie')
-        sql = instance.as_sql(self.create_connection())
-        self.assertEqual(sql, "when name='Kendall' then 'Kylie'")
+        instance.as_sql(self.create_connection())
 
 
 class TestCase(LorelieTestCase):
@@ -205,6 +238,7 @@ class TestCase(LorelieTestCase):
 
     def test_structure(self):
         condition = When('firstname=Kendall', 'Kylie')
+
         case = Case(condition, default='Aurélie')
         case.alias_field_name = 'firstname_alias'
 

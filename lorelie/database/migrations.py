@@ -406,12 +406,39 @@ class Migrations:
 
         if self.has_migrations:
             cache_copy = self.CACHE.copy()
-            with open(self.database.path.joinpath('migrations.json'), mode='w+') as f:
+            cache_copy.update(new_migration)
+
+            output_path = self.database.path.joinpath('migrations.json')
+            with open(output_path, mode='w+') as f:
                 cache_copy['id'] = secrets.token_hex(5)
-                cache_copy['date'] = str(datetime.datetime.now())
+                cache_copy['date'] = datetime.datetime.now()
                 cache_copy['number'] = self.CACHE['number'] + 1
-                cache_copy['tables'] = migration['tables']
-                json.dump(cache_copy, f, indent=4, ensure_ascii=False)
+                cache_copy['tables'] = tables
+                json.dump(
+                    cache_copy, 
+                    f, 
+                    indent=4, 
+                    ensure_ascii=False,
+                    cls=DefaultJSonEncoder
+                )
+
+                try:
+                    table = self.database.get_table('lorelie_migrations')
+                except Exception:
+                    return ExceptionGroup(
+                        "The database was not migrated",
+                        [
+                            Exception(
+                                "Migrations was not able to create migrations "
+                                "in the database because migration was not called"
+                            )
+                        ]
+                    )
+                else:
+                    table.objects.create(
+                        name=secrets.token_hex(nbytes=5),
+                        migration=new_migration
+                    )
 
     def get_table_fields(self, name):
         table_index = self.database.table_map.index(name)

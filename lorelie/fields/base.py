@@ -11,6 +11,7 @@ from urllib.parse import unquote
 from lorelie.constraints import (MaxLengthConstraint, MaxValueConstraint,
                                  MinValueConstraint)
 from lorelie.exceptions import ValidationError
+from lorelie.utils.json_encoders import DefaultJSonEncoder
 from lorelie.validators import url_validator
 
 

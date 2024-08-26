@@ -1,11 +1,23 @@
 import unittest
 
+from lorelie.database import migrations
 from lorelie.database.base import Database
-from lorelie.database.migrations import Migrations
+from lorelie.database.migrations import Migrations, Schema
 from lorelie.exceptions import ImproperlyConfiguredError
 from lorelie.fields.base import CharField
 from lorelie.database.tables.base import Table
 from lorelie.test.testcases import LorelieTestCase
+
+
+class TestSchema(LorelieTestCase):
+    def test_structure(self):
+        db = self.create_database(using=self.create_full_table())
+        schema = Schema(
+            table=db.get_table('celebrities'),
+            database=db
+        )
+        result = dict(schema)
+        self.assertEqual(result['table'], 'celebrities')
 
 
 class TestMigrations(LorelieTestCase):
@@ -15,25 +27,16 @@ class TestMigrations(LorelieTestCase):
         self.assertFalse(migrations.migrated)
 
         table = Table('products')
-        with self.assertRaises(ImproperlyConfiguredError):
-            migrations.check({'products': table})
 
-    def test_check_function(self):
-        # Check the migration class on
-        # its very own by destructuring the
-        # building process
-        table = self.create_table()
-        table.backend = self.create_connection()
-
-        db = Database(table)
+    def test_migrate(self):
+        db = self.create_database(using=self.create_table())
         migrations = Migrations(db)
-        migrations.check({'celebrities': table})
-        self.assertTrue(migrations.migrated)
-        self.assertTrue(db.get_table('celebrities').is_prepared)
+        migrations.migrate(db.table_instances)
 
     def test_make_migrations(self):
         db = self.create_database(using=self.create_full_table())
-        db.make_migrations()
+        migrations = Migrations(db)
+        migrations.make_migrations(db.table_instances)
 
 
 #     @unittest.expectedFailure
@@ -55,17 +58,3 @@ class TestMigrations(LorelieTestCase):
 #         ])
 #         db = Database(table)
 #         db.celebrities.objects.all('celebrities')
-
-#     def test_check_with_tables(self):
-#         table = Table('celebrities', fields=[
-#             CharField('name', null=True)
-#         ])
-
-#         db = Database(table)
-#         db.migrate()
-
-#         self.assertTrue(db.migrations.migrated)
-#         db.celebrities.objects.all('celebrities')
-
-#         self.assertEqual(db.migrations.database_name, 'memory')
-#         db.celebrities.objects.all('lorelie_migrations')

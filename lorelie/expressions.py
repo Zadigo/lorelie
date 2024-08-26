@@ -111,10 +111,11 @@ class When(BaseExpression):
     the condition is met
     """
 
-    def __init__(self, condition, then_case, **kwargs):
+    def __init__(self, condition, then_case, **expressions):
         self.condition = condition
         self.then_case = then_case
-        self.field_name = None
+        self.expressions = expressions
+        self.children = []
 
     def __repr__(self):
         return f'When({self.field_name} -> {self.then_case})'

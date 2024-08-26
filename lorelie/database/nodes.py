@@ -8,9 +8,9 @@ Nodes can be constructed as:
 
 Or:
 
-    RawSQL(backend, node1, node2)
+    NodeAggregator(backend, node1, node2)
 
-RawSQL is node aggregator that can be used to concatenate
+NodeAggregator is node aggregator that can be used to concatenate
 multiple nodes together
 """
 
@@ -83,11 +83,14 @@ class SelectMap:
             self.order_by = self.order_by & other
 
 
-class RawSQL:
+class NodeAggregator:
     def __init__(self, backend, *nodes):
         for node in nodes:
             if not isinstance(node, (BaseNode, str)):
-                raise ValueError()
+                raise ValueError(
+                    "Element should be a node "
+                    f"but got {node}"
+                )
 
         self.nodes = list(nodes)
         self.backend = backend
@@ -142,7 +145,7 @@ class ComplexNode:
         return node in self.nodes
 
     def as_sql(self, backend):
-        return RawSQL(backend, *self.nodes)
+        return NodeAggregator(backend, *self.nodes)
 
 
 class BaseNode:
@@ -222,7 +225,7 @@ class SelectNode(BaseNode):
 
         if self.distinct:
             return [select_sql.replace('select', 'select distinct')]
-        
+
         return [select_sql]
 
 
@@ -500,7 +503,8 @@ class InsertNode(BaseNode):
                 try:
                     data = self.insert_values.get_data_to_save
                 except AttributeError:
-                    raise ValueError(f'Node received a dataclass that does not contain get_data_to_save property: {self.insert_values}')
+                    raise ValueError(f'Node received a dataclass that does not contain get_data_to_save property: {
+                                     self.insert_values}')
             else:
                 data = self.insert_values
 
@@ -569,28 +573,6 @@ class JoinNode(BaseNode):
         return [join_sql]
 
 
-class InnerJoinNode(BaseNode):
-    template_sql = 'inner join {right_table} on {left_field}={right_field}'
-
-    def __init__(self, table, relationship_map):
-        self.table = table
-        self.relationship_map = relationship_map
-
-    @property
-    def node_name(self):
-        return 'join'
-
-    def as_sql(self, backend):
-        condition = self.relationship_map.get_relationship_condition(
-            self.table)
-        sql = self.template_sql.format_map({
-            'right_table': self.relationship_map.right_table.name,
-            'left_field': condition[0],
-            'right_field': condition[1]
-        })
-        return [sql]
-
-
 class IntersectNode(BaseNode):
     template_sql = '{0} intersect {1}'
 
@@ -603,13 +585,20 @@ class IntersectNode(BaseNode):
         return 'intersect'
 
     def as_sql(self, backend):
-        # lhv = self.left_select.as_sql(backend)
-        # rhv = self.right_select.as_sql(backend)
-        # sql = self.template_sql.format(lhv[0], rhv[0])
-        # return [sql]
-        lhv = backend.de_sqlize_statement(self.left_select)
-        rhv = backend.de_sqlize_statement(self.right_select)
-        return [self.template_sql.format(lhv, rhv)]
+        if isinstance(self.left_select, str):
+            lhv = backend.de_sqlize_statement(self.select)
+        else:
+            result = self.left_select.as_sql(backend)
+            lhv = backend.de_sqlize_statement(result[0])
+        
+        if isinstance(self.right_select, str):
+            rhv = backend.de_sqlize_statement(self.select)
+        else:
+            result = self.right_select.as_sql(backend)
+            rhv = backend.de_sqlize_statement(result[0])
+
+        sql = self.template_sql.format(lhv, rhv)
+        return [sql]
 
 
 class ViewNode(BaseNode):

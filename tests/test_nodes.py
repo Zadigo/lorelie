@@ -3,13 +3,24 @@ import unittest
 
 from lorelie.database.nodes import (BaseNode, ComplexNode, DeleteNode,
                                     InsertNode, IntersectNode, JoinNode,
-                                    OrderByNode, SelectMap, SelectNode,
-                                    UpdateNode, ViewNode, WhereNode)
+                                    NodeAggregator, OrderByNode, SelectMap,
+                                    SelectNode, UpdateNode, ViewNode,
+                                    WhereNode)
+from lorelie.database.tables.base import RelationshipMap, ValidatedData
 from lorelie.database.tables.columns import Column
 from lorelie.expressions import Q
-from lorelie.database.tables.base import RelationshipMap
 from lorelie.test.testcases import LorelieTestCase
-from lorelie.database.tables.base import ValidatedData
+
+
+class TestNodeAggregator(LorelieTestCase):
+    def test_structure(self):
+        nodes = [
+            SelectNode(self.create_table(), 'firstname'),
+            WhereNode(Q(firstname='Kendall'))
+        ]
+        node = NodeAggregator(self.create_connection(), *nodes)
+        result = node.as_sql()
+        print(result)
 
 
 class TestBaseNode(LorelieTestCase):
@@ -102,7 +113,7 @@ class TestInsertNode(LorelieTestCase):
         self.assertEqual(
             sql,
             [
-                "insert into celebrities (name) values('Kendall')", 
+                "insert into celebrities (name) values('Kendall')",
                 'returning id'
             ]
         )
@@ -292,16 +303,6 @@ class TestUpdateNode(LorelieTestCase):
             ]
         )
 
-    def test_mixed_q_args(self):
-        node = UpdateNode(
-            self.create_table(),
-            {'name': 'Kendall'},
-            Q(name='Julie'),
-            lastname=Q(lastname='Pauline')
-        )
-        result = node.as_sql(self.create_connection())
-        print(result)
-
 
 class TestDeleteNode(LorelieTestCase):
     def test_structure(self):
@@ -354,8 +355,10 @@ class TestIntersectNode(LorelieTestCase):
     def test_structure(self):
         select1 = SelectNode(self.create_table())
         select2 = SelectNode(self.create_table())
+
         node = IntersectNode(select1, select2)
         result = node.as_sql(self.create_connection())
+
         self.assertListEqual(
             result,
             ['select * from celebrities intersect select * from celebrities']
@@ -365,7 +368,7 @@ class TestIntersectNode(LorelieTestCase):
 class TestViewNode(LorelieTestCase):
     def test_structure(self):
         db = self.create_database()
-        node = ViewNode('my_view', db.celebrities.objects.all('celebrities'))
+        node = ViewNode('my_view', db.celebrities.objects.all())
         result = node.as_sql(db.get_table('celebrities').backend)
         self.assertListEqual(
             result,

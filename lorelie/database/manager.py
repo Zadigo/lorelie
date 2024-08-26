@@ -7,7 +7,7 @@ from asgiref.sync import sync_to_async
 
 from lorelie.database.functions.aggregation import Count
 from lorelie.database.functions.dates import Extract
-from lorelie.database.nodes import (InnerJoinNode, InsertNode, IntersectNode,
+from lorelie.database.nodes import (InsertNode, IntersectNode, JoinNode,
                                     OrderByNode, SelectNode, UpdateNode,
                                     WhereNode)
 from lorelie.exceptions import FieldExistsError, MigrationsExistsError
@@ -848,12 +848,12 @@ class ForeignTablesManager(ManagerMixin):
 
     def all(self):
         select_node = SelectNode(self.parent_table)
-        join_node = InnerJoinNode(self.parent_table, self.relationship_map)
+        join_node = JoinNode(self.parent_table, self.relationship_map)
         return self.resolve_queryset_from_query([select_node, join_node], table=self.parent_table)
 
     def filter(self, *args, **kwargs):
         select_node = SelectNode(self.parent_table)
-        join_node = InnerJoinNode(self.parent_table, self.relationship_map)
+        join_node = JoinNode(self.parent_table, self.relationship_map)
         where_node = WhereNode(*args, **kwargs)
         nodes = [select_node, join_node, where_node]
         return self.resolve_queryset_from_query(nodes, table=self.parent_table)

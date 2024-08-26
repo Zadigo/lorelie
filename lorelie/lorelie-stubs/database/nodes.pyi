@@ -31,7 +31,7 @@ class SelectMap:
     def add_ordering(self, other: OrderByNode) -> None: ...
 
 
-class RawSQL:
+class NodeAggregator:
     nodes: list[str, BaseNode] = ...
     backend: SQLiteBackend = ...
     resolve_select: bool = ...
@@ -56,7 +56,7 @@ class ComplexNode:
     def __add__(self, node) -> ComplexNode: ...
     def __contains__(self, node) -> bool: ...
 
-    def as_sql(self, backend) -> RawSQL: ...
+    def as_sql(self, backend) -> NodeAggregator: ...
 
 
 class BaseNode:
@@ -162,7 +162,12 @@ class InsertNode(BaseNode):
             Union[int, float, Callable[..., Any]]
         ]
     ] = ...
-    batch_values: list[dict[str, Union[int, float, Callable[..., Any]]]] = ...
+    batch_values: list[
+        dict[
+            str,
+            Union[int, float, Callable[..., Any]]
+        ]
+    ] = ...
 
     def __init__(
         self,
@@ -187,12 +192,11 @@ class JoinNode(BaseNode):
 
 
 class IntersectNode(BaseNode):
-    def __init__(self, left_select: str, right_select: str) -> None: ...
-
-
-class InnerJoinNode(BaseNode):
-    def __init__(self, table: Table,
-                 relationship_map: RelationshipMap) -> None: ...
+    def __init__(
+        self,
+        left_select: Union[str, SelectNode],
+        right_select: Union[str, SelectNode]
+    ) -> None: ...
 
 
 class ViewNode(BaseNode):

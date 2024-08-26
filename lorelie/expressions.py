@@ -227,6 +227,25 @@ class CombinedExpression:
     def __init__(self, *funcs):
         self.others = list(funcs)
         self.children = []
+        self.other_combined_children = []
+        self.should_resolve_combined = False
+        
+        for other in self.others:
+            # We need to check for CombinedExpressions
+            # here for example in Q & Q -> CombinedExpression
+            # which will be passed inside another
+            # CombinedExpression
+            if isinstance(other, CombinedExpression):
+                self.should_resolve_combined = True
+                self.other_combined_children.extend(other.children)
+                continue
+
+            if self.should_resolve_combined:
+                # We need to treat every function included
+                # alongside combined expression as part
+                # of the same resolution "sytem"
+                self.other_combined_children.append(other)
+
         # Indicates that the expression
         # will be a mathematical one
         # e.g. F('age') + 1

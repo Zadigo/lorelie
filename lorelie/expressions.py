@@ -314,7 +314,18 @@ class CombinedExpression:
     def internal_type(self):
         return 'expression'
 
+    # TODO: Rename this function to build_children_with_operator
     def build_children(self, operator='and'):
+        """This function iterates over the children
+        of the combined expression class in order to
+        place the operators (and, or) in their correct
+        position based on the child type and the origin
+        from which this function was called (`__and__`,
+        `__or__` etc). For example:
+
+        >>> [Q(a=1), 'and', Q(b=1)]
+        ... [Q(a=1), 'or', Q(b=1)]
+        """
         for i in range(len(self.others)):
             other = self.others[i]
             self.children.append(other)
@@ -324,6 +335,32 @@ class CombinedExpression:
 
     def as_sql(self, backend):
         sql_statement = []
+
+        if self.should_resolve_combined:
+            # Since the incoming CombinedExpression
+            # can be included with a normal Q/F function
+            # then we need to resolve the ensemble
+            # beforehand e.g. [Q & Q, Q] -> [CombinedExpression, Q]
+            new_children = []
+            for i, child in enumerate(self.other_combined_children):
+                if i < 1:
+                    new_children.append(child)
+                    continue
+
+                if child in ['and', 'or']:
+                    new_children.append(child)
+                    continue
+
+                if i > 1:
+                    if isinstance(new_children[i - 1], str):
+                        new_children.append(child)
+                        continue
+                    new_children.extend(['and', child])
+
+            if self.children:
+                new_children.insert(0, 'and')
+            self.children = self.children + new_children
+
         for child in self.children:
             if isinstance(child, (str, int, float)):
                 sql_statement.append(child)

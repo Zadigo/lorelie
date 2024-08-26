@@ -265,7 +265,20 @@ class CombinedExpression:
         # self.build_children()
 
     def __repr__(self):
-        return f'<{self.__class__.__name__}: {self.children}>'
+        klass_name = self.__class__.__name__
+        return f'<{klass_name}: {self.representation}>'
+
+    @property
+    def representation(self):
+        result = []
+        for child in self.children:
+            if not isinstance(child, Q):
+                if child in ['and', 'or']:
+                    child = f'{str(child).upper()}:'
+                    result.append(child)
+                    continue
+            result.append(repr(child))
+        return ' '.join(result)
 
     def __or__(self, other):
         self.children.append('or')

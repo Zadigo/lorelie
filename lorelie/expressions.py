@@ -5,6 +5,13 @@ class BaseExpression:
     def internal_type(self):
         return 'expression'
 
+    @property
+    def representation(self):
+        """Property used to create the visual
+        representation of expressions for 
+        the shell"""
+        return NotImplemented
+
     def as_sql(self, backend):
         return NotImplemented
 

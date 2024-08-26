@@ -10,7 +10,8 @@ from lorelie.test.testcases import LorelieTestCase
 class TestSQLiteBackend(LorelieTestCase):
     def test_in_memory(self):
         connection = self.create_connection()
-        self.assertTrue(connection.database_name == ':memory:')
+        self.assertIsNone(connection.database_name)
+        self.assertTrue(connection.in_memory_connection)
 
     def test_connection(self):
         connection = self.create_connection()
@@ -74,7 +75,7 @@ class TestSQLiteBackend(LorelieTestCase):
         connection = self.create_connection()
         result = connection.quote_startswith('Ken')
         self.assertRegex(result, r'^\'Ken\%\'$')
-        self.assertEqual(result, "Ken%")
+        self.assertEqual(result, "'Ken%'")
 
     def test_quote_endswith(self):
         connection = self.create_connection()
@@ -91,9 +92,6 @@ class TestSQLiteBackend(LorelieTestCase):
         result = connection.dict_to_sql({'name__eq': 'Kendall'})
         self.assertIsInstance(result, (list, tuple))
         self.assertTupleEqual(result, (['name__eq'], ["'Kendall'"]))
-
-#     def test_build_script(self):
-#         pass
 
     def test_decompose_filters_from_string(self):
         connection = self.create_connection()

@@ -12,10 +12,11 @@ class TestDates(LorelieTestCase):
     def test_structure(self):
         db = self.create_database()
         db.celebrities.objects.create(
-            'celebrities', name='Kendall', height=202)
+            name='Kendall',
+            height=202
+        )
 
         queryset = db.celebrities.objects.annotate(
-            'celebrities',
             year=Extract('created_on', 'year')
         )
         item = queryset[0]

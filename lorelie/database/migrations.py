@@ -105,6 +105,8 @@ class Migrations:
         try:
             with open(self.file, mode='r') as f:
                 return json.load(f)
+        except json.decoder.JSONDecodeError:
+            return self.blank_migration()
         except FileNotFoundError:
             # Create a blank migration file
             return self.blank_migration()

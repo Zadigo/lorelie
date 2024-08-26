@@ -118,7 +118,15 @@ class When(BaseExpression):
         self.children = []
 
     def __repr__(self):
-        return f'When({self.field_name} -> {self.then_case})'
+        return f'When({self.representation})'
+
+    @property
+    def representation(self):
+        representations = []
+        for child in self.children:
+            representations.append(repr(child))
+        result = ' '.join(representations)
+        return f'AND: {result} THEN: {self.then_case}'
 
     def as_sql(self, backend):
         list_of_filters = []

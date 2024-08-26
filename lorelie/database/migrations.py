@@ -402,7 +402,13 @@ class Migrations:
                 ]
 
             schema.prepare()
-        self.pending_migration = migration
+
+        self.has_migrations = True
+        self.pending_migration = new_migration
+
+        tables = []
+        for schema in new_migration['tables']:
+            tables.append(dict(schema))
 
         if self.has_migrations:
             cache_copy = self.CACHE.copy()

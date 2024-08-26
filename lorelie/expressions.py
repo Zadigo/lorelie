@@ -129,22 +129,23 @@ class When(BaseExpression):
         return f'AND: {result} THEN: {self.then_case}'
 
     def as_sql(self, backend):
-        list_of_filters = []
-        if isinstance(self.condition, (Q, CombinedExpression)):
-            complex_filter = self.condition.as_sql(backend)
-            list_of_filters.extend(complex_filter)
-        else:
-            decomposed_filter = backend.decompose_filters_from_string(
-                self.condition
-            )
-            built_filters = backend.build_filters(
-                decomposed_filter,
-                space_characters=False
-            )
-            self.field_name = decomposed_filter[0]
-            list_of_filters.extend(built_filters)
+        if not isinstance(self.condition, (Q, CombinedExpression)):
+            raise ValueError(
+                'Condition should be a Q filter or a CombinedExpression')
+        self.children.append(self.condition)
 
-        condition = backend.simple_join(list_of_filters)
+        if self.expressions:
+            instance = Q(**self.expressions)
+            self.children.append(instance)
+
+        combined_expression = None
+        for expression in self.children:
+            if combined_expression is None:
+                combined_expression = expression
+                continue
+            combined_expression = combined_expression & expression
+
+        condition = backend.simple_join(combined_expression.as_sql(backend))
         sql = backend.WHEN.format_map({
             'condition': condition,
             'value': backend.quote_value(self.then_case)

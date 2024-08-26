@@ -21,6 +21,30 @@ class Schema:
     indexes: dict = field(default_factory=dict)
     constraints: dict = field(default_factory=dict)
 
+    def __iter__(self):
+        for field in dataclasses.fields(self):
+            item = getattr(self, field.name)
+
+            if field.name == 'table':
+                item.load_current_connection()
+                yield ('name', item.name)
+                yield ('field_params', list(item.build_all_field_parameters()))
+
+                constraints = []
+                for constraint in item.table_constraints:
+                    sql = constraint.as_sql(self.table.backend)
+                    constraints.append((constraint.name, sql))
+                yield ('constraints', constraints)
+
+                indexes = []
+                for index in item.indexes:
+                    sql = index.as_sql(self.table.backend)
+                    indexes.append((index.name, sql))
+                yield ('indexes', indexes)
+
+            if field.name == 'fields':
+                yield ('fields', getattr(self, field.name))
+
     def __hash__(self):
         return hash((self.table.name, self.database.database_name))
 

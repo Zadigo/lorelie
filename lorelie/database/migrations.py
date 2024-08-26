@@ -50,11 +50,6 @@ class Schema:
 
     def prepare(self):
         self.fields = self.table.field_names
-        self.field_params = list(self.table.build_all_field_parameters())
-
-    def to_dict(self):
-        for field in dataclasses.fields(self):
-            pass
 
 
 def migration_validator(value):

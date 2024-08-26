@@ -336,7 +336,12 @@ class JSONField(Field):
 
     def to_database(self, data):
         clean_data = super().to_database(data)
-        return json.dumps(clean_data, ensure_ascii=False, sort_keys=True)
+        return json.dumps(
+            clean_data, 
+            ensure_ascii=False, 
+            sort_keys=True, 
+            cls=DefaultJSonEncoder
+        )
 
 
 class BooleanField(Field):

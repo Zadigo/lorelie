@@ -10,6 +10,12 @@ from lorelie.exceptions import TableExistsError
 from lorelie.queries import Query
 
 
+# TODO: Evaluate the fact of putting the database
+# connection directly on the database and then
+# using it a proxy for the tables to be able
+# to get access to that connection
+
+
 class Database:
     """This class links and unifies independent
     tables together for a unique database and allows 
@@ -63,8 +69,8 @@ class Database:
 
             self.path = path
 
-        # Create a connection immediately in order 
-        # to populate the connection pool for the 
+        # Create a connection immediately in order
+        # to populate the connection pool for the
         # rest of the operations that we are going
         # to run afterwards e.g. migrations etc
         self.backend_class(
@@ -77,13 +83,11 @@ class Database:
         for table in tables:
             if not isinstance(table, Table):
                 raise ValueError('Value should be an instance of Table')
-            
-            # TODO: Don't think we need to load
-            # the connection for the table here
-            # table.load_current_connection()
+
             self.table_map[table.name] = table
             setattr(self, table.name, table)
             setattr(table, 'attached_to_database', self)
+            table.load_current_connection()
 
         self.table_instances = list(tables)
         self.relationships = OrderedDict()

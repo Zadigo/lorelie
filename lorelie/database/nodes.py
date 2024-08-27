@@ -332,6 +332,10 @@ class OrderByNode(BaseNode):
     def node_name(self):
         return 'order_by'
 
+    def __repr__(self):
+        klass_name = self.__class__.__name__
+        return f"<{klass_name}: asc: {list(self.ascending)} desc: {list(self.descending)}>"
+
     def __hash__(self):
         return hash((self.node_name, *self.fields))
 
@@ -590,7 +594,7 @@ class IntersectNode(BaseNode):
         else:
             result = self.left_select.as_sql(backend)
             lhv = backend.de_sqlize_statement(result[0])
-        
+
         if isinstance(self.right_select, str):
             rhv = backend.de_sqlize_statement(self.select)
         else:

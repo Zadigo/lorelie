@@ -11,8 +11,8 @@ from lorelie.database.manager import (BackwardForeignTableManager,
                                       DatabaseManager,
                                       ForwardForeignTableManager)
 from lorelie.database.tables.columns import Column
-from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
-                                ImproperlyConfiguredError, NoDatabaseError)
+from lorelie.exceptions import (FieldExistsError, ImproperlyConfiguredError,
+                                NoDatabaseError)
 from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
 from lorelie.queries import Query
 
@@ -469,6 +469,11 @@ class Table(AbstractTable):
         if name == 'backend':
             backend = self.__dict__['backend']
             if backend is None:
+                # if connections.has_active_connections:
+                #     database = self.__dict__['database']
+                #     connections.get_connection(database.database_name)
+                #     return super().__getattribute__(name)
+
                 raise ImproperlyConfiguredError(
                     self,
                     "You are trying to use a table outside of a Database "

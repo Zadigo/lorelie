@@ -857,7 +857,6 @@ class ForeignTablesManager(ManagerMixin):
         where_node = WhereNode(*args, **kwargs)
         nodes = [select_node, join_node, where_node]
         return self.resolve_queryset_from_query(nodes, table=self.parent_table)
-        
 
     # def create(self, **kwargs):
     #     # kwargs = self._validate_auto_fields(self.table, kwargs)

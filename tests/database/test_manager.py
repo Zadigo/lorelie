@@ -2,6 +2,7 @@ from lorelie.database.manager import DatabaseManager, ForeignTablesManager
 from lorelie.queries import QuerySet
 from lorelie.database.tables.base import RelationshipMap
 from lorelie.test.testcases import LorelieTestCase
+from lorelie import log_queries
 
 
 class TestDatabaseManager(LorelieTestCase):
@@ -14,12 +15,29 @@ class TestDatabaseManager(LorelieTestCase):
         self.manager.table = db.get_table('celebrities')
         self.manager.table_map = db.table_map
 
-        self.manager.create(name='Kendall Jenenr')
+        self.manager.create(name='Kendall Jenner')
         self.manager.create(name='Addison Rae')
 
     def test_structure(self):
         qs = self.manager.all()
         self.assertIsInstance(qs, QuerySet)
+
+    def test_first_and_last(self):
+        qs = self.manager.all()
+
+        item = qs.first()
+        print('\n', item)
+        # self.assertEqual(item.name, 'Kendall Jenner')
+
+        item = qs.last()
+        print('\n', item)
+        # self.assertEqual(item.name, 'Addison Rae')
+
+        print('\n', log_queries.container)
+
+    def test_all(self):
+        qs = self.manager.all()
+        self.assertGreaterEqual(qs.count(), 2)
 
 
 class TestForeignTablesManager(LorelieTestCase):

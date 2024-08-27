@@ -42,6 +42,10 @@ class Connections:
     def __exit__(self):
         return False
 
+    @property
+    def has_active_connections(self):
+        return len(self.created_connections) > 0
+
     def get_connection(self, name):
         try:
             return self.connections_map[name]

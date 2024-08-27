@@ -423,12 +423,20 @@ class QuerySet:
     def first(self):
         self.query.select_map.limit = 1
         self.query.select_map.order_by = OrderByNode(self.query.table, 'id')
-        return self[-1]
+
+        try:
+            return list(self)[0]
+        except:
+            return None
 
     def last(self):
-        self.query.select_map.limit = 1
-        self.query.select_map.order_by = OrderByNode(self.query.table, '-id')
-        return self
+        # self.query.select_map.limit = 1
+        # self.query.select_map.order_by = OrderByNode(self.query.table, '-id')
+
+        try:
+            return self[-1]
+        except:
+            return None
 
     def all(self):
         self.check_alias_view_name()

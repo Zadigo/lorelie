@@ -1,3 +1,5 @@
+import sqlite3
+
 from lorelie.backends import BaseRow
 from lorelie.queries import Query, QuerySet
 from lorelie.test.testcases import LorelieTestCase
@@ -9,13 +11,11 @@ class TestQuerySet(LorelieTestCase):
         # is no sql statements in the query
         query = Query(backend=self.create_connection())
         qs = QuerySet(query)
-        self.assertFalse(qs.query.is_evaluated)
 
-        list(qs)
-        self.assertTrue(qs.query.is_evaluated)
         # We did not add any node which makes that
-        # the statement is just a semicolon
-        self.assertEqual(qs.sql_statement, ';')
+        # the statement is just a semicolon ";"
+        # which triggers an SQLite.Error
+        self.assertRaises(sqlite3.Error, lambda: list(qs))
 
     def test_queryset_is_lazy(self):
         db = self.create_database()

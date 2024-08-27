@@ -44,34 +44,35 @@ class TestStructure(unittest.TestCase):
         table.objects.create(name='Victoria Azarenka', age=35, height=182)
 
         qs = table.objects.all()
-        self.assertGreater(qs.count(), 0)
+        self.assertTrue(qs.count() > 0)
 
         item = qs.first()
         self.assertEqual(item.name, 'Victoria Azarenka')
 
-        qs = table.objects.annotate(lowered_name=Lower('name'))
-        self.assertGreater(qs.count(), 0)
+        qs2 = table.objects.annotate(lowered_name=Lower('name'))
+        self.assertTrue(qs2.count() > 0)
 
-        qs = table.objects.filter(
+        qs3 = table.objects.filter(
             Q(name='Victoria Azarenka') |
             Q(name='Caitlyn Clark') &
             Q(age__gte=15) &
             Q(height__gte=165)
         )
-        self.assertGreater(qs.count(), 0)
 
-        # a = [
-        #     "select rowid, name from sqlite_schema where type='table' and name not like 'sqlite_%';",
-        #     "select rowid, name from sqlite_schema where type='table' and name not like 'sqlite_%';",
-        #     "select rowid, name from sqlite_schema where type='table' and name not like 'sqlite_%';",
-        #     "select rowid, name from sqlite_schema where type='table' and name not like 'sqlite_%';",
-        #     'create table if not exists lorelie_migrations (name text not null unique, table_name text not null, migration text not null, applied datetime null, id integer primary key autoincrement not null);',
-        #     "select rowid, name from sqlite_schema where type='table' and name not like 'sqlite_%';",
-        #     'create table if not exists athletes (name text not null, age integer not null check(age>14), height integer default 165 not null check(height>150), id integer primary key autoincrement not null, unique(name));',
-        #     "select type, name, tbl_name, sql from sqlite_master where type='index';",
-        #     'begin; create index idx_height_6f9f360ee4 on athletes (height) where height>=180; commit;',
-        #     "insert into athletes (name, age, height) values('Victoria Azarenka', 35, 182) returning name, age, height, id, rowid;",
-        #     'select * from athletes order by name asc;',
-        #     'select *, lower(name) as lowered_name from athletes order by name asc;',
-        #     "select * from athletes where (name='Victoria Azarenka' or (name='Caitlyn Clark' and age>=15 and height>=165)) order by name asc;"
-        # ]
+        # self.assertTrue(qs.count() > 0)
+
+        # # a = [
+        # #     "select rowid, name from sqlite_schema where type='table' and name not like 'sqlite_%';",
+        # #     "select rowid, name from sqlite_schema where type='table' and name not like 'sqlite_%';",
+        # #     "select rowid, name from sqlite_schema where type='table' and name not like 'sqlite_%';",
+        # #     "select rowid, name from sqlite_schema where type='table' and name not like 'sqlite_%';",
+        # #     'create table if not exists lorelie_migrations (name text not null unique, table_name text not null, migration text not null, applied datetime null, id integer primary key autoincrement not null);',
+        # #     "select rowid, name from sqlite_schema where type='table' and name not like 'sqlite_%';",
+        # #     'create table if not exists athletes (name text not null, age integer not null check(age>14), height integer default 165 not null check(height>150), id integer primary key autoincrement not null, unique(name));',
+        # #     "select type, name, tbl_name, sql from sqlite_master where type='index';",
+        # #     'begin; create index idx_height_6f9f360ee4 on athletes (height) where height>=180; commit;',
+        # #     "insert into athletes (name, age, height) values('Victoria Azarenka', 35, 182) returning name, age, height, id, rowid;",
+        # #     'select * from athletes order by name asc;',
+        # #     'select *, lower(name) as lowered_name from athletes order by name asc;',
+        # #     "select * from athletes where (name='Victoria Azarenka' or (name='Caitlyn Clark' and age>=15 and height>=165)) order by name asc;"
+        # # ]

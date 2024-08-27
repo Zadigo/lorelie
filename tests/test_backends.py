@@ -298,7 +298,7 @@ class TestBackendCoreFunctions(LorelieTestCase):
     def test_list_table_indexes(self):
         db = self.create_database()
         table = db.get_table('celebrities')
-
+        
         conn = connections.get_last_connection()
         result = conn.list_table_indexes(table)
 

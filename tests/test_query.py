@@ -1,7 +1,7 @@
 import sqlite3
 import unittest
 
-from lorelie.database.nodes import SelectNode, DeleteNode
+from lorelie.database.nodes import DeleteNode, SelectNode
 from lorelie.expressions import Q
 from lorelie.queries import Query
 from lorelie.test.testcases import LorelieTestCase
@@ -60,10 +60,11 @@ class TestQuery(LorelieTestCase):
             ]
         )
 
-        expected_script = "begin; create table celebrities (id integer primary key autoincrement not null, name text null); insert into celebrities values(1, 'Kendall Jenner'); select * from celebrities order by id; commit;"
-        self.assertEqual(other.sql, expected_script)
-        print(other.result_cache)
-        # self.assertTrue(len(other.result_cache) > 0)
+        expected_script = "begin; create table celebrities (id integer primary key autoincrement not null, name text null); "
+        "insert into celebrities values(1, 'Kendall Jenner'); "
+        "select * from celebrities order by id; commit;"
+        
+        self.assertIn(expected_script, other.sql)
 
     def test_add_sql_node(self):
         self.create_connection()

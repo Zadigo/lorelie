@@ -68,6 +68,7 @@ class Query:
 
         joined_statements = instance.backend.simple_join(statements)
         script = template.format(statements=joined_statements)
+        script = instance.backend.finalize_sql(script)
 
         if not sqlite3.complete_statement(script):
             raise sqlite3.Error(
@@ -81,6 +82,7 @@ class Query:
             return instance
 
         instance.add_sql_node(script)
+        instance.sql = script
 
         try:
             result = instance.backend.connection.executescript(script)
@@ -94,7 +96,6 @@ class Query:
             print(e, script)
             raise
         else:
-            # print(script)
             instance.backend.connection.commit()
             instance.result_cache = list(result)
             instance.is_evaluated = True

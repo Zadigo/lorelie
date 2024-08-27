@@ -229,7 +229,7 @@ class CombinedExpression:
         self.children = []
         self.other_combined_children = []
         self.should_resolve_combined = False
-        
+
         for other in self.others:
             # We need to check for CombinedExpressions
             # here for example in Q & Q -> CombinedExpression
@@ -435,9 +435,9 @@ class Q(BaseExpression):
             column, value = item
 
             if i > 0:
-                result.append(f'AND: {column}:{value}')
+                result.append(f"AND: ({column}: {value})")
                 continue
-            result.append(f'{column}:{value}')
+            result.append(f"({column}: {value})")
         return ', '.join(result)
 
     def as_sql(self, backend):
@@ -470,7 +470,8 @@ class F(BaseExpression):
         self.field = field
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.field})'
+        klass_name = self.__class__.__name__
+        return f'{klass_name}({self.field})'
 
     def __add__(self, other):
         if not isinstance(other, (F, str, int)):

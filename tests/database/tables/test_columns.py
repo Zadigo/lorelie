@@ -10,3 +10,4 @@ class TestColumn(LorelieTestCase):
         column = Column(field)
         column.prepare()
         self.assertEqual('name', column)
+        print(column)

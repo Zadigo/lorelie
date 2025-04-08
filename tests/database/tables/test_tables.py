@@ -1,5 +1,6 @@
 import sqlite3
 import unittest
+from unittest.mock import Mock, patch
 from dataclasses import is_dataclass
 
 from lorelie.constraints import CheckConstraint
@@ -135,7 +136,8 @@ class TestTable(LorelieTestCase):
             values=['Kendall']
         )
 
-    def test_table_management(self):
+    # @patch('lorelie.backends.SQLiteBackend')
+    def test_table_management(self, sqlite_backend):
         table = self.create_table()
         table.backend = self.create_connection()
         field_params = table.build_all_field_parameters()

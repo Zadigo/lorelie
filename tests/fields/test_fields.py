@@ -2,7 +2,7 @@ import datetime
 import uuid
 
 from lorelie.exceptions import ValidationError
-from lorelie.fields.base import (AutoField, BinaryField, BooleanField,
+from lorelie.fields.base import (AliasField, AutoField, BinaryField, BooleanField,
                                  CharField, CommaSeparatedField, DateField,
                                  DateTimeField, DecimalField, EmailField,
                                  Field, FloatField, IntegerField, JSONField,
@@ -224,3 +224,31 @@ class TestBinaryField (LorelieTestCase):
 
         f = BinaryField('image')
         f.prepare(table)
+
+
+class TestAliasField(LorelieTestCase):
+    def test_structure(self):
+        table = self.create_table()
+        f = AliasField('some_field')
+        f.prepare(table)
+
+        result = f.get_data_field('Kendall')
+        self.assertIsInstance(result, CharField)
+
+        result = f.get_data_field(1)
+        self.assertIsInstance(result, IntegerField)
+
+        result = f.get_data_field({'name': 'Kendall'})
+        self.assertIsInstance(result, JSONField)
+
+        d = datetime.datetime.now().date()
+        result = f.get_data_field(d)
+        self.assertIsInstance(result, DateField)
+
+        d = datetime.datetime.now()
+        result = f.get_data_field(d)
+        self.assertIsInstance(result, DateTimeField)
+
+        def l(): return 'Google'
+        result = f.get_data_field(l)
+        self.assertIsInstance(result, CharField)

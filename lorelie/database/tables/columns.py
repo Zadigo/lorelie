@@ -1,5 +1,5 @@
-import dataclasses
 from dataclasses import dataclass
+
 from lorelie.fields.base import Field
 
 

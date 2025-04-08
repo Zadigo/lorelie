@@ -328,9 +328,6 @@ class OrderByNode(BaseNode):
 
         self.cached_fields = list(self.ascending.union(self.descending))
 
-    @property
-    def node_name(self):
-        return 'order_by'
 
     def __repr__(self):
         klass_name = self.__class__.__name__
@@ -346,6 +343,10 @@ class OrderByNode(BaseNode):
         other_fields = set(node.fields)
         other_fields.update(self.fields)
         return node.__class__(self.table, *list(other_fields))
+    
+    @property
+    def node_name(self):
+        return 'order_by'
 
     @staticmethod
     def construct_sql(backend, field, ascending=True):

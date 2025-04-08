@@ -163,3 +163,5 @@ migrations.json
 *migrations.json
 *.sqlite
 *.sqlite-journal
+
+lorelie_docs/node_modules

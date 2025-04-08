@@ -9,7 +9,7 @@ from lorelie.exceptions import ValidationError
 from lorelie.expressions import Q
 from lorelie.fields.base import (BooleanField, CharField, DateTimeField,
                                  FloatField, IntegerField)
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 __all__ = [
     'LorelieTestCase'

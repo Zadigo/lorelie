@@ -4,7 +4,7 @@ from typing import (Any, Callable, Dict, Literal, Optional, Tuple, Union,
 
 from database.base import RelationshipMap
 from expressions import Q
-from tables import Table
+from database.tables.base import Table
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database.functions.base import Functions

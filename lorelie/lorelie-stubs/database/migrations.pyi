@@ -6,7 +6,7 @@ from typing import DefaultDict, List, Literal, Type
 from lorelie.backends import SQLiteBackend
 from lorelie.database.base import Database
 from lorelie.fields.base import Field
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 
 @dataclass

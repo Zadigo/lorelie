@@ -4,7 +4,7 @@ from logging import Logger
 from typing import DefaultDict, Literal, Optional
 
 from lorelie.backends import SQLiteBackend
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 
 class LogQueries:

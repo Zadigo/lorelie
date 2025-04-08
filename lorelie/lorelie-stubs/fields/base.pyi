@@ -5,7 +5,7 @@ from typing import (Any, Callable, Literal, Tuple, Type, TypedDict, Union,
                     Unpack, override)
 
 from lorelie.constraints import MaxLengthConstraint
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 
 class FieldOptions(TypedDict):

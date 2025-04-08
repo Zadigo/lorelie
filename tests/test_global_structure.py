@@ -14,7 +14,7 @@ from lorelie.database.indexes import Index
 from lorelie.database.views import View
 from lorelie.expressions import Case, F, Q, When
 from lorelie.fields.base import CharField, DateTimeField, IntegerField
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 from lorelie.test.testcases import LorelieTestCase
 
 

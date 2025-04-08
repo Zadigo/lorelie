@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Iterator, Union, List, Tuple
 
 from lorelie.backends import SQLiteBackend
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 from functools import cached_property
 
 

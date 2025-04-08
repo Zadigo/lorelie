@@ -3,7 +3,7 @@ import pathlib
 from lorelie.database.base import Database
 from lorelie.database.manager import DatabaseManager
 from lorelie.exceptions import TableExistsError
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 from lorelie.test.testcases import LorelieTestCase
 
 

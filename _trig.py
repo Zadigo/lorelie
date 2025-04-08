@@ -2,7 +2,7 @@ from lorelie.database import registry, triggers
 from lorelie.database.base import Database
 from lorelie.database.manager import DatabaseManager
 from lorelie.fields.base import CharField
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 
 # TODO: The user should be able to register a custom manager

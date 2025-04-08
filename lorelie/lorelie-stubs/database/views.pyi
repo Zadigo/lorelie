@@ -1,5 +1,5 @@
 from lorelie.queries import QuerySet
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 class View:
     name: str = ...

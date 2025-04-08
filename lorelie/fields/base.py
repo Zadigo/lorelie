@@ -206,7 +206,7 @@ class Field:
         return base_field_parameters
 
     def prepare(self, table):
-        from lorelie.tables import Table
+        from lorelie.database.tables.base import Table
         if not isinstance(table, Table):
             raise ValueError(
                 f"{table} should be an "

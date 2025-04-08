@@ -11,7 +11,7 @@ from lorelie.exceptions import TableExistsError
 from lorelie.fields import IntegerField
 from lorelie.fields.relationships import ForeignKeyField
 from lorelie.queries import Query
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 
 @dataclasses.dataclass

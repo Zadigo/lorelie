@@ -1,6 +1,6 @@
 from lorelie.database.base import Database
 from lorelie.fields.base import CharField, IntegerField
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 table1 = Table('names', fields=[
     CharField('firstname')

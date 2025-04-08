@@ -1,6 +1,6 @@
 import secrets
 from lorelie.backends import connections
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 
 class Transaction:
@@ -9,7 +9,7 @@ class Transaction:
     memorized_savepoints = set()
 
     def __init__(self):
-        from lorelie.tables import databases
+        from lorelie.database.tables.base import databases
 
         self.sql_tokens = []
         self.backend = None

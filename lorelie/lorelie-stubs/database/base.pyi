@@ -8,7 +8,7 @@ from lorelie.backends import BaseRow, SQLiteBackend
 from lorelie.database.manager import ForeignTablesManager
 from lorelie.database.migrations import Migrations
 from lorelie.queries import Query, QuerySet
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 
 TableType = TypeVar('TableType', bound=Table)
 

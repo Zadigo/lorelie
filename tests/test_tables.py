@@ -1,12 +1,14 @@
 import sqlite3
+from unittest.mock import Mock, PropertyMock, patch
 
+from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
 from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
                                 ImproperlyConfiguredError, ValidationError)
 from lorelie.expressions import Q
 from lorelie.fields.base import CharField, Field, IntegerField
-from lorelie.tables import Table
+from lorelie.database.tables.base import Table
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -53,7 +55,11 @@ class TestTable(LorelieTestCase):
         table = self.create_table()
         self.assertDictEqual(
             table.field_types,
-            {'name': 'text', 'height': 'integer'}
+            {
+                'name': 'text',
+                'height': 'integer',
+                'created_on': 'datetime'
+            }
         )
 
         # When we have mixed type fields, we have to determine
@@ -71,7 +77,8 @@ class TestTable(LorelieTestCase):
         )
         self.assertTrue(state)
 
-    def test_build_all_field_parameters(self):
+    @patch('lorelie.backends.SQLiteBackend', new_callable=Mock)
+    def test_build_all_field_parameters(self, sqlite_backend):
         # The field parameters are the parameters that
         # are used by "create table" when creating a
         # new table in a database
@@ -83,14 +90,21 @@ class TestTable(LorelieTestCase):
         # with self.assertRaises((ImproperlyConfiguredError, AttributeError)):
         #     table.build_all_field_parameters()
 
-        table.backend = self.create_connection()
+        mock_connection = sqlite_backend.return_value
+        mock_connection.quote_value.return_value = 152
+        mock_connection.CONDITION.format_map.return_value = 'height>150'
+        table.backend = mock_connection
+        
+        # table.backend = self.create_connection()
+
         parameters = list(table.build_all_field_parameters())
         self.assertListEqual(
             parameters,
             [
                 ['name', 'text', 'not null'],
-                ['height', 'integer', 'default', 150,
+                ['height', 'integer', 'default', 152,
                     'not null', 'check(height>150)'],
+                ['created_on', 'datetime', 'null'],
                 ['id', 'integer', 'primary key', 'autoincrement', 'not null']
             ]
         )

@@ -391,6 +391,7 @@ class Table(AbstractTable):
         # it up with the table and backend
         id_field = AutoField()
         id_field.prepare(self)
+        self.field_types['id'] = id_field.field_type
         self.fields_map['id'] = id_field
 
         field_names = list(self.fields_map.keys())

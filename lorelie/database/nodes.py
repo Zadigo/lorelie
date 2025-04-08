@@ -287,7 +287,7 @@ class OrderByNode(BaseNode):
                         name in self.descending):
                     raise ValueError(
                         "The field has been registered twice in "
-                        "ascending or descending fields"
+                        "ascending and descending fields"
                     )
 
                 if sign:

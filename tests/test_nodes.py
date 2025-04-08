@@ -1,8 +1,11 @@
+import sqlite3
 import unittest
+from unittest.mock import patch
 
-from lorelie.database.nodes import (BaseNode, ComplexNode, DeleteNode, InsertNode, IntersectNode, JoinNode,
-                                    OrderByNode, SelectNode, UpdateNode, ViewNode,
-                                    WhereNode)
+from lorelie.database.nodes import (BaseNode, ComplexNode, DeleteNode,
+                                    InsertNode, IntersectNode, JoinNode,
+                                    OrderByNode, RawSQL, SelectMap, SelectNode,
+                                    UpdateNode, ViewNode, WhereNode)
 from lorelie.expressions import Q
 from lorelie.test.testcases import LorelieTestCase
 
@@ -71,8 +74,9 @@ class TestInsertNode(LorelieTestCase):
         )
 
 
+@patch.object(sqlite3, 'connect')
 class TestSelectNode(LorelieTestCase):
-    def test_structure(self):
+    def test_structure(self, mock_connect):
         node = SelectNode(self.create_table())
         result = node.as_sql(self.create_connection())
         self.assertListEqual(
@@ -80,7 +84,7 @@ class TestSelectNode(LorelieTestCase):
             ['select * from celebrities']
         )
 
-    def test_distinct(self):
+    def test_distinct(self, mock_connect):
         node = SelectNode(self.create_table(), distinct=True)
         result = node.as_sql(self.create_connection())
         self.assertListEqual(
@@ -88,28 +92,43 @@ class TestSelectNode(LorelieTestCase):
             ['select distinct * from celebrities']
         )
 
-    def test_limit(self):
+    def test_limit(self, mock_connect):
         node = SelectNode(self.create_table(), limit=10)
         result = node.as_sql(self.create_connection())
         self.assertListEqual(
             result,
-            ['select * from celebrities limit 10']
+            ['select * from celebrities', 'limit 10']
         )
 
+    def test_all_parameters(self, mock_connect):
+        node = SelectNode(self.create_table(), distinct=True, limit=10)
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            ['select distinct * from celebrities', 'limit 10']
+        )
 
+    def test_with_view_name(self, mock_connect):
+        pass
+
+    def test_both_table_name_and_view_name(self):
+        pass
+
+
+@patch.object(sqlite3, 'connect')
 class TestWhereNode(LorelieTestCase):
-    def test_structure(self):
+    def test_structure(self, mock_connect):
         node = WhereNode(firstname='Kendall')
         sql = node.as_sql(self.create_connection())
         self.assertEqual(sql, ["where firstname='Kendall'"])
 
-    def test_expressions(self):
+    def test_expressions(self, mock_connect):
         node = WhereNode(firstname='Kendall', lastname='Jenner')
         sql = node.as_sql(self.create_connection())
         self.assertEqual(
             sql, ["where firstname='Kendall' and lastname='Jenner'"])
 
-    def test_arguments(self):
+    def test_arguments(self, mock_connect):
         node = WhereNode(Q(firstname='Kendall'))
         sql = node.as_sql(self.create_connection())
         self.assertEqual(sql, ["where firstname='Kendall'"])
@@ -122,14 +141,14 @@ class TestWhereNode(LorelieTestCase):
             ["where (firstname='Kendall' and lastname='Jenner')"]
         )
 
-    def test_complex_lookup_parameters(self):
+    def test_complex_lookup_parameters(self, mock_connect):
         where = WhereNode(age__gte=10, age__lte=40)
         self.assertListEqual(
             where.as_sql(self.create_connection()),
             ['where age>=10 and age<=40']
         )
 
-    def test_arguments_and_expressions(self):
+    def test_arguments_and_expressions(self, mock_connect):
         where = WhereNode(
             Q(lastname='Jenner'),
             firstname='Kendall',
@@ -140,7 +159,7 @@ class TestWhereNode(LorelieTestCase):
             ["where lastname='Jenner' and firstname='Kendall' and age>40"]
         )
 
-    def test_enriching_existing_parameters(self):
+    def test_enriching_existing_parameters(self, mock_connect):
         backend = self.create_connection()
 
         w1 = WhereNode(firstname='Kendall')
@@ -159,21 +178,10 @@ class TestWhereNode(LorelieTestCase):
             ["where firstname='Kendall' and lastname='Jenner'"]
         )
 
-    def test_cannot_use_q_functions(self):
-        node = UpdateNode(
-            self.create_table(),
-            {'name': 'Kendall'},
-            name=Q(name='Kendall')
-        )
-        self.assertRaises(
-            ValueError,
-            node.as_sql,
-            self.create_connection()
-        )
 
-
+@patch.object(sqlite3, 'connect')
 class TestOrderByNode(LorelieTestCase):
-    def test_structure(self):
+    def test_structure(self, mock_connect):
         node = OrderByNode(self.create_table(), 'id')
         result = node.as_sql(self.create_connection())
         self.assertListEqual(
@@ -181,7 +189,7 @@ class TestOrderByNode(LorelieTestCase):
             ['order by id asc']
         )
 
-    def test_descending(self):
+    def test_descending(self, mock_connect):
         node = OrderByNode(self.create_table(), '-id')
         result = node.as_sql(self.create_connection())
         self.assertListEqual(
@@ -190,19 +198,21 @@ class TestOrderByNode(LorelieTestCase):
         )
 
     @unittest.expectedFailure
-    def test_using_same_field_different_directions(self):
+    def test_using_same_field_different_directions(self, mock_connect):
         table = self.create_table()
         a = OrderByNode(table, 'name')
         b = OrderByNode(table, '-name')
         a & b
 
     @unittest.expectedFailure
-    def test_using_same_fields(self):
+    def test_using_same_fields(self, mock_connect):
         table = self.create_table()
         OrderByNode(table, '-name', '-name')
         OrderByNode(table, 'name', 'name')
 
-    def test_and_operation(self):
+    def test_and_operation(self, mock_connect):
+        # Using AND on this node should return a
+        # new class with the joined fields
         table = self.create_table()
         a = OrderByNode(table, 'name')
         b = OrderByNode(table, '-age')
@@ -216,8 +226,9 @@ class TestOrderByNode(LorelieTestCase):
         )
 
 
+@patch.object(sqlite3, 'connect')
 class TestUpdateNode(LorelieTestCase):
-    def test_structure(self):
+    def test_structure(self, mock_connect):
         node = UpdateNode(
             self.create_table(),
             {'name': 'Kendall'},
@@ -232,7 +243,7 @@ class TestUpdateNode(LorelieTestCase):
             ]
         )
 
-    def test_with_where_node(self):
+    def test_with_where_node(self, mock_connect):
         node = UpdateNode(
             self.create_table(),
             {'name': 'Kendall'},
@@ -247,7 +258,7 @@ class TestUpdateNode(LorelieTestCase):
             ]
         )
 
-    def test_mixed_args(self):
+    def test_mixed_args(self, mock_connect):
         node = UpdateNode(
             self.create_table(),
             {'name': 'Kendall'},
@@ -263,23 +274,26 @@ class TestUpdateNode(LorelieTestCase):
             ]
         )
 
-    def test_mixed_q_args(self):
+    def test_cannot_use_q_functions(self, mock_connect):
         node = UpdateNode(
             self.create_table(),
             {'name': 'Kendall'},
-            Q(name='Julie'),
-            lastname=Q(lastname='Pauline')
+            name=Q(name='Kendall')
         )
-        result = node.as_sql(self.create_connection())
-        print(result)
+        self.assertRaises(
+            ValueError,
+            node.as_sql,
+            self.create_connection()
+        )
 
 
+@patch.object(sqlite3, 'connect')
 class TestDeleteNode(LorelieTestCase):
-    def test_structure(self):
+    def test_structure(self, mock_connect):
         delete = DeleteNode(self.create_table())
         delete.as_sql(self.create_connection())
 
-    def test_with_where_node(self):
+    def test_with_where_node(self, mock_connect):
         delete = DeleteNode(self.create_table(), Q(name='Kendall'))
         result = delete.as_sql(self.create_connection())
         self.assertListEqual(
@@ -287,7 +301,7 @@ class TestDeleteNode(LorelieTestCase):
             ['delete from celebrities', "where name='Kendall'"]
         )
 
-    def test_with_multiple_where_node(self):
+    def test_with_multiple_where_node(self, mock_connect):
         delete = DeleteNode(self.create_table(), Q(name='Kendall'), Q(age=34))
         result = delete.as_sql(self.create_connection())
         self.assertListEqual(
@@ -296,8 +310,9 @@ class TestDeleteNode(LorelieTestCase):
         )
 
 
+@patch.object(sqlite3, 'connect')
 class TestJoinNode(LorelieTestCase):
-    def test_structure(self):
+    def test_structure(self, mock_connect):
         # celebrities -> followers
         db = self.create_foreign_key_database()
         manager = db.relationships['followers']
@@ -310,13 +325,17 @@ class TestJoinNode(LorelieTestCase):
         self.assertListEqual(result, expected)
 
 
+@patch.object(sqlite3, 'connect')
 class TestComplexNode(LorelieTestCase):
-    def test_structure(self):
+    def test_structure(self, mock_connect):
         select = SelectNode(self.create_table())
         where = WhereNode(name='Kendall')
-        node = ComplexNode(select, where)
-        result = node.as_sql(self.create_connection())
-        print(result)
+
+        complex_node = ComplexNode(select, where)
+        raw_sql = complex_node.as_sql(self.create_connection())
+
+        self.assertIsInstance(raw_sql, RawSQL)
+        self.assertIn(where, complex_node)
 
 
 class TestIntersectNode(LorelieTestCase):
@@ -342,3 +361,44 @@ class TestViewNode(LorelieTestCase):
                 "create view if not exists my_view as select * from celebrities;"
             ]
         )
+
+
+@patch.object(sqlite3, 'connect')
+class TestRawSQL(LorelieTestCase):
+    def test_structure(self, mock_connect):
+        select = SelectNode(self.create_table())
+        where = WhereNode(name='Kendall')
+
+        instance = RawSQL(self.create_connection(), select, where)
+        result = instance.as_sql()
+        self.assertIsInstance(result, list)
+
+        expected = ['select * from celebrities', "where name='Kendall'"]
+        self.assertListEqual(list(result), expected)
+        self.assertListEqual(result, expected)
+
+        expected = "select * from celebrities where name='Kendall'"
+        self.assertEqual(str(instance), expected)
+
+        # TODO: Optimize
+        self.assertTrue(expected == instance)
+
+    def test_select_node_resolution(self, mock_connect):
+        pass
+
+
+class TestSelectMap(LorelieTestCase):
+    def test_structure(self):
+        select = SelectNode(self.create_table())
+        where = WhereNode(name='Kendall')
+
+        select_map = SelectMap(select, where)
+
+        self.assertTrue(select_map.should_resolve_map)
+        self.assertIsInstance(
+            select_map.resolve(self.create_connection()),
+            list
+        )
+
+    def test_uses_wrong_node_parameters(self):
+        pass

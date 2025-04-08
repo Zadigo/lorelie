@@ -176,6 +176,8 @@ class SelectNode(BaseNode):
     def __init__(self, table, *fields, distinct=False, limit=None, view_name=None):
         super().__init__(table=table, fields=fields)
         self.distinct = distinct
+        # This parameter is implemented 
+        # afterwards on the SeleectMap
         self.limit = limit
         self.view_name = view_name
 
@@ -195,8 +197,20 @@ class SelectNode(BaseNode):
             'table': self.view_name or self.table.name
         })
 
+        # if self.distinct:
+        #     select_sql = select_sql.replace('select', 'select distinct')
+
+        # select_clause = [select_sql]
+
+        # if self.limit:
+        #     limit = backend.LIMIT.format(value=self.limit)
+        #     select_clause.append(limit)
+
+        # return select_clause
+
         if self.distinct:
             return [select_sql.replace('select', 'select distinct')]
+
         return [select_sql]
 
 

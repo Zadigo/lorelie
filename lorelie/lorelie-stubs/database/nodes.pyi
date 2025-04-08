@@ -3,13 +3,12 @@ from typing import (Any, Callable, Dict, Literal, Optional, Tuple, Union,
                     override)
 
 from database.base import RelationshipMap
-from expressions import Q
 from database.tables.base import Table
+from expressions import Q
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database.functions.base import Functions
 from lorelie.queries import QuerySet
-
 
 @dataclasses.dataclass
 class SelectMap:
@@ -82,27 +81,37 @@ class BaseNode:
 
 class SelectNode(BaseNode):
     distinct: bool = Literal[False]
+    limit: Optional[int] = ...
+    view_name: Optional[str] = ...
 
     def __init__(
         self,
         table: Table,
         *fields: str,
         distinct: Optional[bool] = ...,
-        limit: Optional[int] = ...
+        limit: Optional[int] = ...,
+        view_name: Optional[str] = ...
     ) -> None: ...
 
     @override
-    def __call__(self, *fields: str) -> SelectNode: ...
+    def __call__(
+        self,
+        *fields: str,
+        **kwargs
+    ) -> SelectNode: ...
 
 
 class WhereNode(BaseNode):
     expressions: dict[str, Functions] = ...
     func_expressions: list[Functions] = ...
+    invert: bool = Literal[False]
 
     def __init__(self, *args: Functions, **expressions) -> None: ...
 
     @override
     def __call__(self, *args: Functions, **expressions) -> WhereNode: ...
+
+    def __invert__(self) -> WhereNode: ...
 
 
 class OrderByNode(BaseNode):
@@ -123,9 +132,9 @@ class OrderByNode(BaseNode):
 
 
 class UpdateNode(BaseNode):
-    args: Tuple[Union[str, Q]] = ...
-    kwargs: Dict[str, Union[Q, Any]] = ...
-    defaults: Dict[str, Any] = ...
+    where_args: Tuple[Union[str, Q]] = ...
+    where_expressions: Dict[str, Union[Q, Any]] = ...
+    update_defaults: Dict[str, Any] = ...
 
     def __init__(
         self,
@@ -137,6 +146,11 @@ class UpdateNode(BaseNode):
 
 
 class DeleteNode(BaseNode):
+    where_args: Tuple[Union[str, Q]] = ...
+    where_expressions: Dict[str, Union[Q, Any]] = ...
+    order_by: list[str] = ...
+    limit: Optional[int] = ...
+
     def __init__(
         self,
         table: Table,
@@ -151,8 +165,9 @@ class DeleteNode(BaseNode):
 
 
 class InsertNode(BaseNode):
-    template_sql: str = ...
+    bactch_insert_sql: str = ...
     insert_values: dict[str, Union[int, float, Callable[..., Any]]] = ...
+    returning: list[str] = ...
     batch_values: list[dict[str, Union[int, float, Callable[..., Any]]]] = ...
 
     def __init__(
@@ -165,6 +180,11 @@ class InsertNode(BaseNode):
 
 
 class JoinNode(BaseNode):
+    cross_join: str = ...
+    full_outer_join: str = ...
+    join_type: str = ...
+    relationship_map: Any = ...
+
     def __init__(
         self,
         table: str,
@@ -174,10 +194,21 @@ class JoinNode(BaseNode):
 
 
 class IntersectNode(BaseNode):
-    def __init__(self, left_select: str, right_select: str) -> None: ...
+    left_select: SelectNode = ...
+    right_select: SelectNode = ...
+
+    def __init__(
+        self, 
+        left_select: SelectNode, 
+        right_select: SelectNode
+    ) -> None: ...
 
 
 class ViewNode(BaseNode):
+    name: str = ...
+    temporary: bool = Literal[False]
+    queryset: QuerySet = ...
+
     def __init__(
         self,
         name: str,

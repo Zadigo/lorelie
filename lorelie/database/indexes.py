@@ -34,7 +34,11 @@ class Index:
                 "At least one field must be provided "
                 "in order to use an index on a database"
             )
-        
+
+        # Custom user name that will be used
+        # to identify the index in the program.
+        # The index_name identifies the in index
+        # in the SQLite database
         self.name = name
         self.fields = list(fields)
         self.condition = condition
@@ -45,8 +49,26 @@ class Index:
     def __repr__(self):
         return f'<Index: fields={self.fields} condition={self.condition}>'
 
+    # def __eq__(self, value):
+    #     return any(
+    #         [
+    #             self.name == value,
+    #             self.index_name == value
+    #         ]
+    #     )
+
     def prepare(self, table):
         self.table = table
+
+        # TODO: Maybe check that the fields
+        # we are trying to index exists on
+        # within the database fields
+        # for field in self.fields:
+        #     if not table.has_field(field):
+        #         raise ValueError(
+        #             'Trying to create an index '
+        #             'on a none existing field'
+        #         )
 
     def as_sql(self, backend):
         for field in self.fields:
@@ -59,7 +81,7 @@ class Index:
         })
 
         sql = [fields_sql]
-    
+
         if self.condition is not None:
             where_node = WhereNode(self.condition)
             sql.extend(where_node.as_sql(backend))

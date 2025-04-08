@@ -1,5 +1,5 @@
-from lorelie.database.base import RelationshipMap
 from lorelie.database.manager import ForeignTablesManager
+from lorelie.database.tables.base import RelationshipMap
 from lorelie.fields.relationships import ForeignKeyField
 from lorelie.test.testcases import LorelieTestCase
 

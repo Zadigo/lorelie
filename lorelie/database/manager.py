@@ -593,13 +593,13 @@ class DatabaseManager:
                 self.table,
                 create_defaults
             )
-            _, create_defaults = self.table.pre_save_setup_from_dict(
+            validated_data = self.table.pre_save_setup_from_dict(
                 create_defaults
             )
 
             insert_node = InsertNode(
                 self.table,
-                insert_values=create_defaults,
+                insert_values=validated_data,
                 returning=self.table.field_names
             )
             new_query = query.create(table=self.table)

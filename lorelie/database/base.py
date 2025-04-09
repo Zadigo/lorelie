@@ -187,10 +187,10 @@ class Database:
             if not isinstance(table, Table):
                 raise ValueError('Value should be an instance of Table')
 
-            table.load_current_connection()
-            # setattr(table, 'database', self)
             self.table_map[table.name] = table
             setattr(self, table.name, table)
+            setattr(table, 'attached_to_database', self)
+            table.load_current_connection()
 
         self.table_instances = list(tables)
         self.relationships = OrderedDict()

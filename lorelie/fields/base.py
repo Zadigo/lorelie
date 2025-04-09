@@ -1,3 +1,4 @@
+import uuid
 import datetime
 import decimal
 import json
@@ -498,8 +499,23 @@ class SlugField(CharField):
     pass
 
 
-class UUIDField(CharField):
-    pass
+class UUIDField(Field):
+    def to_database(self, data):
+        if data is None:
+            return None
+
+        if isinstance(data, uuid.UUID):
+            return str(data)
+        return data.hex
+
+    def to_python(self, data):
+        if not isinstance(data, uuid.UUID):
+            try:
+                param = 'hex' if isinstance(data, int) else 'hex'
+                return uuid.UUID(**{param: data})
+            except:
+                raise ValidationError('uuid is not valid')
+        return data
 
 
 class URLField(CharField):

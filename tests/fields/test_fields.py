@@ -1,9 +1,14 @@
+import inspect
 import datetime
+import uuid
 
 from lorelie.exceptions import ValidationError
-from lorelie.fields.base import (BooleanField, CharField, DateField,
-                                 DateTimeField, Field, FloatField,
-                                 IntegerField, JSONField)
+from lorelie.fields.base import (AliasField, AutoField, BinaryField,
+                                 BooleanField, CharField, CommaSeparatedField,
+                                 DateField, DateTimeField, DecimalField,
+                                 EmailField, Field, FilePathField, FloatField,
+                                 IntegerField, JSONField, SlugField, TimeField,
+                                 URLField, UUIDField)
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -11,9 +16,28 @@ class TestField(LorelieTestCase):
     def test_structure(self):
         field = Field('name')
         params = field.field_parameters()
+
         self.assertEqual(params, ['name', 'text', 'not null'])
         self.assertEqual(field.to_python('Kendall Jenner'), 'Kendall Jenner')
         self.assertEqual(field.to_database('Kendall Jenner'), 'Kendall Jenner')
+
+    def test_constraints(self):
+        field = Field('name', max_length=20)
+        self.assertEqual(len(field.constraints), 1)
+
+    def test_base_field_parameters_boolean(self):
+        field = Field('name', null=True, primary_key=True, unique=True)
+        field.field_parameters()
+
+        self.assertDictEqual(
+            field.base_field_parameters,
+            {
+                'primary key': True,
+                'null': True,
+                'not null': False,
+                'unique': True
+            }
+        )
 
     def test_validators(self):
         field = Field('name')
@@ -166,6 +190,31 @@ class TestDateTimeField(LorelieTestCase):
         self.assertEqual(f.to_database(1), '')
 
 
+class TestEmailField(LorelieTestCase):
+    pass
+
+
+class TestCommaSeparatedField(LorelieTestCase):
+    pass
+
+
+class TestTimeField(LorelieTestCase):
+    pass
+
+
+class TestSlugField(LorelieTestCase):
+    pass
+
+
+class TestUUIDField(LorelieTestCase):
+    def test_structure(self):
+        f = UUIDField('product_id')
+        value = f.to_database(uuid.uuid4())
+        self.assertIsInstance(value, str)
+        revert_value = f.to_python(value)
+        self.assertIsInstance(revert_value, uuid.UUID)
+
+
 # class TestAutoField(unittest.TestCase):
 #     def test_result(self):
 #         field = AutoField()
@@ -176,4 +225,3 @@ class TestDateTimeField(LorelieTestCase):
 #             params,
 #             ['id', 'integer', 'primary key', 'autoincrement', 'not null']
 #         )
-

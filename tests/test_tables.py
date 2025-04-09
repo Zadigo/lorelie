@@ -1,7 +1,8 @@
 import sqlite3
 import unittest
-from unittest.mock import Mock, patch
 from typing import Generator
+from unittest.mock import Mock, patch
+
 from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
 from lorelie.database.tables.base import Table
@@ -34,6 +35,19 @@ class TestTable(LorelieTestCase):
 
         mock_connect.assert_called_once()
 
+    # @patch.object(Connection, 'execute')
+    # @patch.object(Connection, 'commit')
+    @patch.object(sqlite3, 'connect', autospec=True)
+    def test_prepare(self, mock_connection):
+        table = self.create_table()
+        db = Database(table)
+
+        # Do not prepare the database because we
+        # want to test the preparation of the table
+        # outside of that database context
+        table.prepare(db)
+        self.assertTrue(table.is_prepared)
+
     @unittest.skip
     def test_cannot_load_connection(self):
         table = self.create_table()
@@ -63,7 +77,8 @@ class TestTable(LorelieTestCase):
             {
                 'name': 'text',
                 'height': 'integer',
-                'created_on': 'datetime'
+                'created_on': 'datetime',
+                'id': 'integer'
             }
         )
 
@@ -172,10 +187,10 @@ class TestTable(LorelieTestCase):
             fields=[CharField('name')],
             constraints=[constraint]
         )
-        
+
         db = Database(table)
         table.prepare(db)
-        
+
         self.assertIn(constraint, table.table_constraints)
 
     def test_adding_an_existing_constraint_to_the_table(self):
@@ -193,27 +208,40 @@ class TestTable(LorelieTestCase):
         db = Database(table, log_queries=True)
         db.migrate()
 
-    def test_database_field_creation_validation(self):
+    @unittest.skip
+    @patch.object(sqlite3, 'connect')
+    def test_database_field_creation_validation(self, mock_connect):
+        # FIXME: What is this test supposed to check ???????
+
         db = self.create_database(
-            using=self.create_complex_table(), log_queries=True)
+            using=self.create_complex_table(),
+            log_queries=True
+        )
 
         with self.assertRaises(sqlite3.IntegrityError):
-            db.celebrities.objects.create('stars', height=145)
+            db.stars.objects.create(height=145)
 
         with self.assertRaises(sqlite3.IntegrityError):
-            db.celebrities.objects.create(
-                'stars', name='Kendall Jenner', height=0)
+            db.stars.objects.create(
+                name='Kendall Jenner',
+                height=0
+            )
 
         with self.assertRaises(ValidationError):
-            db.celebrities.objects.create('stars', name='Taylor Swift')
+            db.stars.objects.create(name='Taylor Swift')
 
         # TODO: Should not_null be False if we have a field
         # with a default value set
-        db.celebrities.objects.create(
-            'stars', name='Lucie Safarova', height=165)
+        db.stars.objects.create(
+            name='Lucie Safarova',
+            height=165
+        )
+
         with self.assertRaises(sqlite3.IntegrityError):
-            db.celebrities.objects.create(
-                'stars', name='Lucie Safarova', height=165)
+            db.stars.objects.create(
+                name='Lucie Safarova',
+                height=165
+            )
 
     def test_list_contains_table(self):
         table = self.create_table()

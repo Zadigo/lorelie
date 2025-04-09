@@ -183,6 +183,7 @@ class Table(AbstractTable):
         # it up with the table and backend
         id_field = AutoField()
         id_field.prepare(self)
+        self.field_types['id'] = id_field.field_type
         self.fields_map['id'] = id_field
 
         field_names = list(self.fields_map.keys())
@@ -328,12 +329,26 @@ class Table(AbstractTable):
             if field.is_relationship_field:
                 yield field.relationship_field_params
 
-    def prepare(self, database):
-        """Prepares the table with additional parameters, 
-        gets all the field parameters to be used in order to
-        create the current table and then creates the create SQL
-        statement that will then be used to creates the
-        different tables in the database using the database"""
+    def prepare(self, database, skip_creation=False):
+        """Prepares the table with additional parameters by 
+        getting all the necessary field parameters to be used in 
+        order to create the current table. Runs the created SQL
+        statement in an existing sqlite connection
+        
+        This function is called by the Migrations class principally
+        when running the migration process to the database
+        
+        `skip_creation` can be used to prevent the creationg process
+        for tables that were created outside of this prepare function 
+        """
+        # if skip_creation:
+        #     self.attached_to_database = database
+        #     return True
+
+        # if self.attached_to_database is None:
+        #     self.attached_to_database = database
+        #     self.load_current_connection()
+
         field_params = self.build_all_field_parameters()
         field_params = [
             self.backend.simple_join(params)
@@ -356,5 +371,4 @@ class Table(AbstractTable):
         query = self.query_class(table=self)
         query.add_sql_nodes(create_sql)
         query.run(commit=True)
-        self.attached_to_database = database
         self.is_prepared = True

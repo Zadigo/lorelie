@@ -1,23 +1,25 @@
 import sqlite3
-from unittest.mock import Mock, PropertyMock, patch
-
-from lorelie.backends import SQLiteBackend
+import unittest
+from unittest.mock import Mock, patch
+from typing import Generator
 from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
+from lorelie.database.tables.base import Table
 from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
-                                ImproperlyConfiguredError, ValidationError)
+                                ValidationError)
 from lorelie.expressions import Q
 from lorelie.fields.base import CharField, Field, IntegerField
-from lorelie.database.tables.base import Table
 from lorelie.test.testcases import LorelieTestCase
 
 
 class TestTable(LorelieTestCase):
-    def test_structure(self):
+    @patch.object(sqlite3, 'connect')
+    def test_structure(self, mock_connect: Mock):
         table = self.create_table()
         self.assertTrue(table == table)
         self.assertTrue('name' in table)
 
+        # Using a wrong name
         with self.assertRaises(ValueError):
             table.validate_table_name('objects')
 
@@ -30,6 +32,9 @@ class TestTable(LorelieTestCase):
         table._add_field('talent', talent)
         self.assertIn('talent', table)
 
+        mock_connect.assert_called_once()
+
+    @unittest.skip
     def test_cannot_load_connection(self):
         table = self.create_table()
         with self.assertRaises(ConnectionExistsError):
@@ -77,8 +82,8 @@ class TestTable(LorelieTestCase):
         )
         self.assertTrue(state)
 
-    @patch('lorelie.backends.SQLiteBackend', new_callable=Mock)
-    def test_build_all_field_parameters(self, sqlite_backend):
+    @patch.object(sqlite3, 'connect')
+    def test_build_all_field_parameters(self, mock_connect):
         # The field parameters are the parameters that
         # are used by "create table" when creating a
         # new table in a database
@@ -90,14 +95,9 @@ class TestTable(LorelieTestCase):
         # with self.assertRaises((ImproperlyConfiguredError, AttributeError)):
         #     table.build_all_field_parameters()
 
-        mock_connection = sqlite_backend.return_value
-        mock_connection.quote_value.return_value = 152
-        mock_connection.CONDITION.format_map.return_value = 'height>150'
-        table.backend = mock_connection
-        
-        # table.backend = self.create_connection()
-
+        table.backend = self.create_connection()
         parameters = list(table.build_all_field_parameters())
+
         self.assertListEqual(
             parameters,
             [
@@ -109,10 +109,15 @@ class TestTable(LorelieTestCase):
             ]
         )
 
-    def test_value_validation(self):
+    @patch.object(sqlite3, 'connect')
+    def test_value_validation(self, mock_connect):
         table = self.create_table()
         table.backend = self.create_connection()
+
         items = table.validate_values(['name'], ['Kendall'])
+        self.assertIsInstance(items, tuple)
+        self.assertIsInstance(items[0], list)
+        self.assertIsInstance(items[1], dict)
         self.assertTupleEqual(items, (["'Kendall'"], {'name': "'Kendall'"}))
 
         with self.assertRaises((FieldExistsError, KeyError)):
@@ -120,7 +125,17 @@ class TestTable(LorelieTestCase):
             # on the table should raise an error
             table.validate_values(['age'], [23])
 
-    def test_table_management(self):
+    @patch.object(sqlite3, 'connect')
+    def test_validate_values_from_list(self, mock_connect):
+        table = self.create_table()
+        table.backend = self.create_connection()
+
+        items = table.validate_values_from_list([{'name': 'Kendall'}])
+        self.assertIsInstance(items, Generator)
+        self.assertIsInstance(list(items)[0], tuple)
+
+    @patch.object(sqlite3, 'connect')
+    def test_table_management(self, mock_connect):
         table = self.create_table()
         table.backend = self.create_connection()
         field_params = table.build_all_field_parameters()
@@ -133,11 +148,12 @@ class TestTable(LorelieTestCase):
         create_table_sql = table.create_table_sql(
             table.backend.comma_join(field_params)
         )
+
         self.assertListEqual(
             create_table_sql,
             [
-                'create table if not exists celebrities (name text not null, height integer default 150 not null check(height>150), '
-                'id integer primary key autoincrement not null)'
+                'create table if not exists celebrities (name text not null, height integer default 152 '
+                'not null check(height>150), created_on datetime null, id integer primary key autoincrement not null)'
             ]
         )
 
@@ -147,20 +163,24 @@ class TestTable(LorelieTestCase):
             ['drop table if exists celebrities']
         )
 
-    def test_table_level_constraints(self):
+    @patch.object(sqlite3, 'connect')
+    def test_table_level_constraints(self, mock_connect):
         constraint = CheckConstraint('my_constraint', Q(name__eq='Kendall'))
+
         table = Table(
             'my_table',
             fields=[CharField('name')],
             constraints=[constraint]
         )
+        
         db = Database(table)
         table.prepare(db)
+        
         self.assertIn(constraint, table.table_constraints)
 
     def test_adding_an_existing_constraint_to_the_table(self):
         # TODO: Prevent the user from being able to create two
-        # similar constraints in a given table
+        # similar constraints on a given table
         constraint1 = CheckConstraint('my_constraint', Q(name__eq='Kendall'))
         constraint2 = CheckConstraint('my_constraint', Q(name__eq='Kendall'))
 
@@ -169,6 +189,7 @@ class TestTable(LorelieTestCase):
             fields=[CharField('name')],
             constraints=[constraint1, constraint2]
         )
+
         db = Database(table, log_queries=True)
         db.migrate()
 

@@ -40,8 +40,7 @@ class AbstractTable(metaclass=BaseTable):
 
     def validate_values_from_list(
         self,
-        fields: List[str],
-        values: List[Any]
+        values: dict[str, Any]
     ) -> List[Tuple[list[str], dict[str, Any]]]: ...
 
     def validate_values_from_dict(

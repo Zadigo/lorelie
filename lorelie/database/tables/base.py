@@ -283,6 +283,7 @@ class Table(AbstractTable):
     def create_table_sql(self, fields):
         unique_constraints = []
         check_constraints = []
+
         for constraint in self.table_constraints:
             constraint_sql = constraint.as_sql(self.backend)
 
@@ -294,14 +295,17 @@ class Table(AbstractTable):
         # Unique constraints are comma separated
         # just like normal fields while check_constraints
         # are just joined by normal space
-        joined_unique = self.backend.comma_join([fields, *unique_constraints])
-        joined_checks = self.backend.simple_join(
+        joined_unique = self.backend.comma_join(
+            [fields, *unique_constraints]
+        )
+
+        joined_all = self.backend.simple_join(
             [joined_unique, *check_constraints]
         )
 
         sql = self.backend.CREATE_TABLE.format_map({
             'table': self.name,
-            'fields': joined_checks
+            'fields': joined_all
         })
         return [sql]
 

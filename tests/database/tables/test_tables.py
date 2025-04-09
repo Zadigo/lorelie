@@ -17,6 +17,7 @@ class TestTable(LorelieTestCase):
     @patch.object(sqlite3, 'connect')
     def test_structure(self, mock_connect: Mock):
         table = self.create_table()
+
         self.assertTrue(table == table)
         self.assertTrue('name' in table)
 
@@ -47,6 +48,10 @@ class TestTable(LorelieTestCase):
         # outside of that database context
         table.prepare(db)
         self.assertTrue(table.is_prepared)
+
+        # Test column map
+        # print(list(map(lambda x: x.index, table.columns_map.values())))
+        # print(sorted(table.columns_map.values(), key=lambda x: x.index))
 
     @unittest.skip
     def test_cannot_load_connection(self):
@@ -248,3 +253,18 @@ class TestTable(LorelieTestCase):
         tables = [table]
         self.assertIn(table, tables)
         self.assertIn(table.name, tables)
+
+    def test_add_field(self):
+        table = Table('celebrities')
+        db = Database(table)
+        table.prepare(db)
+
+        field = CharField('name')
+        table._add_field('name', field)
+
+        # TODO: The index field does not
+        # get updated correctly
+        f1 = table.fields_map['id']
+        f2 = table.fields_map['name']
+        print(f1.index, f2.index)
+        # self.assertEqual(f1.index, 1)

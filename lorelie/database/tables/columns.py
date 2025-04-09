@@ -28,10 +28,10 @@ class Column:
                     f"field: {self.name} <> {self.field.name}"
                 )
 
-        self.index = self.field.index
+        if self.index is None:
+            self.index = self.field.index
 
-    def __str__(self):
-        return self.full_column_name
+        self.index = self.field.index
 
     def __eq__(self, item):
         if not isinstance(item, (str, Column, Field)):
@@ -54,11 +54,8 @@ class Column:
             item == bits[-1]
         ])
 
-    def __str__(self):
-        return self.full_column_name
-
     def __repr__(self):
-        return f'<Column: {self.full_column_name}>'
+        return f'<Column: {self.full_column_name or self.name}>'
 
     def __hash__(self):
         return hash((self.name, self.table.name, self.index))
@@ -70,6 +67,14 @@ class Column:
     @property
     def table(self):
         return self.field.table
+
+    @property
+    def asc(self):
+        return f'{self.name} asc'
+
+    @property
+    def desc(self):
+        return f'{self.name} desc'
 
     def prepare(self):
         template = '{table_name}.{field_name}'

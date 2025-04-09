@@ -5,6 +5,7 @@ from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.database.indexes import Index
 from lorelie.database.manager import DatabaseManager
+from lorelie.database.tables.columns import Column
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
 from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
 from lorelie.queries import Query
@@ -133,6 +134,8 @@ class Table(AbstractTable):
         self.field_constraints = {}
         self.is_foreign_key_table = False
         self.attached_to_database = None
+        self.columns_map = {}
+
         # The str_field is the name of the
         # field to be used for representing
         # the column in the BaseRow
@@ -146,7 +149,7 @@ class Table(AbstractTable):
         self.auto_update_fields = set()
 
         non_authorized_names = ['rowid', 'id']
-        for field in fields:
+        for i, field in enumerate(fields):
             if not hasattr(field, 'prepare'):
                 raise ValueError(f"{field} should be an instance of Field")
 
@@ -169,6 +172,7 @@ class Table(AbstractTable):
 
             self.field_types[field.name] = field.field_type
 
+            field.index = i
             field.prepare(self)
             # If the user uses the same keys multiple
             # times, leave the error for him to resolve
@@ -185,6 +189,7 @@ class Table(AbstractTable):
         id_field.prepare(self)
         self.field_types['id'] = id_field.field_type
         self.fields_map['id'] = id_field
+        id_field.index = len(self.fields_map.keys()) - 1
 
         field_names = list(self.fields_map.keys())
         field_names.append('rowid')
@@ -241,13 +246,12 @@ class Table(AbstractTable):
             seen_types.append(field.field_type)
 
         unique_types = set(seen_types)
-
         return len(unique_types) > 1
 
     def _add_field(self, field_name, field):
         """Internala function to add a field on the
         database. Returns the newly constructued
-        field paramters"""
+        field parameters"""
         if not isinstance(field, Field):
             raise ValueError(f"{field} should be be an instance of Field")
 
@@ -269,6 +273,14 @@ class Table(AbstractTable):
             self.backend.simple_join(params)
             for params in field_params
         ]
+
+        sorted_columns = sorted(
+            self.columns_map.values(),
+            key=lambda x: x.index
+        )
+
+        last_column = sorted_columns[-1]
+        field.index = last_column.index
         return field_params
 
     # TODO: Rename to check_field
@@ -334,10 +346,10 @@ class Table(AbstractTable):
         getting all the necessary field parameters to be used in 
         order to create the current table. Runs the created SQL
         statement in an existing sqlite connection
-        
+
         This function is called by the Migrations class principally
         when running the migration process to the database
-        
+
         `skip_creation` can be used to prevent the creationg process
         for tables that were created outside of this prepare function 
         """
@@ -371,4 +383,13 @@ class Table(AbstractTable):
         query = self.query_class(table=self)
         query.add_sql_nodes(create_sql)
         query.run(commit=True)
+
         self.is_prepared = True
+
+        # Once hte table is created and everything
+        # is setup correctly, we create an abstract
+        # database column to interface the column locally
+        for name, field in self.fields_map.items():
+            column = Column(field)
+            column.prepare()
+            self.columns_map.setdefault(name, column)

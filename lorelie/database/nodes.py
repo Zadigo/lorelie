@@ -39,7 +39,10 @@ class SelectMap:
 
     @property
     def should_resolve_map(self):
-        return self.select is not None
+        return all([
+            self.select is not None,
+            self.select == 'select'
+        ])
 
     def resolve(self, backend):
         nodes = []
@@ -51,8 +54,12 @@ class SelectMap:
         if self.order_by is not None:
             nodes.extend(self.order_by.as_sql(backend))
 
+        # TODO: Check the place limit has to
+        # be in the statement
         if self.limit is not None:
-            nodes.extend([f'limit {self.limit}'])
+            if self.select.limit is not None:
+                setattr(self, 'limit', self.select.limit)
+                nodes.extend([f'limit {self.limit}'])
 
         if self.groupby is not None:
             nodes.extend([self.groupby])
@@ -78,6 +85,7 @@ class RawSQL:
 
         self.nodes = list(nodes)
         self.backend = backend
+
         self.resolve_select = 'select' in self.nodes[0]
         self.select_map = SelectMap()
 
@@ -98,7 +106,20 @@ class RawSQL:
         return list(self.as_sql())
 
     def __eq__(self, value):
+        if isinstance(value, RawSQL):
+            value = str(value)
         return value == self.__str__()
+
+    @property
+    def can_resolve(self):
+        if self.nodes:
+            # The first node of an SQL statement
+            # is always one of the expected nodes
+            first_node = self.nodes[0]
+            expected_nodes = ['select', 'update', 'delete', 'create']
+            is_valid = map(lambda x: first_node == x, expected_nodes)
+            return any(is_valid)
+        return False
 
     def as_sql(self):
         if self.resolve_select:
@@ -176,7 +197,7 @@ class SelectNode(BaseNode):
     def __init__(self, table, *fields, distinct=False, limit=None, view_name=None):
         super().__init__(table=table, fields=fields)
         self.distinct = distinct
-        # This parameter is implemented 
+        # This parameter is implemented
         # afterwards on the SeleectMap
         self.limit = limit
         self.view_name = view_name

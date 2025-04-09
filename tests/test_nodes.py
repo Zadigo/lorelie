@@ -383,8 +383,28 @@ class TestRawSQL(LorelieTestCase):
         # TODO: Optimize
         self.assertTrue(expected == instance)
 
+    def test_equality(self, mock_connect):
+        select = SelectNode(self.create_table())
+        instance = RawSQL(self.create_connection(), select)
+        expected = 'select * from celebrities'
+        self.assertTrue(expected == instance)
+        self.assertTrue(instance == instance)
+
     def test_select_node_resolution(self, mock_connect):
-        pass
+        select = SelectNode(self.create_table(), limit=10)
+        instance = RawSQL(self.create_connection(), select)
+        select_map = instance.select_map
+        self.assertTrue(select_map.should_resolve_map)
+        print(select_map)
+
+    def test_can_resolve(self, mock_connect):
+        select = SelectNode(self.create_table(), limit=10)
+        instance = RawSQL(self.create_connection(), select)
+        self.assertTrue(instance.can_resolve)
+
+        where = WhereNode(name='Kendall')
+        instance = RawSQL(self.create_connection(), where)
+        self.assertFalse(instance.can_resolve)
 
 
 class TestSelectMap(LorelieTestCase):
@@ -400,5 +420,12 @@ class TestSelectMap(LorelieTestCase):
             list
         )
 
+    def test_can_resolve(self):
+        select_map = SelectMap()
+        self.assertFalse(select_map.should_resolve_map)
+
     def test_uses_wrong_node_parameters(self):
-        pass
+        select = SelectNode(self.create_table())
+        where = WhereNode(name='Kendall')
+        select_map = SelectMap(where, select)
+        self.assertFalse(select_map.should_resolve_map)

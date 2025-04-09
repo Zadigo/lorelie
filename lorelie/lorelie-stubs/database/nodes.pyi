@@ -10,6 +10,7 @@ from lorelie.backends import SQLiteBackend
 from lorelie.database.functions.base import Functions
 from lorelie.queries import QuerySet
 
+
 @dataclasses.dataclass
 class SelectMap:
     select: type[SelectNode] = None
@@ -43,7 +44,11 @@ class RawSQL:
     def __repr__(self) -> str: ...
     def __str__(self) -> str: ...
     def __iter__(self) -> list[str]: ...
-    def __eq__(self, value) -> bool: ...
+    def __eq__(self, value: str) -> bool: ...
+
+    @property
+    def can_resolve(self) -> bool: ...
+
     def as_sql(self) -> list[str]: ...
 
 
@@ -198,8 +203,8 @@ class IntersectNode(BaseNode):
     right_select: SelectNode = ...
 
     def __init__(
-        self, 
-        left_select: SelectNode, 
+        self,
+        left_select: SelectNode,
         right_select: SelectNode
     ) -> None: ...
 

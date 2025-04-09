@@ -576,13 +576,10 @@ class IntersectNode(BaseNode):
         return 'intersect'
 
     def as_sql(self, backend):
-        # lhv = self.left_select.as_sql(backend)
-        # rhv = self.right_select.as_sql(backend)
-        # sql = self.template_sql.format(lhv[0], rhv[0])
-        # return [sql]
-        lhv = backend.de_sqlize_statement(self.left_select)
-        rhv = backend.de_sqlize_statement(self.right_select)
-        return [self.template_sql.format(lhv, rhv)]
+        lhv = self.left_select.as_sql(backend)
+        rhv = self.right_select.as_sql(backend)
+        sql = self.template_sql.format(lhv[0], rhv[0])
+        return [sql]
 
 
 class ViewNode(BaseNode):
@@ -600,7 +597,9 @@ class ViewNode(BaseNode):
     def as_sql(self, backend):
         if not hasattr(self.queryset, 'load_cache'):
             raise ValueError(
-                f"ViewNode expects a Queryset. Got: {self.queryset}")
+                "ViewNode expects a "
+                f"Queryset. Got: {self.queryset}"
+            )
 
         template_sql = self.template_sql
         if self.temporary:

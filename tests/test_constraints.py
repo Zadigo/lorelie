@@ -1,13 +1,12 @@
 from sqlite3 import IntegrityError
 
-import fields
-
+from lorelie import fields
 from lorelie.constraints import (CheckConstraint, MaxValueConstraint,
                                  MinValueConstraint, UniqueConstraint)
 from lorelie.database.base import Database
+from lorelie.database.tables.base import Table
 from lorelie.expressions import Q
 from lorelie.fields.base import CharField
-from lorelie.database.tables.base import Table
 from lorelie.test.testcases import LorelieTestCase
 
 

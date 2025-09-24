@@ -139,6 +139,7 @@ cython_debug/
 #.idea/
 
 migrations.json
+schema.json
 *.sqlite
 *.sqlite-journal
 

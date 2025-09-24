@@ -2,14 +2,14 @@ import unittest
 
 from lorelie.database.base import Database
 from lorelie.database.migrations import Migrations
+from lorelie.database.tables.base import Table
 from lorelie.exceptions import ImproperlyConfiguredError
 from lorelie.fields.base import CharField
-from lorelie.database.tables.base import Table
 from lorelie.test.testcases import LorelieTestCase
 
 
 class TestMigrations(LorelieTestCase):
-    def test_structure(self):
+    def test_structure_with_empty_database(self):
         db = Database()
         migrations = Migrations(db)
         self.assertFalse(migrations.migrated)
@@ -24,6 +24,13 @@ class TestMigrations(LorelieTestCase):
         db = Database(table)
         migrations = Migrations(db)
         migrations.migrate({'celebrities': table})
+
+        self.assertGreater(
+            len(migrations.schema_structure.migration_table_map), 0)
+        self.assertListEqual(
+            migrations.schema_structure.migration_table_map, ['celebrities'])
+        self.assertTrue(migrations.migrated,
+                        'Database should be marked as migrated')
 
     def test_make_migrations(self):
         db = self.create_database(using=self.create_full_table())

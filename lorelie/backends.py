@@ -1,11 +1,12 @@
 import dataclasses
 import datetime
 import itertools
+import pathlib
 import re
 import sqlite3
 from collections import defaultdict
 from dataclasses import field
-from typing import Any
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 
 import pytz
 
@@ -23,8 +24,14 @@ from lorelie.exceptions import ConnectionExistsError
 from lorelie.expressions import Q
 from lorelie.queries import Query, QuerySet
 
+_T_SQLiteBackend = TypeVar('_T_SQLiteBackend', bound='SQLiteBackend')
 
-class Connections:
+if TYPE_CHECKING:
+    from lorelie.database.base import Database
+    from lorelie.database.tables.base import Table
+
+
+class Connections(Generic[_T_SQLiteBackend]):
     """A class that remembers the different 
     connections that were created to the
     SQLite database"""
@@ -56,7 +63,7 @@ class Connections:
     #         raise ConnectionExistsError()
     #     return candidates[-1]
 
-    def get_last_connection(self):
+    def get_last_connection(self) -> _T_SQLiteBackend | None:
         """Return the last connection from the
         connection pool"""
         try:
@@ -64,7 +71,7 @@ class Connections:
         except IndexError:
             raise ConnectionExistsError()
 
-    def register(self, connection, name=None):
+    def register(self, connection: _T_SQLiteBackend, name=None):
         if name is None:
             name = 'default'
 
@@ -636,8 +643,8 @@ class SQLiteBackend(SQL):
     new connection to an sqlite database. The connection
     can be in memory or to a physical database"""
 
-    def __init__(self, database_or_name=None, log_queries=False, path=None):
-        self.database_name = None
+    def __init__(self, database_or_name: Optional['Database' | str] = None, log_queries: bool=False, path=None):
+        self.database_name: Optional[str] = None
         self.database_path = None
         self.database_instance = None
         self.connection_timestamp = datetime.datetime.now().timestamp()
@@ -649,7 +656,7 @@ class SQLiteBackend(SQL):
         sqlite3.register_converter('timestamp', converters.convert_timestamp)
         sqlite3.register_converter('boolean', converters.convert_boolean)
 
-        def build_path(name, path_obj):
+        def build_path(name: str, path_obj: pathlib.Path) -> pathlib.Path:
             if not path_obj.is_dir():
                 raise ValueError(
                     "Path should be a path to "
@@ -704,7 +711,7 @@ class SQLiteBackend(SQL):
     def __hash__(self):
         return hash((self.database_name))
 
-    def set_current_table(self, table):
+    def set_current_table(self, table: 'Table'):
         """Track the current table that is being updated
         or queried at the connection level for other parts
         of the project that require this knowledge"""

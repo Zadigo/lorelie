@@ -2,11 +2,16 @@ import datetime
 import sqlite3
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
+from typing import TYPE_CHECKING, Optional
 
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.functions.aggregation import Count
 from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
                                     SelectNode, WhereNode)
+
+if TYPE_CHECKING:
+    from lorelie.backends import SQLiteBackend
+    from lorelie.database.tables.base import Table
 
 
 class Query:
@@ -19,7 +24,7 @@ class Query:
     to transform the retrieved data into Python objects.
     """
 
-    def __init__(self, table=None, backend=None):
+    def __init__(self, table: Optional['Table'] = None, backend: Optional['SQLiteBackend'] = None):
         self.table = table
         self.backend = table.backend if table is not None else backend
 

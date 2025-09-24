@@ -73,10 +73,6 @@ class SchemaStructure(Generic[D]):
         self.fields_map: defaultdict[str, list[str]] = defaultdict(list)
 
         self.migrated = False
-
-        self.tables_for_creation: set[str] = set()
-        self.tables_for_deletion: set[str] = set()
-        self.existing_tables: set[str] = set()
         self.has_migrations = False
 
         self.schemas: dict[str, Schema] = defaultdict(Schema)
@@ -202,6 +198,27 @@ class BaseMigrations(Generic[D]):
         self.sql_file = database.path / 'migrations.sql'
         self.schema_structure = database.path / 'schema.json'
 
+        self.tables_for_creation: set[str] = set()
+        self.tables_for_deletion: set[str] = set()
+        self.existing_tables: set[str] = set()
+
+        # Indicates that check function was
+        # called at least once and that the
+        # the underlying database can be
+        # fully functional
+        self.migrated: bool = False
+
+    def add_table_to_create(self, table_name: str):
+        # When the table is in the migration file
+        # and not in the database tables that we
+        # listed above, it needs to be created
+        if not table_name in self.existing_tables:
+            self.tables_for_creation.add(table_name)
+
+    def add_table_to_delete(self, database_row, migration_table_map):
+        if database_row['name'] not in migration_table_map:
+            self.tables_for_deletion.add(database_row['name'])
+
 
 class Migrations(BaseMigrations):
     """This class manages the different
@@ -221,11 +238,6 @@ class Migrations(BaseMigrations):
     def __init__(self, database: 'Database'):
         super().__init__(database)
 
-        # Indicates that check function was
-        # called at least once and that the
-        # the underlying database can be
-        # fully functional
-        self.migrated: bool = False
         self.schema_structure = self.schema_structure_class(database)
         self.operations: list[str] = []
 
@@ -233,12 +245,41 @@ class Migrations(BaseMigrations):
     def in_memory(self):
         return self.database_name is None
 
+    def write_operations(self):
+        if not self.operations:
+            return
+
+        with open(self.sql_file, mode='a+') as f:
+            for operation in self.operations:
+                f.write(f'{operation};\n')
+
     def migrate(self, table_instances: dict[str, Table]):
         self.schema_structure.create_schemas(table_instances)
 
         backend = connections.get_last_connection()
         backend.linked_to_table = 'sqlite'
-        database_tables = backend.list_all_tables()
+        self.existing_tables = backend.list_all_tables()
+
+        for table_name in self.migration_table_map:
+            self.add_table_to_create(table_name)
+
+        for database_row in self.existing_tables:
+            self.add_table_to_delete(database_row, self.schema_structure.migration_table_map)
+
+        if self.tables_for_creation:
+            for table_name in self.tables_for_creation:
+                table = table_instances.get(table_name, None)
+                if table is None:
+                    continue
+
+                # This is the specific section
+                # that actually creates the table
+                # in the database>
+                table.prepare(self.database)
+            self.has_migrations = True
+            
+            query = Query()
+            query.add_sql_nodes(self.operations)
 
     def make_migrations(self, tables):
         self.schema_structure.build_json_schema(tables)

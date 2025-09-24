@@ -380,13 +380,19 @@ class Table(AbstractTable):
         joined_fields = self.backend.comma_join(field_params)
         create_sql = self.create_table_sql(joined_fields)
 
-        query = self.query_class(table=self)
-        query.add_sql_nodes(create_sql)
-        query.run(commit=True)
+        # Create a new operation on the database's migration 
+        # operations list migration operations list
+
+        if not skip_creation:
+            database.migrations.operations.extend(create_sql)
+
+        # query = self.query_class(table=self)
+        # query.add_sql_nodes(create_sql)
+        # query.run(commit=True)
 
         self.is_prepared = True
 
-        # Once hte table is created and everything
+        # Once the table is created and everything
         # is setup correctly, we create an abstract
         # database column to interface the column locally
         for name, field in self.fields_map.items():

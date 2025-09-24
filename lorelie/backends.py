@@ -5,6 +5,7 @@ import re
 import sqlite3
 from collections import defaultdict
 from dataclasses import field
+from typing import Any
 
 import pytz
 
@@ -393,7 +394,7 @@ class SQL(ExpressionFiltersMixin):
         return f' {operator} '.join(values)
 
     @staticmethod
-    def simple_join(values, space_characters=True):
+    def simple_join(values: list[str | Any], space_characters: bool = True):
         """Joins a set of tokens with a simple space
 
         >>> self.simple_join(["select * from table", "where name = 'Kendall'"])

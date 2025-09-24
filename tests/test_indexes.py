@@ -1,4 +1,5 @@
 import unittest
+
 from lorelie.database.indexes import Index
 from lorelie.expressions import Q
 from lorelie.test.testcases import LorelieTestCase
@@ -10,7 +11,10 @@ class TestIndex(LorelieTestCase):
         table.backend = self.create_connection()
 
         instance = Index('test_name', fields=['name'])
-        result = instance.as_sql(table)
+        instance.prepare(table)
+        result = instance.as_sql(table.backend)
+
+        self.assertIsInstance(result, str)
         self.assertTrue("create index idx_test_name_" in result)
         self.assertTrue("on celebrities (name)" in result)
 
@@ -18,9 +22,13 @@ class TestIndex(LorelieTestCase):
         table = self.create_table()
         table.backend = self.create_connection()
 
-        instance = Index('test_name', fields=[
-                         'name'], condition=Q(name='Kendall'))
-        result = instance.as_sql(table)
+        instance = Index(
+            'test_name',
+            fields=['name'],
+            condition=Q(name='Kendall')
+        )
+        instance.prepare(table)
+        result = instance.as_sql(table.backend)
         self.assertTrue("where name='Kendall" in result)
 
     def test_name_different_from_function_name(self):
@@ -35,7 +43,8 @@ class TestIndex(LorelieTestCase):
             fields=['name', 'height'],
             condition=Q(age=25)
         )
-        result = instance.as_sql(table)
+        instance.prepare(table)
+        result = instance.as_sql(table.backend)
         print(result)
 
     @unittest.expectedFailure

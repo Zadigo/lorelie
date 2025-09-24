@@ -1,8 +1,10 @@
 import re
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Any, Union
 from functools import cached_property
 
+
+_T_DecomposedFilter = tuple[str, str, str | int | Any]
 
 class ExpressionFiltersMixin:
     """This mixin class is used to decompose filter
@@ -95,7 +97,7 @@ class ExpressionFiltersMixin:
             result = self.decompose_filters(**value)
         return list(map(lambda x: x[0], result))
 
-    def decompose_filters_from_string(self, value):
+    def decompose_filters_from_string(self, value: str):
         """Decompose a set of filters to a list of
         key, operator and value list from a filter 
         passed as a string
@@ -125,7 +127,7 @@ class ExpressionFiltersMixin:
         tokens = value.split('=')
         return self.decompose_filters(**{tokens[0]: tokens[1]})
 
-    def decompose_filters(self, **kwargs):
+    def decompose_filters(self, **kwargs) -> list[_T_DecomposedFilter]:
         """Decompose a set of filters to a list of
         key, operator and value list from a dictionnary
 
@@ -168,7 +170,7 @@ class ExpressionFiltersMixin:
                 filters_map.append(tuple(rebuilt_tokens))
         return filters_map
 
-    def build_filters(self, items, space_characters=True):
+    def build_filters(self, items: list[_T_DecomposedFilter], space_characters: bool=True) -> list[str]:
         """Tranform a list of decomposed filters to
         usable string conditions for an sql statement
 

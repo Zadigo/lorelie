@@ -154,13 +154,27 @@ class TestWhen(LorelieTestCase):
         sql = instance.as_sql(self.create_connection())
         self.assertEqual(sql, "when name='Kendall' then 'Kylie'")
 
+    def test_with_wrong_string(self):
+        instance = When('nameKendall', then_case='Kylie')
+
+        with self.assertRaises(ValueError):
+            sql = instance.as_sql(self.create_connection())
+
+    def test_with_wrong_then_case(self):
+        # Event with a wrong then_case, the element will be
+        # transformed to a string
+        instance = When('name=Kendall', then_case=['Kylie'])
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(sql, "when name='Kendall' then '['Kylie']'")
+
 
 class TestCase(LorelieTestCase):
-    @unittest.expectedFailure
     def test_no_alias_name(self):
         condition = When('firstname=Kendall', 'kendall')
         case = Case(condition)
-        case.as_sql(self.create_connection())
+
+        with self.assertRaises(ValueError):
+            case.as_sql(self.create_connection())
 
     def test_structure(self):
         condition = When('firstname=Kendall', 'Kylie')
@@ -171,6 +185,10 @@ class TestCase(LorelieTestCase):
             case.as_sql(self.create_connection()),
             "case when firstname='Kendall' then 'Kylie' else 'Aurélie' end firstname_alias"
         )
+
+    def test_case_is_not_when(self):
+        with self.assertRaises(ValueError):
+            Case('firstname=Kendall', default='Aurélie')
 
 
 class TestFFunction(LorelieTestCase):
@@ -191,7 +209,8 @@ class TestFFunction(LorelieTestCase):
             # age * 1
             F('age') * 1,
             # FIXME:  age / 1
-            # result = F('age') / 1
+            F('age') / 1,
+            # age + age + 1
             F('age') + F('age') + 1
         ]
 

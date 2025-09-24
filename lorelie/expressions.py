@@ -1,11 +1,30 @@
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from lorelie.database.base import SQLiteBackend
+
+
 class BaseExpression:
-    template_sql = None
+    template_sql: Optional[str] = None
+    # The columns of the table on which
+    # the function operates on - these are
+    # the keys of the dictionary passed
+    # to the function and are not necessarily
+    # the actual columns in the database
+    # but they should map to actual columns
+    # in the database table
+    # e.g. in the case of F('age') + 1
+    # the function column is 'age'
+    _function_columns: list[str] = []
 
     @property
     def internal_type(self):
         return 'expression'
 
-    def as_sql(self, backend):
+    def get_function_columns(self, expression: dict[str, Any]):
+        self._function_columns = list(expression.keys())
+
+    def as_sql(self, backend: 'SQLiteBackend'):
         return NotImplemented
 
 
@@ -20,7 +39,8 @@ class Value(BaseExpression):
         return f'{self.__class__.__name__}({self.to_database()})'
 
     def get_output_field(self):
-        from lorelie.fields.base import CharField, FloatField, IntegerField, JSONField
+        from lorelie.fields.base import (CharField, FloatField, IntegerField,
+                                         JSONField)
         if self.output_field is None:
             if isinstance(self.value, int):
                 self.output_field = IntegerField(self.internal_name)
@@ -53,14 +73,14 @@ class Value(BaseExpression):
 class NegatedExpression(BaseExpression):
     template_sql = 'not {expression}'
 
-    def __init__(self, expression):
+    def __init__(self, expression: 'F | Q'):
         self.children = [expression]
         self.seen_expressions = []
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.expression}>'
 
-    def __and__(self, other):
+    def __and__(self, other: 'F | Q | NegatedExpression'):
         self.children.append('and')
         if isinstance(other, NegatedExpression):
             self.children.extend(other.children)
@@ -89,11 +109,11 @@ class NegatedExpression(BaseExpression):
     def as_sql(self, backend):
         seen_expressions = []
 
-        def map_children(node):
+        def map_children(node: 'F | Q | str'):
             if isinstance(node, str):
                 return node
-
             return backend.simple_join(node.as_sql(backend))
+
         sql = map(map_children, self.children)
 
         return self.template_sql.format_map({
@@ -153,7 +173,7 @@ class Case(BaseExpression):
     CASE_ELSE = 'else {value}'
     CASE_END = 'end {alias}'
 
-    def __init__(self, *cases, default=None):
+    def __init__(self, *cases: 'When', default: Optional[str] = None):
         self.field_name = None
         self.alias_field_name = None
         self.default = default
@@ -379,8 +399,9 @@ class F(BaseExpression):
     MULTIPLY = 'x'
     DIVIDE = '/'
 
-    def __init__(self, field):
+    def __init__(self, field: str):
         self.field = field
+        self._function_columns = [field]
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.field})'
@@ -407,7 +428,7 @@ class F(BaseExpression):
         combined.build_children(operator=self.MULTIPLY)
         return combined
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         if not isinstance(other, (F, str, int)):
             return NotImplemented
 

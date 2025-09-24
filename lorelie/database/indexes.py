@@ -1,6 +1,12 @@
 import secrets
+from typing import Optional, TYPE_CHECKING
 
 from lorelie.database.nodes import WhereNode
+
+if TYPE_CHECKING:
+    from lorelie.database.tables.base import Table
+    from lorelie.database.base import SQLiteBackend
+    from lorelie.expressions import Q
 
 
 class Index:
@@ -25,7 +31,7 @@ class Index:
     prefix = 'idx'
     max_name_length = 30
 
-    def __init__(self, name, fields=[], condition=None):
+    def __init__(self, name: str, fields: list[str], condition: 'Q' = None):
         if len(name) > self.max_name_length:
             raise ValueError('Name should be maximum 30 carachters long')
 
@@ -45,10 +51,13 @@ class Index:
     def __repr__(self):
         return f'<Index: fields={self.fields} condition={self.condition}>'
 
-    def prepare(self, table):
+    def prepare(self, table: 'Table'):
         self.table = table
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: 'SQLiteBackend') -> str:
+        if self.table is None:
+            raise ValueError("Index is not bound to a table. Call prepare() first.")
+
         for field in self.fields:
             self.table.has_field(field, raise_exception=True)
 

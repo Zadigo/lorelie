@@ -1,16 +1,18 @@
+import dataclasses
 import datetime
 import json
 import secrets
+import tomllib
 from collections import defaultdict
-import dataclasses
 from dataclasses import dataclass, field
 from functools import cached_property
 
 from lorelie.backends import SQLiteBackend, connections
 from lorelie.database.nodes import InsertNode
+from lorelie.database.tables.base import Table
 from lorelie.fields.base import CharField, DateTimeField, Field, JSONField
 from lorelie.queries import Query
-from lorelie.database.tables.base import Table
+from lorelie.utils.json_encoders import DefaultJSonEncoder
 
 
 @dataclass
@@ -60,7 +62,7 @@ class Migrations:
         except KeyError:
             raise KeyError('Migration file is not valid')
 
-        self.migration_table_map = [table['name'] for table in self.tables]
+        self.migration_table_map = [table['name'] for table in self.tables if table is not None]
         self.fields_map = defaultdict(list)
 
         self.tables_for_creation = set()
@@ -367,7 +369,7 @@ class Migrations:
                 cache_copy['date'] = str(datetime.datetime.now())
                 cache_copy['number'] = self.CACHE['number'] + 1
                 cache_copy['tables'] = migration['tables']
-                json.dump(cache_copy, f, indent=4, ensure_ascii=False)
+                json.dump(cache_copy, f, indent=4, ensure_ascii=False, cls=DefaultJSonEncoder)
 
     def get_table_fields(self, name):
         table_index = self.database.table_map.index(name)
@@ -384,3 +386,120 @@ class Migrations:
             )
             reconstructed_fields.append(instance)
         return reconstructed_fields
+
+
+# class _Migrations:
+#     """This class manages the different
+#     states of a given database. It references
+#     existing tables, dropped tables and their
+#     fields and runs the different methods required
+#     to create or delete them eventually. The SQL operations
+#     are stored in a single SQL file and the schema structure
+#     is stored in a JSON file.
+    
+#     The schema structure contains
+#     the different tables, their fields, indexes and constraints
+#     as well as their parameters"""
+
+#     operations = []
+
+#     def __init__(self, database):
+#         self.file = database.path / 'migrations.sql'
+#         self.database = database
+#         self.database_name = database.database_name or 'memory'
+#         self.schema_structure = database.path / 'schema.json'
+
+#         self.migrated = False
+    
+#     def __repr__(self):
+#         return f'<{self.__class__.__name__} {self.file_id}>'
+
+#     @property
+#     def in_memory(self):
+#         return self.database_name is None
+    
+#     def migrate(self, table_instances):
+#         from lorelie.database.tables.base import Table
+
+#         # Safeguard that avoids calling
+#         # this function in a loop over and
+#         # over which can reduce performance
+#         if self.migrated:
+#             return True
+        
+#         errors = []
+#         for name, table_instance in table_instances.items():
+#             if not isinstance(table_instance, Table):
+#                 errors.append(
+#                     f"Value should be instance "
+#                     f"of Table. Got: {table_instance}"
+#                 )
+#             schema = self.schemas[name]
+#             schema.table = table_instance
+#             schema.database = self.database
+
+#         if errors:
+#             raise ValueError(*errors)
+
+#         if not table_instances:
+#             return
+        
+#         # There is a case where makemigrations() is not
+#         # called which infers that there is no migration
+#         # file. However, that does not mean that the tables
+#         # cannot or should not be created. In that case,
+#         # use what we know which is the table_instances
+#         # passed to this function containing both the table
+#         # name and the Table instance
+#         if not self.migration_table_map:
+#             self.migration_table_map = list(table_instances.keys())
+
+#         backend = connections.get_last_connection()
+#         backend.linked_to_table = 'sqlite'
+#         database_tables = backend.list_all_tables()
+
+#     def make_migrations(self, tables):
+#         backend = connections.get_last_connection()
+#         migration = {
+#             'id': secrets.token_hex(5),
+#             'date': str(datetime.datetime.now()),
+#             'number': 1,
+#             'tables': []
+#         }
+
+#         for table in tables:
+#             if not isinstance(table, Table):
+#                 raise ValueError(f'{table} is not an instance of Table')
+
+#             schema = self.schemas[table.name]
+#             schema.table = table
+#             schema.database = self.database
+#             migration['tables'].append(schema)
+
+#             for constraint in table.table_constraints:
+#                 schema.constraints[constraint.name] = [
+#                     constraint.name,
+#                     constraint.as_sql(backend)
+#                 ]
+
+#             for index in table.indexes:
+#                 schema.indexes[index.index_name] = [
+#                     index.fields
+#                 ]
+
+#             schema.prepare()
+#         self.pending_migration = migration
+
+#         if self.has_migrations:
+#             cache_copy = self.CACHE.copy()
+#             with open(self.database.path.joinpath('migrations.json'), mode='w+') as f:
+#                 cache_copy['id'] = secrets.token_hex(5)
+#                 cache_copy['date'] = str(datetime.datetime.now())
+#                 cache_copy['number'] = self.CACHE['number'] + 1
+#                 cache_copy['tables'] = migration['tables']
+#                 json.dump(cache_copy, f, indent=4, ensure_ascii=False)
+
+#     def create_blank_migration(self):
+#         if not self.file.exists():
+#             with open(self.file, mode='w+') as f:
+#                 f.write('-- Migration SQL script\n')

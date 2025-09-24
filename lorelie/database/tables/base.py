@@ -17,7 +17,7 @@ class BaseTable(type):
 
         if 'prepare' in attrs:
             new_class = super_new(cls, name, bases, attrs)
-            cls.prepare(new_class)
+            cls.œprepare(new_class)
             return new_class
 
         return super_new(cls, name, bases, attrs)

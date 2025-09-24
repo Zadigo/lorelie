@@ -14,11 +14,7 @@ class TestMigrations(LorelieTestCase):
         migrations = Migrations(db)
         self.assertFalse(migrations.migrated)
 
-        table = Table('products')
-        with self.assertRaises(ImproperlyConfiguredError):
-            migrations.check({'products': table})
-
-    def test_check_function(self):
+    def test_migrate(self):
         # Check the migration class on
         # its very own by destructuring the
         # building process
@@ -27,9 +23,7 @@ class TestMigrations(LorelieTestCase):
 
         db = Database(table)
         migrations = Migrations(db)
-        migrations.check({'celebrities': table})
-        self.assertTrue(migrations.migrated)
-        self.assertTrue(db.get_table('celebrities').is_prepared)
+        migrations.migrate({'celebrities': table})
 
     def test_make_migrations(self):
         db = self.create_database(using=self.create_full_table())

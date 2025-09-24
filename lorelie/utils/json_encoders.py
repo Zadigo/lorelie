@@ -18,6 +18,9 @@ class DefaultJSonEncoder(JSONEncoder):
                 raise ValueError('Cannot represent timezone-aware times.')
             return obj.isoformat()
 
+        if dataclasses.is_dataclass(obj):
+            return obj.to_dict()
+
         if isinstance(obj, datetime.date):
             return str(obj)
 
@@ -36,4 +39,4 @@ class DefaultJSonEncoder(JSONEncoder):
         if isinstance(obj, bytes):
             return obj.decode()
 
-        return super().default(o)
+        return super().default(obj)

@@ -17,22 +17,27 @@ multiple nodes together
 
 import dataclasses
 import re
+from typing import TYPE_CHECKING, Any, Optional
 
 from lorelie.expressions import CombinedExpression, Q
+
+if TYPE_CHECKING:
+    from lorelie.backends import SQLiteBackend
+    from lorelie.database.tables.base import Table
 
 
 @dataclasses.dataclass
 class SelectMap:
     """A map that resolves the correct
     positions for the different parameters
-    for the select sql statemment"""
+    for the select sql statement"""
 
-    select: type = None
-    where: type = None
-    order_by: type = None
-    limit: int = None
-    groupby: list = None
-    having: list = None
+    select: Optional['SelectNode'] = None
+    where: Optional['WhereNode'] = None
+    order_by: Optional['OrderByNode'] = None
+    limit: Optional[int] = None
+    groupby: Optional[str] = None
+    having: Optional[str] = None
 
     def __setitem__(self, name,  value):
         setattr(self, name, value)
@@ -154,9 +159,9 @@ class ComplexNode:
 
 
 class BaseNode:
-    template_sql = None
+    template_sql: Optional[str] = None
 
-    def __init__(self, table=None, fields=[]):
+    def __init__(self, table: Optional['Table'] = None, fields: list[str] = []):
         self.table = table
         self.fields = fields or ['*']
 
@@ -187,7 +192,7 @@ class BaseNode:
     def node_name(self):
         return NotImplemented
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: 'SQLiteBackend'):
         return NotImplemented
 
 
@@ -250,7 +255,7 @@ class WhereNode(BaseNode):
 
     template_sql = 'where {params}'
 
-    def __init__(self, *args, **expressions):
+    def __init__(self, *args: Q | CombinedExpression, **expressions: Any):
         self.expressions = expressions
         self.func_expressions = list(args)
         self.invert = False

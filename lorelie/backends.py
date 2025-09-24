@@ -372,7 +372,7 @@ class SQL(ExpressionFiltersMixin):
         return f"'{value}'"
 
     @staticmethod
-    def comma_join(values):
+    def comma_join(values: list[str | Any]):
         def check_value_type(value):
             if callable(value):
                 return str(value())

@@ -13,7 +13,11 @@ from lorelie.test.testcases import LorelieTestCase
 class TestBaseNode(LorelieTestCase):
     def test_structure(self):
         node = BaseNode(self.create_table())
+        self.assertListEqual(node.fields, ['*'])
         self.assertEqual(node.node_name, NotImplemented)
+        self.assertIsInstance(node + node, ComplexNode)
+        self.assertEqual(node.node_name, NotImplemented)
+        self.assertEqual(node.as_sql(self.create_connection()), NotImplemented)
 
 
 class TestInsertNode(LorelieTestCase):
@@ -92,10 +96,7 @@ class TestSelectNode(LorelieTestCase):
             ['select distinct * from celebrities']
         )
 
-    @unittest.skip
     def test_limit(self, mock_connect):
-        # TODO: Verify the order in which the limit
-        # argument comes in the select statement
         node = SelectNode(self.create_table(), limit=10)
         result = node.as_sql(self.create_connection())
         self.assertListEqual(
@@ -103,7 +104,6 @@ class TestSelectNode(LorelieTestCase):
             ['select * from celebrities']
         )
 
-    @unittest.skip
     def test_all_parameters(self, mock_connect):
         # TODO: Verify the order in which the limit
         # argument comes in the select statement
@@ -186,6 +186,14 @@ class TestWhereNode(LorelieTestCase):
         self.assertListEqual(
             new_instance.as_sql(backend),
             ["where firstname='Kendall' and lastname='Jenner'"]
+        )
+
+    def test_pass_wrong_type_in_dict_expression(self, mock_connect):
+        node = WhereNode(firstname=Q(firstname='Kendall'))
+        self.assertRaises(
+            ValueError,
+            node.as_sql,
+            self.create_connection()
         )
 
 

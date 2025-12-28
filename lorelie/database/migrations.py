@@ -2,17 +2,19 @@ import dataclasses
 import datetime
 import json
 import secrets
-import tomllib
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 from lorelie.backends import SQLiteBackend, connections
-from lorelie.database.nodes import InsertNode
 from lorelie.database.tables.base import Table
 from lorelie.fields.base import CharField, DateTimeField, Field, JSONField
 from lorelie.queries import Query
 from lorelie.utils.json_encoders import DefaultJSonEncoder
+
+if TYPE_CHECKING:
+    from lorelie.database.base import Database
 
 
 @dataclass
@@ -50,7 +52,7 @@ class Migrations:
     CACHE = {}
     backend_class = SQLiteBackend
 
-    def __init__(self, database):
+    def __init__(self, database: 'Database'):
         self.file = database.path / 'migrations.json'
         self.database = database
         self.database_name = database.database_name or 'memory'
@@ -62,7 +64,10 @@ class Migrations:
         except KeyError:
             raise KeyError('Migration file is not valid')
 
-        self.migration_table_map = [table['name'] for table in self.tables if table is not None]
+        self.migration_table_map = [
+            table['name']
+            for table in self.tables if table is not None
+        ]
         self.fields_map = defaultdict(list)
 
         self.tables_for_creation = set()
@@ -369,7 +374,8 @@ class Migrations:
                 cache_copy['date'] = str(datetime.datetime.now())
                 cache_copy['number'] = self.CACHE['number'] + 1
                 cache_copy['tables'] = migration['tables']
-                json.dump(cache_copy, f, indent=4, ensure_ascii=False, cls=DefaultJSonEncoder)
+                json.dump(cache_copy, f, indent=4,
+                          ensure_ascii=False, cls=DefaultJSonEncoder)
 
     def get_table_fields(self, name):
         table_index = self.database.table_map.index(name)
@@ -396,7 +402,7 @@ class Migrations:
 #     to create or delete them eventually. The SQL operations
 #     are stored in a single SQL file and the schema structure
 #     is stored in a JSON file.
-    
+
 #     The schema structure contains
 #     the different tables, their fields, indexes and constraints
 #     as well as their parameters"""
@@ -410,14 +416,14 @@ class Migrations:
 #         self.schema_structure = database.path / 'schema.json'
 
 #         self.migrated = False
-    
+
 #     def __repr__(self):
 #         return f'<{self.__class__.__name__} {self.file_id}>'
 
 #     @property
 #     def in_memory(self):
 #         return self.database_name is None
-    
+
 #     def migrate(self, table_instances):
 #         from lorelie.database.tables.base import Table
 
@@ -426,7 +432,7 @@ class Migrations:
 #         # over which can reduce performance
 #         if self.migrated:
 #             return True
-        
+
 #         errors = []
 #         for name, table_instance in table_instances.items():
 #             if not isinstance(table_instance, Table):
@@ -443,7 +449,7 @@ class Migrations:
 
 #         if not table_instances:
 #             return
-        
+
 #         # There is a case where makemigrations() is not
 #         # called which infers that there is no migration
 #         # file. However, that does not mean that the tables

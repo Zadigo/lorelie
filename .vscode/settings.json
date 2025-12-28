@@ -1,12 +1,9 @@
 {
     "python.analysis.autoFormatStrings": true,
-    // "python.autoComplete.extraPaths": [
-    //     "${workspaceFolder}\\lorelie\\lorelie"
-    // ],
-    // "python.analysis.extraPaths": [
-    //     "${workspaceFolder}\\lorelie\\lorelie"
-    // ],
     "[python]": {
-        "editor.defaultFormatter": "ms-python.autopep8"
+        "editor.defaultFormatter": "ms-python.autopep8",
+        "editor.codeActionsOnSave": {
+            "source.unusedImports": "always"
+        }
     }
 }

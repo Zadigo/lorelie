@@ -26,6 +26,7 @@ from lorelie.queries import Query, QuerySet
 
 _T_SQLiteBackend = TypeVar('_T_SQLiteBackend', bound='SQLiteBackend')
 
+
 if TYPE_CHECKING:
     from lorelie.database.base import Database
     from lorelie.database.tables.base import Table
@@ -643,7 +644,7 @@ class SQLiteBackend(SQL):
     new connection to an sqlite database. The connection
     can be in memory or to a physical database"""
 
-    def __init__(self, database_or_name: Optional['Database' | str] = None, log_queries: bool=False, path=None):
+    def __init__(self, database_or_name: Optional['Database'] | Optional[str] = None, log_queries: bool = False, path=None):
         self.database_name: Optional[str] = None
         self.database_path = None
         self.database_instance = None

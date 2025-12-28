@@ -2,16 +2,17 @@ import dataclasses
 import pathlib
 from collections import OrderedDict
 from functools import wraps
+from typing import Optional, Union
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database import registry
 from lorelie.database.manager import ForeignTablesManager
 from lorelie.database.migrations import Migrations
+from lorelie.database.tables.base import Table
 from lorelie.exceptions import TableExistsError
 from lorelie.fields import IntegerField
 from lorelie.fields.relationships import ForeignKeyField
 from lorelie.queries import Query
-from lorelie.database.tables.base import Table
 
 
 @dataclasses.dataclass
@@ -161,8 +162,8 @@ class Database:
     migrations_class = Migrations
     backend_class = SQLiteBackend
 
-    def __init__(self, *tables, name=None, path=None, log_queries=False):
-        self.database_name = name
+    def __init__(self, *tables: Table, name: Optional[str] = None, path: Optional[Union[str, pathlib.Path]] = None, log_queries: bool = False):
+        self.database_name: str = name
         # Use the immediate parent path if not
         # path is provided by the user
         self.path = pathlib.Path(__name__).parent.absolute()
@@ -182,7 +183,7 @@ class Database:
             log_queries=log_queries
         )
 
-        self.table_map = {}
+        self.table_map: dict[str, Table] = {}
         for table in tables:
             if not isinstance(table, Table):
                 raise ValueError('Value should be an instance of Table')

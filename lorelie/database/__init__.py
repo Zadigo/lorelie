@@ -2,10 +2,14 @@ import dataclasses
 import functools
 from collections import OrderedDict
 from dataclasses import field
+from typing import TYPE_CHECKING, Optional, Self
 
 # TODO: Complete the TriggerMap which are kind of
 # signals that get called when the database accomplishes
 # a certain action e.g. pre save, post save, post delete etc
+
+if TYPE_CHECKING:
+    from lorelie.database.base import Database
 
 
 @dataclasses.dataclass
@@ -61,14 +65,14 @@ class MasterRegistry:
     It serves as a central registry, providing access to these 
     elements for other parts of the project"""
 
-    current_database = None
+    current_database: Optional['Database'] = None
     known_tables = OrderedDict()
     registered_triggers = TriggersMap()
 
     def __repr__(self):
         return f"<{self.__class__.__name__}: {self.current_database}>"
 
-    def register_database(self, database):
+    def register_database(self, database: 'Database'):
         from lorelie.database.base import Database
 
         if not isinstance(database, Database):

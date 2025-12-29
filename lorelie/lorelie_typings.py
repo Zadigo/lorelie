@@ -1,5 +1,5 @@
 import pathlib
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 from enum import Enum
 if TYPE_CHECKING:
     from lorelie.database.base import SQLiteBackend
@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from lorelie.fields import Field
     from lorelie.database.base import Database
     from lorelie.database.nodes import BaseNode
+    from lorelie.queries import QuerySet
 
 TypeSQLiteBackend = TypeVar('TypeSQLiteBackend', bound='SQLiteBackend')
 
@@ -26,6 +27,8 @@ TypeField = TypeVar('TypeField', bound='Field')
 TypeDatabase = TypeVar('TypeDatabase', bound='Database')
 
 TypeNode = TypeVar('TypeNode', bound='BaseNode')
+
+TypeQuerySet = TypeVar('TypeQuerySet', bound='QuerySet')
 
 TypeDecomposedFilterTuple = tuple[str, str, Any]
 
@@ -50,7 +53,36 @@ class ConstraintTypeEnum(Enum):
 class NodeEnums(Enum):
     """The different types of nodes available."""
     SELECT = 'select'
-    INSERT = 'insert'
+    # INSERT = 'insert'
     UPDATE = 'update'
     DELETE = 'delete'
     CREATE = 'create'
+    # WHERE = 'where'
+    # JOIN = 'join'
+    # ORDER_BY = 'order_by'
+    # GROUP_BY = 'group_by'
+    # HAVING = 'having'
+    # LIMIT = 'limit'
+    # OFFSET = 'offset'
+    # RAW_SQL = 'raw_sql'
+    # FIELD = 'field'
+    # TABLE = 'table'
+    # VALUE = 'value'
+    # CONDITION = 'condition'
+    INTERSECT = 'intersect'
+    VIEW = 'view'
+
+
+class JoinTypeEnum(Enum):
+    INNER = 'inner'
+    LEFT = 'left'
+    RIGHT = 'right'
+    CROSS = 'cross'
+
+
+TypeJoinTypes = Literal[
+    'inner',
+    'left',
+    'right',
+    'cross'
+]

@@ -17,11 +17,13 @@ multiple nodes together
 
 import dataclasses
 import re
-from typing import Any, ClassVar, Generic, Optional, override
 from abc import ABC, abstractmethod
+from typing import Any, ClassVar, Generic, Optional, override
 
 from lorelie.expressions import CombinedExpression, Q
-from lorelie.lorelie_typings import TypeNode, TypeSQLiteBackend, TypeTable
+from lorelie.lorelie_typings import (NodeEnums, TypeJoinTypes, TypeNode,
+                                     TypeQuerySet, TypeSQLiteBackend,
+                                     TypeTable)
 
 
 @dataclasses.dataclass
@@ -187,8 +189,8 @@ class BaseNode(ABC):
         return NotImplemented
 
     @property
-    def node_name(self):
-        return NotImplemented
+    def node_name(self) -> str:
+        raise NotImplemented
 
     @abstractmethod
     def as_sql(self, backend: TypeSQLiteBackend) -> list[str]:
@@ -212,10 +214,10 @@ class SelectNode(BaseNode):
 
     @property
     def node_name(self):
-        return 'select'
+        return NodeEnums.SELECT.value
 
     @override
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         select_sql = self.template_sql.format_map({
             'fields': backend.comma_join(self.fields),
             # We can query a table or view that was previously
@@ -231,8 +233,6 @@ class SelectNode(BaseNode):
         # if self.limit:
         #     limit = backend.LIMIT.format(value=self.limit)
         #     select_clause.append(limit)
-
-        # return select_clause
 
         if self.distinct:
             return [select_sql.replace('select', 'select distinct')]
@@ -272,7 +272,7 @@ class WhereNode(BaseNode):
 
     @property
     def node_name(self):
-        return 'where'
+        return NodeEnums.WHERE.value
 
     @override
     def as_sql(self, backend: TypeSQLiteBackend):
@@ -307,11 +307,11 @@ class WhereNode(BaseNode):
 
 
 class OrderByNode(BaseNode):
-    template_sql = 'order by {fields}'
+    template_sql: ClassVar[str] = 'order by {fields}'
 
-    def __init__(self, table, *fields):
-        self.ascending = set()
-        self.descending = set()
+    def __init__(self, table: TypeTable, *fields: str):
+        self.ascending: set[str] = set()
+        self.descending: set[str] = set()
         super().__init__(table=table, fields=fields)
 
         for field in self.fields:
@@ -340,7 +340,7 @@ class OrderByNode(BaseNode):
 
     @property
     def node_name(self):
-        return 'order_by'
+        return NodeEnums.ORDER_BY.value
 
     def __hash__(self):
         return hash((self.node_name, *self.fields))
@@ -354,7 +354,7 @@ class OrderByNode(BaseNode):
         return node.__class__(self.table, *list(other_fields))
 
     @staticmethod
-    def construct_sql(backend, field, ascending=True):
+    def construct_sql(backend: TypeSQLiteBackend, field: str, ascending: bool = True):
         if field == '*':
             return None
 
@@ -363,7 +363,7 @@ class OrderByNode(BaseNode):
         else:
             return backend.DESCENDING.format_map({'field': field})
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         ascending_fields = map(
             lambda x: self.construct_sql(backend, x),
             self.ascending
@@ -406,7 +406,7 @@ class UpdateNode(BaseNode):
 
     template_sql = 'update {table} set {fields}'
 
-    def __init__(self, table, update_defaults, *where_args, **where_expressions):
+    def __init__(self, table: TypeTable, update_defaults: dict, *where_args: Q, **where_expressions: dict[str, Any]):
         super().__init__(table=table)
         self.where_args = where_args
         self.where_expressions = where_expressions
@@ -414,9 +414,9 @@ class UpdateNode(BaseNode):
 
     @property
     def node_name(self):
-        return 'update'
+        return NodeEnums.UPDATE.value
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         where_node = WhereNode(*self.where_args, **self.where_expressions)
         fields_to_set = backend.parameter_join(self.update_defaults)
 
@@ -432,7 +432,7 @@ class UpdateNode(BaseNode):
 
 
 class DeleteNode(BaseNode):
-    def __init__(self, table, *where_args, order_by=[], limit=None, **where_expressions):
+    def __init__(self, table: TypeTable, *where_args: Q, order_by: list[str] = [], limit: Optional[int] = None, **where_expressions: dict[str, Any]):
         super().__init__(table=table)
         self.where_args = where_args
         self.where_expressions = where_expressions
@@ -441,9 +441,9 @@ class DeleteNode(BaseNode):
 
     @property
     def node_name(self):
-        return 'delete'
+        return NodeEnums.DELETE.value
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         delete_sql = backend.DELETE.format_map({
             'table': self.table.name
         })
@@ -475,10 +475,10 @@ class InsertNode(BaseNode):
     Note: https://www.sqlitetutorial.net/sqlite-insert/
     """
 
-    template_sql = 'insert into {table} ({columns}) values({values})'
-    bactch_insert_sql = 'insert into {table} ({columns}) values {values}'
+    template_sql: ClassVar[str] = 'insert into {table} ({columns}) values({values})'
+    batch_insert_sql: ClassVar[str] = 'insert into {table} ({columns}) values {values}'
 
-    def __init__(self, table, batch_values=[], insert_values={}, returning=[]):
+    def __init__(self, table: TypeTable, batch_values: list[dict] = [], insert_values: dict = {}, returning: list[str] = []):
         super().__init__(table=table)
         self.insert_values = insert_values
         self.returning = returning
@@ -492,9 +492,9 @@ class InsertNode(BaseNode):
 
     @property
     def node_name(self):
-        return 'insert'
+        return NodeEnums.INSERT.value
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         template = self.template_sql
 
         if self.batch_values:
@@ -507,7 +507,7 @@ class InsertNode(BaseNode):
                 values.append(f"({joined})")
 
             joined_values = backend.comma_join(values)
-            template = self.bactch_insert_sql
+            template = self.batch_insert_sql
         else:
             columns, values = backend.dict_to_sql(self.insert_values)
             joined_values = backend.comma_join(backend.quote_values(values))
@@ -530,15 +530,16 @@ class JoinNode(BaseNode):
     """Node used to create the SQL statement
     that allows foreign key joins"""
 
-    template_sql = '{join_type} join {table} on {condition}'
+    template_sql: ClassVar[str] = '{join_type} join {table} on {condition}'
 
-    cross_join = 'cross join {field}'
-    full_outer_join = 'full outer join {table} using({field})'
+    cross_join: ClassVar[str] = 'cross join {field}'
+    full_outer_join: ClassVar[str] = 'full outer join {table} using({field})'
 
-    def __init__(self, table, relationship_map, join_type='inner'):
+    def __init__(self, table: TypeTable, relationship_map, join_type: TypeJoinTypes = 'inner'):
         super().__init__()
 
-        accepted_joins = ['inner', 'left', 'right', 'cross']
+        accepted_joins: list[TypeJoinTypes] = [
+            'inner', 'left', 'right', 'cross']
         if join_type not in accepted_joins:
             raise ValueError('Join type is not valid')
 
@@ -548,9 +549,9 @@ class JoinNode(BaseNode):
 
     @property
     def node_name(self):
-        return 'join'
+        return NodeEnums.JOIN.value
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         # if self.join_type == 'cross':
         #     return []
 
@@ -571,36 +572,36 @@ class JoinNode(BaseNode):
 
 
 class IntersectNode(BaseNode):
-    template_sql = '{0} intersect {1}'
+    template_sql: ClassVar[str] = '{0} intersect {1}'
 
-    def __init__(self, left_select, right_select):
+    def __init__(self, left_select: 'SelectNode', right_select: 'SelectNode'):
         self.left_select = left_select
         self.right_select = right_select
 
     @property
     def node_name(self):
-        return 'intersect'
+        return NodeEnums.INTERSECT.value
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         lhv = self.left_select.as_sql(backend)
         rhv = self.right_select.as_sql(backend)
         sql = self.template_sql.format(lhv[0], rhv[0])
         return [sql]
 
 
-class ViewNode(BaseNode):
-    template_sql = 'create view if not exists {name} as {select_node}'
+class ViewNode(Generic[TypeQuerySet], BaseNode):
+    template_sql: ClassVar[str] = 'create view if not exists {name} as {select_node}'
 
-    def __init__(self, name, queryset, temporary=False):
+    def __init__(self, name: str, queryset: TypeQuerySet, temporary: bool = False):
         self.name = name
         self.temporary = temporary
         self.queryset = queryset
 
     @property
     def node_name(self):
-        return 'view'
+        return NodeEnums.VIEW.value
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         if not hasattr(self.queryset, 'load_cache'):
             raise ValueError(
                 "ViewNode expects a "

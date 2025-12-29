@@ -341,7 +341,9 @@ class SQL(ExpressionFiltersMixin):
     ]
 
     @staticmethod
-    def quote_value(value):
+    def quote_value(value: Any):
+        """Quote a given value to be used in an SQL statement.
+        Numbers are not quoted. None is converted to ''."""
         if value is None:
             return "''"
 
@@ -354,20 +356,21 @@ class SQL(ExpressionFiltersMixin):
         if isinstance(value, (int, float)):
             return value
 
-        if value.startswith("'"):
+        if isinstance(value, str) and value.startswith("'"):
             return value
 
         # To handle special characters like
         # single quotes ('), we have to escape
         # them by doubling them up for the final
         # sql string
-        if "'" in value:
+        if isinstance(value, str) and "'" in value:
             value = value.replace("'", "''")
 
+        # By default, quote the value
         return f"'{value}'"
 
     @staticmethod
-    def comma_join(values: list[str | Any]):
+    def comma_join(values: list[Any]):
         def check_value_type(value):
             if callable(value):
                 return str(value())
@@ -481,7 +484,7 @@ class SQL(ExpressionFiltersMixin):
             notations.append(final_notation)
         return notations
 
-    def parameter_join(self, data):
+    def parameter_join(self, data: dict[str, Any]):
         """Takes a list of fields and values
         and returns string of key/value parameters
         ready to be used in an sql statement
@@ -496,7 +499,7 @@ class SQL(ExpressionFiltersMixin):
             result.append(equality)
         return self.comma_join(result)
 
-    def quote_values(self, values):
+    def quote_values(self, values: list[Any]):
         """Quotes multiple values at once"""
         return list(map(lambda x: self.quote_value(x), values))
 
@@ -530,7 +533,7 @@ class SQL(ExpressionFiltersMixin):
         value = f'%{value}%'
         return self.quote_value(value)
 
-    def dict_to_sql(self, data, quote_values=True):
+    def dict_to_sql(self, data: dict[str, Any], quote_values: bool=True):
         """Convert a dictionnary containing a key
         pair of columns and values into a tuple
         of columns and value list. The values from
@@ -542,7 +545,10 @@ class SQL(ExpressionFiltersMixin):
         fields = list(data.keys())
         if quote_values:
             quoted_value = list(
-                map(lambda x: self.quote_value(x), data.values())
+                map(
+                    lambda x: self.quote_value(x), 
+                    data.values()
+                )
             )
             return fields, quoted_value
         return fields, data.values()

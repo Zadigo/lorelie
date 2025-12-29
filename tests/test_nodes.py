@@ -101,7 +101,7 @@ class TestSelectNode(LorelieTestCase):
         result = node.as_sql(self.create_connection())
         self.assertListEqual(
             result,
-            ['select * from celebrities']
+            ['select * from celebrities', 'limit 10']
         )
 
     def test_all_parameters(self, mock_connect):

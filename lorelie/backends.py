@@ -22,7 +22,7 @@ from lorelie.database.nodes import (DeleteNode, SelectNode, UpdateNode,
                                     WhereNode)
 from lorelie.exceptions import ConnectionExistsError
 from lorelie.expressions import Q
-from lorelie.lorelie_typings import TypeStrOrPathLibPath, TypeSQLiteBackend
+from lorelie.lorelie_typings import TypeStrOrPathLibPath, TypeSQLiteBackend, TypeTable
 from lorelie.queries import Query, QuerySet
 
 
@@ -721,7 +721,7 @@ class SQLiteBackend(SQL):
                 row.linked_to_table
             )
 
-    def list_table_columns(self, table):
+    def list_table_columns(self, table: TypeTable):
         query = Query(table=table)
         query.map_to_sqlite_table = True
         query.add_sql_node(f'pragma table_info({table.name})')

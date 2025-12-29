@@ -351,8 +351,9 @@ class Table(AbstractTable):
         This function is called by the Migrations class principally
         when running the migration process to the database
 
-        `skip_creation` can be used to prevent the creationg process
-        for tables that were created outside of this prepare function 
+        Args:
+            database (TypeDatabase): The database instance to which the table is being prepared and attached
+            skip_creation (bool): Can be used to prevent the creationg process for tables that were created outside of this prepare function 
         """
         # if skip_creation:
         #     self.attached_to_database = database
@@ -381,9 +382,11 @@ class Table(AbstractTable):
         joined_fields = self.backend.comma_join(field_params)
         create_sql = self.create_table_sql(joined_fields)
 
-        query = self.query_class(table=self)
+        query = database.query_class(backend=self.backend)
         query.add_sql_nodes(create_sql)
         query.run(commit=True)
+
+        database.migrations.write_to_sql_file(create_sql)
 
         self.is_prepared = True
 

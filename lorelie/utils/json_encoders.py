@@ -19,7 +19,7 @@ class DefaultJSonEncoder(JSONEncoder):
             return obj.isoformat()
 
         if dataclasses.is_dataclass(obj):
-            return obj.to_dict()
+            return dataclasses.asdict(obj)
 
         if isinstance(obj, datetime.date):
             return str(obj)

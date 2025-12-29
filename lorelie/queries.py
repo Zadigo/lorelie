@@ -1,7 +1,7 @@
 import sqlite3
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Optional
 
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
@@ -43,7 +43,7 @@ class Query:
         self.result_cache = []
         self.alias_fields = []
         self.is_evaluated = False
-        self.statements = []
+        self.statements: list[str] = []
         self.select_map = SelectMap()
         # Since this is a special table that was not created
         # locally, we need to indicate to the __repr__ of the
@@ -60,9 +60,9 @@ class Query:
         return cls(table=table, backend=backend)
 
     @classmethod
-    def run_script(cls, backend: Optional[TypeSQLiteBackend] = None, table: Optional[TypeTable] = None, sql_tokens=[], callback: Optional[Callable[[str], None]] = None):
+    def run_script(cls, backend: Optional[TypeSQLiteBackend] = None, table: Optional[TypeTable] = None, sql_tokens=[]):
         """Runs a script made of multiple sql statements
-        
+
         Args:
             backend (TypeSQLiteBackend, optional): The database backend to use. Defaults to None.
             table (TypeTable, optional): The table associated with the query. Defaults to None.
@@ -114,9 +114,6 @@ class Query:
                 )
                 for query in log_queries:
                     lorelie_logger.info(f"\"{query}\"")
-
-            if callback is not None:
-                callback(script)
 
             return instance
 

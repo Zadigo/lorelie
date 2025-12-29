@@ -162,7 +162,7 @@ class Database:
         name (Optional[str], optional): The name of the database. If None, an in-memory database is created. Defaults to None.
         path (Optional[TypeStrOrPathLibPath], optional): The path where the database file will be stored. Defaults to None.
         log_queries (bool, optional): Whether to log SQL queries executed on the database. Defaults to False.
-        
+
     Returns:
         Database: An instance of the Database class
     """
@@ -296,16 +296,16 @@ class Database:
         except KeyError:
             raise TableExistsError(table_name)
 
-    def make_migrations(self):
-        """The function `make_migrations` serves as a pivotal step 
-        in the database schema evolution process. It collects the 
-        various elements from the fields, tables, constraints, 
-        and indexes defined by the user, capturing these changes in a 
-        structured manner. These collected elements are then organized and stored in 
-        a migration JSON file. Additionally, the function inserts this collected data into 
-        a designated table named lorelie_migrations within the database."""
-        self.migrations.has_migrations = True
-        self.migrations.make_migrations(self.table_instances)
+    # def make_migrations(self):
+    #     """The function `make_migrations` serves as a pivotal step
+    #     in the database schema evolution process. It collects the
+    #     various elements from the fields, tables, constraints,
+    #     and indexes defined by the user, capturing these changes in a
+    #     structured manner. These collected elements are then organized and stored in
+    #     a migration JSON file. Additionally, the function inserts this collected data into
+    #     a designated table named lorelie_migrations within the database."""
+    #     self.migrations.has_migrations = True
+    #     self.migrations.make_migrations(self.table_instances)
 
     def migrate(self):
         """This function executes the modifications outlined in the 

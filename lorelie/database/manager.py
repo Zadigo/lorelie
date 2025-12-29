@@ -126,7 +126,7 @@ class DatabaseManager:
         of a new row in the specified table within the 
         current database
 
-        >>> db.objects.create('celebrities', firstname='Kendall')
+        >>> db.objects.create(firstname='Kendall')
         """
         kwargs = self._validate_auto_fields(self.table, kwargs)
         values, kwargs = self.table.validate_values_from_dict(kwargs)
@@ -145,15 +145,15 @@ class DatabaseManager:
         """Filter the data in the database based on
         a set of criteria using filter keyword arguments
 
-        >>> db.objects.filter('celebrities', firstname='Kendall')
-        ... db.objects.filter('celebrities', age__gt=20)
-        ... db.objects.filter('celebrities', firstname__in=['Kendall'])
+        >>> db.objects.filter(firstname='Kendall')
+        ... db.objects.filter(age__gt=20)
+        ... db.objects.filter(firstname__in=['Kendall'])
 
         Filtering can also be done using more complexe logic via database
         functions such as the `Q` function:
 
-        >>> db.objects.filter('celebrities', Q(firstname='Kendall') | Q(firstname='Kylie'))
-        ... db.objects.filter('celebrities', Q(firstname='Margot') | Q(firstname='Kendall') & Q(followers__gte=1000))
+        >>> db.objects.filter(Q(firstname='Kendall') | Q(firstname='Kylie'))
+        ... db.objects.filter(Q(firstname='Margot') | Q(firstname='Kendall') & Q(followers__gte=1000))
         """
         select_node = SelectNode(self.table)
         where_node = WhereNode(*args, **kwargs)
@@ -174,8 +174,8 @@ class DatabaseManager:
         """Returns a specific row from the database
         based on a set of criteria
 
-        >>> instance.objects.get('celebrities', id__eq=1)
-        ... instance.objects.get('celebrities', id=1)
+        >>> instance.objects.get(id__eq=1)
+        ... instance.objects.get(id=1)
         """
         select_node = SelectNode(self.table)
         where_node = WhereNode(*args, **kwargs)
@@ -242,7 +242,7 @@ class DatabaseManager:
         the result for each element grouped by a specified field. For example, to 
         count the number of occurrences of each `price`:
 
-        >>> db.objects.annotate('products', Count('price'))
+        >>> db.objects.annotate(Count('price'))
 
         The above will return the price count for each products. If there are
         two products with a price of 1 we will then get `[{'price': 1, 'count_price': 2}]`
@@ -310,7 +310,7 @@ class DatabaseManager:
         """Returns data from the database as a list
         of dictionnary values
 
-        >>> instance.objects.as_values('celebrities', 'id')
+        >>> instance.objects.as_values('id')
         ... [{'id': 1}]
         """
         # columns = list(fields) or ['rowid', '*']
@@ -339,7 +339,7 @@ class DatabaseManager:
         analysis of the data using pandas' powerful data handling 
         capabilities
 
-        >>> instance.objects.as_dataframe('celebrities', 'id')
+        >>> instance.objects.as_dataframe('id')
         ... pandas.DataFrame
         """
         import pandas
@@ -349,11 +349,11 @@ class DatabaseManager:
         """Returns data ordered by the fields specified
         by the user. It can be sorted in ascending order:
 
-        >>> instance.objects.order_by('celebrities', 'firstname')
+        >>> instance.objects.order_by('firstname')
 
         Or, descending order:
 
-        >>> instance.objects.order_by('celebrities', '-firstname')
+        >>> instance.objects.order_by('-firstname')
         """
         select_node = SelectNode(self.table)
         order_by_node = OrderByNode(self.table, *fields)
@@ -369,10 +369,10 @@ class DatabaseManager:
         while providing the field name without a prefix sorts the data 
         in ascending order
 
-        >>> db.objects.aggregate('celebrities', Count('id'))
+        >>> db.objects.aggregate(Count('id'))
         ... {'age__count': 1}
 
-        >>> db.objects.aggregate('celebrities', count_age=Count('id'))
+        >>> db.objects.aggregate(count_age=Count('id'))
         ... {'count_age': 1}
         """
         functions = list(args)
@@ -409,7 +409,7 @@ class DatabaseManager:
         """Returns the number of items present
         in the database
 
-        >>> db.objects.count('celebrities')
+        >>> db.objects.count()
         """
         result = self.aggregate(Count('id'))
         return result.get('id__count')
@@ -426,7 +426,7 @@ class DatabaseManager:
         """Returns items from the database which are
         distinct
 
-        >>> db.objects.distinct('celebrities', 'firstname')
+        >>> db.objects.distinct('firstname')
         """
         select_node = SelectNode(self.table, *columns, distinct=True)
         query = self.table.query_class(table=self.table)
@@ -448,7 +448,7 @@ class DatabaseManager:
         ... class Celebrity:
         ...     name: str
 
-        >>> db.objects.bulk_create('celebrities', [Celebrity('Taylor Swift')])
+        >>> db.objects.bulk_create([Celebrity('Taylor Swift')])
         ... [<Celebrity: 1>]
         """
         invalid_objects_counter = 0

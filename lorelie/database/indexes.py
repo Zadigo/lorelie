@@ -1,11 +1,10 @@
 import secrets
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Final, ClassVar, Optional
 
 from lorelie.database.nodes import WhereNode
+from lorelie.lorelie_typings import TypeSQLiteBackend, TypeTable
 
 if TYPE_CHECKING:
-    from lorelie.database.tables.base import Table
-    from lorelie.database.base import SQLiteBackend
     from lorelie.expressions import Q
 
 
@@ -27,11 +26,11 @@ class Index:
 
     >>> table = Table('celebrities', index=[Index('index_name', 'firstname')])
     """
-    template_sql = 'create index {name} on {table} ({fields})'
+    template_sql: ClassVar[str] = 'create index {name} on {table} ({fields})'
     prefix = 'idx'
     max_name_length = 30
 
-    def __init__(self, name: str, fields: list[str], condition: 'Q' = None):
+    def __init__(self, name: str, fields: list[str], condition: Optional['Q'] = None):
         if len(name) > self.max_name_length:
             raise ValueError('Name should be maximum 30 carachters long')
 
@@ -40,23 +39,24 @@ class Index:
                 "At least one field must be provided "
                 "in order to use an index on a database"
             )
-        
+
         self.name = name
         self.fields = list(fields)
         self.condition = condition
         index_id = secrets.token_hex(nbytes=5)
         self.index_name = f'{self.prefix}_{name}_{index_id}'
-        self.table = None
+        self.table: Optional[TypeTable] = None
 
     def __repr__(self):
         return f'<Index: fields={self.fields} condition={self.condition}>'
 
-    def prepare(self, table: 'Table'):
+    def prepare(self, table: TypeTable):
         self.table = table
 
-    def as_sql(self, backend: 'SQLiteBackend') -> str:
+    def as_sql(self, backend: TypeSQLiteBackend) -> str:
         if self.table is None:
-            raise ValueError("Index is not bound to a table. Call prepare() first.")
+            raise ValueError(
+                "Index is not bound to a table. Call prepare() first.")
 
         for field in self.fields:
             self.table.has_field(field, raise_exception=True)
@@ -68,7 +68,7 @@ class Index:
         })
 
         sql = [fields_sql]
-    
+
         if self.condition is not None:
             where_node = WhereNode(self.condition)
             sql.extend(where_node.as_sql(backend))

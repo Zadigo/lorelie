@@ -1,11 +1,9 @@
-import datetime
 import sqlite3
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
 from typing import TYPE_CHECKING, Optional
 
 from lorelie import log_queries, lorelie_logger
-from lorelie.database.functions.aggregation import Count
 from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
                                     SelectNode, WhereNode)
 
@@ -303,7 +301,7 @@ class QuerySet:
     It provides methods for manipulating and retrieving data from the database
     """
 
-    def __init__(self, query, skip_transform=False):
+    def __init__(self, query: Query, skip_transform: bool = False):
         if not isinstance(query, Query):
             raise ValueError(f"'{query}' should be an instance of Query")
 
@@ -311,7 +309,7 @@ class QuerySet:
         self.result_cache = []
         self.values_iterable_class = ValuesIterable
         # There are certain cases where we want
-        # to use QuerySet but it's not affialiated
+        # to use QuerySet but it's not affiliated
         # to any table ex. returning a QuerySet of
         # table indexes. This allows to skip the
         # python transform of the data
@@ -325,7 +323,7 @@ class QuerySet:
         # to the QuerySet to use an alias view
         # to query items from the database as
         # oppposed to using the table name
-        self.alias_view_name = None
+        self.alias_view_name: Optional[str] = None
         # Despite existing data in the cache,
         # force the cache to be reloaded from
         # the existing database

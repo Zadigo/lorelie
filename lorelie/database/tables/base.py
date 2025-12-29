@@ -126,7 +126,7 @@ class Table(AbstractTable):
     ... database.objects.all('url')
     """
 
-    def __init__(self, name, *, fields=[], indexes=[], constraints=[], ordering=[], str_field='id'):
+    def __init__(self, name: str, *, fields=[], indexes: list[Index] = [], constraints=[], ordering=[], str_field='id'):
         self.name = self.validate_table_name(name)
         self.verbose_name = name.lower().title()
         self.indexes = indexes

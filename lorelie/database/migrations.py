@@ -5,13 +5,14 @@ import secrets
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, DefaultDict, Optional
 
 from lorelie.backends import SQLiteBackend, connections
 from lorelie.database.tables.base import Table
 from lorelie.fields.base import CharField, DateTimeField, Field, JSONField
 from lorelie.queries import Query
 from lorelie.utils.json_encoders import DefaultJSonEncoder
+from lorelie.lorelie_typings import TypeTableMap
 
 if TYPE_CHECKING:
     from lorelie.database.base import Database
@@ -19,8 +20,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class Schema:
-    table: type = None
-    database: type = None
+    table: Optional[Table] = None
+    database: Optional['Database'] = None
     fields: list = field(default_factory=list)
     field_params: list = field(default_factory=list)
     indexes: dict = field(default_factory=dict)
@@ -60,7 +61,7 @@ class Migrations:
         self.file_id = self.CACHE['id']
 
         try:
-            self.tables = self.CACHE['tables']
+            self.tables: list[str] = self.CACHE['tables']
         except KeyError:
             raise KeyError('Migration file is not valid')
 
@@ -79,7 +80,7 @@ class Migrations:
         # the underlying database can be
         # fully functionnal
         self.migrated = False
-        self.schemas = defaultdict(Schema)
+        self.schemas: DefaultDict[str, Schema] = defaultdict(Schema)
         self.pending_migration = {}
 
     def __repr__(self):
@@ -154,7 +155,7 @@ class Migrations:
         )
         self.database._add_table(table)
 
-    def migrate(self, table_instances):
+    def migrate(self, table_instances: TypeTableMap):
         from lorelie.database.tables.base import Table
 
         # Safeguard that avoids calling
@@ -191,6 +192,9 @@ class Migrations:
             self.migration_table_map = list(table_instances.keys())
 
         backend = connections.get_last_connection()
+        if backend is None:
+            raise ValueError('No database connection found')
+
         backend.linked_to_table = 'sqlite'
         database_tables = backend.list_all_tables()
         # When the table is in the migration file
@@ -256,7 +260,6 @@ class Migrations:
 
             self.check_fields(table_instance, backend)
 
-        database_indexes = backend.list_database_indexes()
         for name, table in table_instances.items():
             for index in table.indexes:
                 other_sqls_to_run.append(index.as_sql(backend))
@@ -264,6 +267,7 @@ class Migrations:
         # TODO: For now we will not remove obsolete
         # indexes too. We will implement this after too
         # Remove obsolete indexes
+        database_indexes = backend.list_database_indexes()
         for row in database_indexes:
             if row not in table.indexes:
                 # We cannot and should not drop autoindexes

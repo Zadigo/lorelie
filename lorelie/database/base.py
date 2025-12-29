@@ -2,7 +2,7 @@ import dataclasses
 import pathlib
 from collections import OrderedDict
 from functools import wraps
-from typing import Optional, Union
+from typing import Optional
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database import registry
@@ -13,6 +13,7 @@ from lorelie.exceptions import TableExistsError
 from lorelie.fields import IntegerField
 from lorelie.fields.relationships import ForeignKeyField
 from lorelie.queries import Query
+from lorelie.lorelie_typings import TypeStrOrPathLibPath
 
 
 @dataclasses.dataclass
@@ -162,7 +163,7 @@ class Database:
     migrations_class = Migrations
     backend_class = SQLiteBackend
 
-    def __init__(self, *tables: Table, name: Optional[str] = None, path: Optional[Union[str, pathlib.Path]] = None, log_queries: bool = False):
+    def __init__(self, *tables: Table, name: Optional[str] = None, path: Optional[TypeStrOrPathLibPath] = None, log_queries: bool = False):
         self.database_name: str = name
         # Use the immediate parent path if not
         # path is provided by the user

@@ -6,7 +6,7 @@ import re
 import sqlite3
 from collections import defaultdict
 from dataclasses import field
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Optional, Set
 
 import pytz
 
@@ -22,9 +22,8 @@ from lorelie.database.nodes import (DeleteNode, SelectNode, UpdateNode,
                                     WhereNode)
 from lorelie.exceptions import ConnectionExistsError
 from lorelie.expressions import Q
+from lorelie.lorelie_typings import TypeStrOrPathLibPath, TypeSQLiteBackend
 from lorelie.queries import Query, QuerySet
-
-_T_SQLiteBackend = TypeVar('_T_SQLiteBackend', bound='SQLiteBackend')
 
 
 if TYPE_CHECKING:
@@ -32,13 +31,13 @@ if TYPE_CHECKING:
     from lorelie.database.tables.base import Table
 
 
-class Connections(Generic[_T_SQLiteBackend]):
+class Connections:
     """A class that remembers the different 
     connections that were created to the
     SQLite database"""
 
-    connections_map = {}
-    created_connections = set()
+    connections_map: dict[str, TypeSQLiteBackend] = {}
+    created_connections: Set[TypeSQLiteBackend] = set()
 
     def __repr__(self):
         return f'<Connections: count={len(self.connections_map.keys())}>'
@@ -52,19 +51,7 @@ class Connections(Generic[_T_SQLiteBackend]):
     def __exit__(self):
         return False
 
-    # def get_connection(self, database_name):
-    #     candidates = list(filter(
-    #         lambda x: database_name in x,
-    #             self.connections_map
-    #     ))
-
-    #     if len(candidates) == 1:
-    #         return candidates[0]
-    #     elif len(candidates) == 0:
-    #         raise ConnectionExistsError()
-    #     return candidates[-1]
-
-    def get_last_connection(self) -> _T_SQLiteBackend | None:
+    def get_last_connection(self):
         """Return the last connection from the
         connection pool"""
         try:
@@ -72,7 +59,7 @@ class Connections(Generic[_T_SQLiteBackend]):
         except IndexError:
             raise ConnectionExistsError()
 
-    def register(self, connection: _T_SQLiteBackend, name=None):
+    def register(self, connection: TypeSQLiteBackend, name: Optional[str] = None):
         if name is None:
             name = 'default'
 
@@ -644,7 +631,7 @@ class SQLiteBackend(SQL):
     new connection to an sqlite database. The connection
     can be in memory or to a physical database"""
 
-    def __init__(self, database_or_name: Optional['Database'] | Optional[str] = None, log_queries: bool = False, path=None):
+    def __init__(self, database_or_name: Optional['Database'] | Optional[str] = None, log_queries: bool = False, path: Optional[TypeStrOrPathLibPath] = None):
         self.database_name: Optional[str] = None
         self.database_path = None
         self.database_instance = None
@@ -665,6 +652,7 @@ class SQLiteBackend(SQL):
                 )
             return path_obj.joinpath(name)
 
+        # TODO: Review this logic
         if isinstance(database_or_name, str):
             if path is not None:
                 self.database_path = build_path(self.database_name, path)

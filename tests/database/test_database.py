@@ -40,3 +40,8 @@ class TestDatabase(LorelieTestCase):
         # In memory
         db = Database(path=pathlib.Path('.'))
         self.assertTrue(db.in_memory)
+
+    def test_create_database_with_name(self):
+        db = Database(name='my_database')
+        self.assertEqual(db.database_name, 'my_database')
+        self.assertFalse(db.in_memory)

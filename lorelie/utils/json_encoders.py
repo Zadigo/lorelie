@@ -3,6 +3,7 @@ import datetime
 import decimal
 import uuid
 from json.encoder import JSONEncoder
+from unittest.mock import MagicMock
 
 
 class DefaultJSonEncoder(JSONEncoder):
@@ -38,5 +39,8 @@ class DefaultJSonEncoder(JSONEncoder):
 
         if isinstance(obj, bytes):
             return obj.decode()
+
+        if isinstance(obj, MagicMock):
+            return str(obj)
 
         return super().default(obj)

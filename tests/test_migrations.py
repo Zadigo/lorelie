@@ -1,7 +1,65 @@
 
+from unittest.mock import patch
+
 from lorelie.database.base import Database
-from lorelie.database.migrations import Migrations
+from lorelie.database.migrations import JsonMigrationsSchema, Migrations, Schema
+from lorelie.database.tables.base import Table
+from lorelie.queries import Query
 from lorelie.test.testcases import LorelieTestCase
+
+EMPTY_MIGRATION = {
+    'id': None,
+    'date': None,
+    'number': 1,
+    'tables': []
+}
+
+TEST_MIGRATION = {
+    'id': '2cd78eb43f',
+    'date': '2025-12-29 17:05:09.283195',
+    'number': 6,
+    'tables': [
+        {
+            'name': 'celebrities',
+            'fields': [
+                'name',
+                'height',
+                'created_on',
+                'id',
+                'rowid'
+            ],
+            'field_params': [
+                [
+                    'name',
+                    'text',
+                    'not null'
+                ],
+                [
+                    'height',
+                    'integer',
+                    'default',
+                    152,
+                    'not null',
+                    'check(height>150)'
+                ],
+                [
+                    'created_on',
+                    'datetime',
+                    'null'
+                ],
+                [
+                    'id',
+                    'integer',
+                    'primary key',
+                    'autoincrement',
+                    'not null'
+                ]
+            ],
+            'indexes': {},
+            'constraints': {}
+        }
+    ]
+}
 
 
 class TestMigrations(LorelieTestCase):
@@ -21,41 +79,58 @@ class TestMigrations(LorelieTestCase):
         migrations = Migrations(db)
         migrations.migrate({'celebrities': table})
 
-    def test_make_migrations(self):
-        db = self.create_database(using=self.create_full_table())
-        db.make_migrations()
+    def test_write_sql_file(self):
+        with patch.object(Migrations, 'read_content') as mocked_read_content:
+            mocked_read_content.return_value = JsonMigrationsSchema(
+                **EMPTY_MIGRATION
+            )
 
+            self.create_empty_database.migrations.write_to_sql_file(
+                'CREATE TABLE test (id INTEGER);'
+            )
 
-#     @unittest.expectedFailure
-#     def test_structure(self):
-#         self.assertFalse(self.instance.file.exists())
+    @patch('lorelie.backends.QuerySet', autospec=True)
+    def test_check_fields(self, mqueryset):
+        data = [{'name': 'id'}, {'name': 'name'}]
+        _queryset = mqueryset.return_value
+        type(_queryset).__iter__ = lambda _: iter(data)
+        _queryset.load_cache.return_value = data
 
-#     def test_check_without_tables(self):
-#         db = Database()
-#         db.migrations.check({})
-#         self.assertFalse(db.migrations.migrated)
+        table = self.create_table()
+        backend = self.create_connection()
+        table.backend = backend
 
-#     @unittest.expectedFailure
-#     def test_no_migrations_exists(self):
-#         # Trying to call a query function on
-#         # a none existing migration should
-#         # raise MigrationsExistsError
-#         table = Table('test_lorelie', fields=[
-#             CharField('name', null=True)
-#         ])
-#         db = Database(table)
-#         db.celebrities.objects.all('celebrities')
+        db = self.create_empty_database
 
-#     def test_check_with_tables(self):
-#         table = Table('celebrities', fields=[
-#             CharField('name', null=True)
-#         ])
+        db.migrations.schemas[table.name] = Schema(table, db)
+        with patch.object(Query, 'run') as mrun:
+            mrun.return_value = True
+            db.migrations.check_fields(table, backend)
 
-#         db = Database(table)
-#         db.migrate()
+    @patch('lorelie.database.migrations.connections', autospec=True)
+    @patch('lorelie.database.migrations.SQLiteBackend', autospec=True)
+    def test_migrate_with_blank_migration(self, msqlite, mconnections):
+        _sqlite = msqlite.return_value
 
-#         self.assertTrue(db.migrations.migrated)
-#         db.celebrities.objects.all('celebrities')
+        _connections = mconnections.return_value
+        _connections.get_last_connection.return_value = _sqlite
+        _connections.list_database_indexes.return_value = []
+        _connections.list_database_constraints.return_value = []
 
-#         self.assertEqual(db.migrations.database_name, 'memory')
-#         db.celebrities.objects.all('lorelie_migrations')
+        # Simulate no existing tables
+        _connections.list_all_tables.return_value = []
+
+        table = self.create_table()
+        table.backend = _sqlite
+        table_instances = {'celebrities': table}
+        db = self.create_empty_database
+
+        with patch.object(Table, 'prepare') as mprepare:
+            mprepare.return_value = None
+
+            db.migrations.migrate(table_instances)
+
+            _connections.list_all_tables.assert_called_once()
+
+    def test_migrate_with_existing_migration(self):
+        table_instances = [self.create_table()]

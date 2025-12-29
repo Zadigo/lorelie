@@ -99,7 +99,6 @@ class Migrations:
         # fully functionnal
         self.migrated = False
         self.schemas: DefaultDict[str, Schema] = defaultdict(Schema)
-        self.pending_migration = {}
 
     def __repr__(self):
         return f'<{self.__class__.__name__} {self.file_id}>'
@@ -173,8 +172,6 @@ class Migrations:
         return table
 
     def migrate(self, table_instances: TypeTableMap):
-        from lorelie.database.tables.base import Table
-
         # Safeguard that avoids calling
         # this function in a loop over and
         # over which can reduce performance
@@ -300,19 +297,6 @@ class Migrations:
                     })
                 )
 
-        if self.pending_migration:
-            params = {
-                'name': f'mig_{secrets.token_hex(5)}',
-                'table_name': None,
-                'migration': self.pending_migration
-            }
-            try:
-                self.database.objects.create('lorelie_migrations', **params)
-            except Exception:
-                raise
-            finally:
-                self.pending_migration = {}
-
         # The database might require another set of
         # parameters (ex. indexes, constraints) that we
         # are going to run here
@@ -359,14 +343,17 @@ class Migrations:
                 cls=DefaultJSonEncoder
             )
 
-            # migrations_table.objects.create(
-            #     db_name=self.database_name,
-            #     name=self.JSON_MIGRATIONS_SCHEMA.id,
-            #     migration=dataclasses.asdict(self.JSON_MIGRATIONS_SCHEMA)
-            # )
+            # try:
+            #     migrations_table.objects.create(
+            #         db_name=self.database_name,
+            #         name=self.JSON_MIGRATIONS_SCHEMA.id,
+            #         migration=dataclasses.asdict(self.JSON_MIGRATIONS_SCHEMA)
+            #     )
+            # except Exception:
+            #     raise
 
     def check_fields(self, table: TypeTable, backend: TypeSQLiteBackend):
-        """Checks the migration file for fields
+        """TODO: Checks the migration file for fields
         in relationship with the table"""
         database_table_columns = backend.list_table_columns(table)
 
@@ -377,9 +364,7 @@ class Migrations:
 
         # TODO: Drop columns that were dropped in the database
 
-        self.schemas[table.name].fields = list(
-            map(lambda x: x['name'], database_table_columns)
-        )
+        self.schemas[table.name].prepare()
         backend.create_table_fields(table, columns_to_create)
 
     def blank_migration(self, using: JsonMigrationsSchema):

@@ -130,7 +130,9 @@ class TestMigrations(LorelieTestCase):
 
             db.migrations.migrate(table_instances)
 
-            _connections.list_all_tables.assert_called_once()
+            self.assertTrue(db.migrations.migrated)
+            self.assertTrue(len(db.migrations.tables_for_creation) == 0)
+            self.assertTrue(len(db.migrations.tables_for_deletion) == 0)
 
     def test_migrate_with_existing_migration(self):
         table_instances = [self.create_table()]

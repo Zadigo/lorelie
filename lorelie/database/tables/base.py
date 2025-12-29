@@ -1,5 +1,6 @@
 import re
 from collections import OrderedDict
+from typing import Any, ClassVar, Generic, Optional, Type
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
@@ -8,7 +9,7 @@ from lorelie.database.manager import DatabaseManager
 from lorelie.database.tables.columns import Column
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
 from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
-from lorelie.lorelie_typings import TypeDatabase, TypeField
+from lorelie.lorelie_typings import TypeDatabase, TypeField, TypeSQLiteBackend
 from lorelie.queries import Query
 
 
@@ -30,15 +31,16 @@ class BaseTable(type):
 
 class AbstractTable(metaclass=BaseTable):
     # TODO: Remove
-    query_class = Query
-    backend_class = SQLiteBackend
-    objects = DatabaseManager()
+    query_class: ClassVar[Type[Query]] = Query
+
+    backend_class: ClassVar[Type[SQLiteBackend]] = SQLiteBackend
+    objects: ClassVar[DatabaseManager] = DatabaseManager()
 
     def __init__(self):
-        self.backend = None
-        self.is_prepared = False
+        self.backend: Optional[TypeSQLiteBackend] = None
+        self.is_prepared: bool = False
         self.field_types = OrderedDict()
-        self.database = None
+        self.database: Optional[TypeDatabase] = None
 
     def __hash__(self):
         return hash((self.name, self.verbose_name, *self.field_names))
@@ -50,7 +52,7 @@ class AbstractTable(metaclass=BaseTable):
         return self.is_prepared
 
     @staticmethod
-    def validate_table_name(name):
+    def validate_table_name(name: str) -> str:
         if name == 'objects':
             raise ValueError(
                 "Table name uses a reserved "
@@ -67,6 +69,7 @@ class AbstractTable(metaclass=BaseTable):
         result = re.search(r'\s+', name)
         if result:
             raise ValueError("Table name contains invalid spaces")
+
         return name.lower()
 
     def validate_values_from_list(self, values):
@@ -108,7 +111,7 @@ class AbstractTable(metaclass=BaseTable):
         self.backend = connections.get_last_connection()
 
 
-class Table(AbstractTable):
+class Table(Generic[TypeField], AbstractTable):
     """To create a table in the SQLite database, you first need to 
     create an instance of the Table class and then use it with the 
     Database class, which represents the actual database. The make_migrations 
@@ -127,14 +130,14 @@ class Table(AbstractTable):
     ... database.objects.all('url')
     """
 
-    def __init__(self, name: str, *, fields=[], indexes: list[Index] = [], constraints=[], ordering=[], str_field='id'):
+    def __init__(self, name: str, *, fields: list[TypeField] = [], indexes: list[Index] = [], constraints=[], ordering: list[str] = [], str_field='id'):
         self.name = self.validate_table_name(name)
         self.verbose_name = name.lower().title()
         self.indexes = indexes
         self.table_constraints = constraints
         self.field_constraints = {}
         self.is_foreign_key_table = False
-        self.attached_to_database: TypeDatabase = None
+        self.attached_to_database: Optional[TypeDatabase] = None
         self.columns_map: dict[str, Column] = {}
 
         # The str_field is the name of the
@@ -146,8 +149,8 @@ class Table(AbstractTable):
 
         super().__init__()
         self.fields_map: dict[str, TypeField] = OrderedDict()
-        self.auto_add_fields = set()
-        self.auto_update_fields = set()
+        self.auto_add_fields: set[str] = set()
+        self.auto_update_fields: set[str] = set()
 
         non_authorized_names = ['rowid', 'id']
         for i, field in enumerate(fields):
@@ -204,7 +207,7 @@ class Table(AbstractTable):
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
 
-    def __eq__(self, value):
+    def __eq__(self, value: Any):
         if not isinstance(value, Table):
             return any([
                 value == self.name,
@@ -216,7 +219,7 @@ class Table(AbstractTable):
             self.field_names == value.field_names
         ])
 
-    def __contains__(self, value):
+    def __contains__(self, value: Any):
         return value in self.field_names
 
     def __setattr__(self, name, value):
@@ -224,7 +227,7 @@ class Table(AbstractTable):
             pass
         return super().__setattr__(name, value)
 
-    def __getattribute__(self, name):
+    def __getattribute__(self, name: str) -> Any:
         if name == 'backend':
             backend = self.__dict__['backend']
             if backend is None:
@@ -237,10 +240,13 @@ class Table(AbstractTable):
         return super().__getattribute__(name)
 
     @staticmethod
-    def compare_field_types(*fields):
-        """Compare the different field types
-        and check if we are dealing with
-        mixed types"""
+    def is_mixed_type_fields(*fields: TypeField) -> bool:
+        """Compare the different field types and check if we 
+        are dealing with mixed types
+
+        Args:
+            fields (TypeField): The fields to compare
+        """
         seen_types = []
 
         for field in fields:
@@ -249,7 +255,7 @@ class Table(AbstractTable):
         unique_types = set(seen_types)
         return len(unique_types) > 1
 
-    def _add_field(self, field_name, field):
+    def _add_field(self, field_name: str, field: TypeField):
         """Internala function to add a field on the
         database. Returns the newly constructued
         field parameters"""
@@ -280,21 +286,27 @@ class Table(AbstractTable):
             key=lambda x: x.index
         )
 
+        if self.field_names and not sorted_columns:
+            raise ValueError(
+                "Cannot add field to table without columns_map "
+                "being populated. Please make sure the table is prepared"
+            )
+
         last_column = sorted_columns[-1]
         field.index = last_column.index
         return field_params
 
     # TODO: Rename to check_field
-    def has_field(self, name, raise_exception=False):
+    def has_field(self, name: str, raise_exception: bool = False) -> bool:
         result = name in self.fields_map
         if not result and raise_exception:
             raise FieldExistsError(name, self)
         return result
 
-    def get_field(self, name):
+    def get_field(self, name: str):
         return self.fields_map[name]
 
-    def create_table_sql(self, fields):
+    def create_table_sql(self, fields_str: str):
         unique_constraints = []
         check_constraints = []
 
@@ -310,7 +322,7 @@ class Table(AbstractTable):
         # just like normal fields while check_constraints
         # are just joined by normal space
         joined_unique = self.backend.comma_join(
-            [fields, *unique_constraints]
+            [fields_str, *unique_constraints]
         )
 
         joined_all = self.backend.simple_join(

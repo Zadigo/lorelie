@@ -11,6 +11,7 @@ from urllib.parse import unquote
 from lorelie.constraints import (MaxLengthConstraint, MaxValueConstraint,
                                  MinValueConstraint)
 from lorelie.exceptions import ValidationError
+from lorelie.lorelie_typings import TypeTable
 from lorelie.validators import url_validator
 
 
@@ -208,7 +209,7 @@ class Field:
 
         return base_field_parameters
 
-    def prepare(self, table):
+    def prepare(self, table: TypeTable):
         from lorelie.database.tables.base import Table
         if not isinstance(table, Table):
             raise ValueError(

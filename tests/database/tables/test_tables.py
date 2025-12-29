@@ -1,7 +1,7 @@
 import sqlite3
 import unittest
 from typing import Generator
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 
 from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
@@ -31,15 +31,19 @@ class TestTable(LorelieTestCase):
         with self.assertRaises(ValueError):
             table._add_field('other', talent)
 
+        mdatabase = MagicMock(spec=Database)
+        mdatabase.relationships = {}
+
+        table.prepare(mdatabase)
+
         table._add_field('talent', talent)
         self.assertIn('talent', table)
+        self.assertTrue(len(table.field_names), 5)
 
         mock_connect.assert_called_once()
 
-    # @patch.object(Connection, 'execute')
-    # @patch.object(Connection, 'commit')
     @patch.object(sqlite3, 'connect', autospec=True)
-    def test_prepare(self, mock_connection):
+    def test_prepare(self, mconnection):
         table = self.create_table()
         db = Database(table)
 
@@ -49,11 +53,6 @@ class TestTable(LorelieTestCase):
         table.prepare(db)
         self.assertTrue(table.is_prepared)
 
-        # Test column map
-        # print(list(map(lambda x: x.index, table.columns_map.values())))
-        # print(sorted(table.columns_map.values(), key=lambda x: x.index))
-
-    @unittest.skip
     def test_cannot_load_connection(self):
         table = self.create_table()
         with self.assertRaises(ConnectionExistsError):
@@ -90,13 +89,13 @@ class TestTable(LorelieTestCase):
         # When we have mixed type fields, we have to determine
         # how to resovle the resulting value from these mixed
         # elements so that we can get a consistent result
-        state = table.compare_field_types(
+        state = table.is_mixed_type_fields(
             CharField('firstname'),
             CharField('lastname')
         )
         self.assertFalse(state)
 
-        state = table.compare_field_types(
+        state = table.is_mixed_type_fields(
             CharField('firstname'),
             IntegerField('age')
         )

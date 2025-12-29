@@ -71,9 +71,9 @@ class Migrations:
         ]
         self.fields_map = defaultdict(list)
 
-        self.tables_for_creation = set()
-        self.tables_for_deletion = set()
-        self.existing_tables = set()
+        self.tables_for_creation: set[str] = set()
+        self.tables_for_deletion: set[str] = set()
+        self.existing_tables: set[str] = set()
         self.has_migrations = False
         # Indicates that check function was
         # called at least once and that the
@@ -229,7 +229,7 @@ class Migrations:
                 table.prepare(self.database)
             self.has_migrations = True
 
-        other_sqls_to_run = []
+        other_sqls_to_run: list[str] = []
 
         # TODO: For now do not run tables
         # for deletion when doing migrations
@@ -295,10 +295,20 @@ class Migrations:
             finally:
                 self.pending_migration = {}
 
+        def sql_file_writer(script: str):
+            with open(self.database.path / 'migrations.sql', mode='a+') as f:
+                f.write(
+                    f'\n-- Migration executed on {datetime.datetime.now()}\n')
+                f.write(script)
+
         # The database might require another set of
         # parameters (ex. indexes, constraints) that we
         # are going to run here
-        Query.run_script(backend=backend, sql_tokens=other_sqls_to_run)
+        Query.run_script(
+            backend=backend, 
+            sql_tokens=other_sqls_to_run, 
+            callback=sql_file_writer
+        )
 
         self.tables_for_creation.clear()
         self.tables_for_deletion.clear()

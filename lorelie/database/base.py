@@ -156,6 +156,15 @@ class Database:
 
     >>> db.objects.create('my_table', url='http://example.com')
     ... db.objects.all()
+
+    Args:
+        *tables (Table): A variable number of Table instances to register into the database
+        name (Optional[str], optional): The name of the database. If None, an in-memory database is created. Defaults to None.
+        path (Optional[TypeStrOrPathLibPath], optional): The path where the database file will be stored. Defaults to None.
+        log_queries (bool, optional): Whether to log SQL queries executed on the database. Defaults to False.
+        
+    Returns:
+        Database: An instance of the Database class
     """
 
     migrations = None

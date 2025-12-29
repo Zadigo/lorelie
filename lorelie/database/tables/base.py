@@ -8,6 +8,7 @@ from lorelie.database.manager import DatabaseManager
 from lorelie.database.tables.columns import Column
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
 from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
+from lorelie.lorelie_typings import TypeDatabase, TypeField
 from lorelie.queries import Query
 
 
@@ -133,8 +134,8 @@ class Table(AbstractTable):
         self.table_constraints = constraints
         self.field_constraints = {}
         self.is_foreign_key_table = False
-        self.attached_to_database = None
-        self.columns_map = {}
+        self.attached_to_database: TypeDatabase = None
+        self.columns_map: dict[str, Column] = {}
 
         # The str_field is the name of the
         # field to be used for representing
@@ -144,7 +145,7 @@ class Table(AbstractTable):
         self.ordering = set(ordering)
 
         super().__init__()
-        self.fields_map = OrderedDict()
+        self.fields_map: dict[str, TypeField] = OrderedDict()
         self.auto_add_fields = set()
         self.auto_update_fields = set()
 
@@ -341,7 +342,7 @@ class Table(AbstractTable):
             if field.is_relationship_field:
                 yield field.relationship_field_params
 
-    def prepare(self, database, skip_creation=False):
+    def prepare(self, database: TypeDatabase, skip_creation: bool = False):
         """Prepares the table with additional parameters by 
         getting all the necessary field parameters to be used in 
         order to create the current table. Runs the created SQL
@@ -386,7 +387,7 @@ class Table(AbstractTable):
 
         self.is_prepared = True
 
-        # Once hte table is created and everything
+        # Once the table is created and everything
         # is setup correctly, we create an abstract
         # database column to interface the column locally
         for name, field in self.fields_map.items():

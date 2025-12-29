@@ -1,11 +1,12 @@
 import sqlite3
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
                                     SelectNode, WhereNode)
+from lorelie.lorelie_typings import TypeSQLiteBackend, TypeTable
 
 if TYPE_CHECKING:
     from lorelie.backends import SQLiteBackend
@@ -54,12 +55,20 @@ class Query:
         return f'<{self.__class__.__name__} [{self.sql}]>'
 
     @classmethod
-    def create(cls, table=None, backend=None):
+    def create(cls, table: TypeTable = None, backend: TypeSQLiteBackend = None):
         """Creates a new `Query` class to be executed"""
         return cls(table=table, backend=backend)
 
     @classmethod
-    def run_script(cls, backend=None, table=None, sql_tokens=[]):
+    def run_script(cls, backend: Optional[TypeSQLiteBackend] = None, table: Optional[TypeTable] = None, sql_tokens=[], callback: Optional[Callable[[str], None]] = None):
+        """Runs a script made of multiple sql statements
+        
+        Args:
+            backend (TypeSQLiteBackend, optional): The database backend to use. Defaults to None.
+            table (TypeTable, optional): The table associated with the query. Defaults to None.
+            sql_tokens (list, optional): A list of SQL statements or tokens to execute. Defaults to [].
+            callback (Callable[[str], None], optional): A callback function to be called after execution. Defaults to None.
+        """
         template = 'begin; {statements} commit;'
         instance = cls(table=table, backend=backend)
 
@@ -106,13 +115,16 @@ class Query:
                 for query in log_queries:
                     lorelie_logger.info(f"\"{query}\"")
 
+            if callback is not None:
+                callback(script)
+
             return instance
 
     @property
     def return_single_item(self):
         return self.result_cache[-0]
 
-    def add_sql_node(self, node):
+    def add_sql_node(self, node: BaseNode | str):
         if not isinstance(node, (BaseNode, str)):
             raise ValueError(
                 f"{node} should be an instance "

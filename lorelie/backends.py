@@ -409,7 +409,7 @@ class SQL(ExpressionFiltersMixin):
         return ''.join(values)
 
     @staticmethod
-    def finalize_sql(sql):
+    def finalize_sql(sql: str):
         """Ensures that a statement ends
         with `;` to be considered valid"""
         if sql.endswith(';'):
@@ -417,7 +417,7 @@ class SQL(ExpressionFiltersMixin):
         return f'{sql};'
 
     @staticmethod
-    def de_sqlize_statement(sql):
+    def de_sqlize_statement(sql: str):
         """Returns an sql statement without 
         `;` at the end"""
         if sql.endswith(';'):
@@ -429,7 +429,7 @@ class SQL(ExpressionFiltersMixin):
         return f"({value})"
 
     @staticmethod
-    def build_alias(condition, alias):
+    def build_alias(condition: str, alias: str):
         """Returns the alias statement for a given sql
         statement like in `count(name) as top_names`"""
         return f'{condition} as {alias}'
@@ -578,7 +578,7 @@ class SQL(ExpressionFiltersMixin):
         # and resolve_functions to detect functions
         return annotation_map
 
-    def decompose_sql_statement(self, sql):
+    def decompose_sql_statement(self, sql: str):
         regexes = {
             'select': {
                 'columns': re.compile(r'^select\s(.*)\sfrom'),

@@ -1,3 +1,4 @@
+from typing import Any, Callable
 import uuid
 import datetime
 import decimal
@@ -18,7 +19,7 @@ class Field:
     base_validators = []
     default_field_errors = {}
 
-    def __init__(self, name, *, max_length=None, null=False, primary_key=False, default=None, unique=False, validators=[], verbose_name=None, editable=False):
+    def __init__(self, name: str, *, max_length: int = None, null: bool = False, primary_key: bool = False, default=None, unique: bool = False, validators: list[Callable[[Any], None]] = [], verbose_name: str = None, editable: bool = False):
         self.constraints = []
         self.name = self.validate_field_name(name)
         self.verbose_name = verbose_name

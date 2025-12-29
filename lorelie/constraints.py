@@ -1,11 +1,14 @@
 import secrets
+from abc import ABC, abstractmethod
+from typing import ClassVar, Generic, Optional, override
 
 from lorelie.expressions import CombinedExpression, Q
+from lorelie.lorelie_typings import TypeSQLiteBackend
 
 
-class BaseConstraint:
-    template_sql = None
-    prefix = None
+class BaseConstraint(Generic[TypeSQLiteBackend], ABC):
+    template_sql: Optional[str] = None
+    prefix: Optional[str] = None
     base_errors = {
         'integer': (
             "Limit for {klass} should be "
@@ -13,22 +16,23 @@ class BaseConstraint:
         )
     }
 
-    def __init__(self, name):
+    def __init__(self, name: str):
         self.name = name
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.generated_name}>'
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.name))
 
     @property
-    def generated_name(self):
+    def generated_name(self) -> str:
         random_string = secrets.token_hex(nbytes=5)
         return '_'.join([self.prefix, self.name, random_string])
 
-    def as_sql(self, backend):
-        return NotImplemented
+    @abstractmethod
+    def as_sql(self, backend: TypeSQLiteBackend) -> str:
+        raise NotImplemented
 
 
 class CheckConstraint(BaseConstraint):
@@ -39,11 +43,15 @@ class CheckConstraint(BaseConstraint):
 
     >>> name_constraint = CheckConstraint('my_name', Q(name__ne='Kendall'))
     ... table = Table('celebrities', constraints=[name_constraint])
-    """
-    template_sql = 'check({condition})'
-    prefix = 'chk'
 
-    def __init__(self, name, condition):
+    Args:
+        name (str): The name of the constraint.
+        condition (Q | CombinedExpression): The condition to be enforced by the constraint.
+    """
+    template_sql: ClassVar[str] = 'check({condition})'
+    prefix: ClassVar[str] = 'chk'
+
+    def __init__(self, name: str, condition: Q | CombinedExpression):
         super().__init__(name)
         if not isinstance(condition, (Q, CombinedExpression)):
             raise ValueError('Condition should be an instance of Q')
@@ -52,7 +60,8 @@ class CheckConstraint(BaseConstraint):
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.condition}>'
 
-    def as_sql(self, backend):
+    @override
+    def as_sql(self, backend: TypeSQLiteBackend):
         condition_sql = backend.simple_join(self.condition.as_sql(backend))
         return self.template_sql.format(condition=condition_sql)
 
@@ -68,8 +77,8 @@ class UniqueConstraint(BaseConstraint):
     >>> unique_name = UniqueConstraint(fields=['name'])
     ... table = Table('celebrities', constraints=[unique_name])
     """
-    template_sql = 'unique({fields})'
-    prefix = 'unq'
+    template_sql: ClassVar[str] = 'unique({fields})'
+    prefix: ClassVar[str] = 'unq'
 
     def __init__(self, name, *, fields=[]):
         super().__init__(name)
@@ -78,7 +87,8 @@ class UniqueConstraint(BaseConstraint):
     def __repr__(self):
         return f'<{self.__class__.__name__}: ({self.fields})>'
 
-    def as_sql(self, backend):
+    @override
+    def as_sql(self, backend: TypeSQLiteBackend):
         fields = backend.comma_join(self.fields)
         return self.template_sql.format(fields=fields)
 
@@ -101,10 +111,11 @@ class MaxLengthConstraint(MinMaxMixin, BaseConstraint):
     the constraint will be violated, thus maintaining data integrity by 
     restricting the length of the input data"""
 
-    template_sql = 'check({condition})'
-    length_sql = 'length({column})'
+    template_sql: ClassVar[str] = 'check({condition})'
+    length_sql: ClassVar[str] = 'length({column})'
 
-    def as_sql(self, backend):
+    @override
+    def as_sql(self, backend: TypeSQLiteBackend):
         condition = backend.CONDITION.format_map({
             'field': self.length_sql.format(self.field.name),
             'operator': '>',
@@ -114,10 +125,11 @@ class MaxLengthConstraint(MinMaxMixin, BaseConstraint):
 
 
 class MinValueConstraint(MinMaxMixin, BaseConstraint):
-    template_sql = 'check({condition})'
-    operator = '>'
+    template_sql: ClassVar[str] = 'check({condition})'
+    operator: ClassVar[str] = '>'
 
-    def as_sql(self, backend):
+    @override
+    def as_sql(self, backend: TypeSQLiteBackend):
         condition = backend.CONDITION.format_map({
             'field': self.field.name,
             'operator': self.operator,
@@ -127,4 +139,4 @@ class MinValueConstraint(MinMaxMixin, BaseConstraint):
 
 
 class MaxValueConstraint(MinValueConstraint):
-    operator = '<'
+    operator: ClassVar[str] = '<'

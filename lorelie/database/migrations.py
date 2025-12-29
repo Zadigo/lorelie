@@ -230,6 +230,10 @@ class Migrations:
             migrations_table = self._build_migration_table()
             self.database._add_table(migrations_table)
             self.tables_for_creation.add('lorelie_migrations')
+            self.schemas['lorelie_migrations'] = Schema(
+                table=migrations_table,
+                database=self.database
+            )
 
         # Eventually create the tables
         if self.tables_for_creation:

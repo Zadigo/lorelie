@@ -123,3 +123,11 @@ class Color(enum.Enum):
     RED = 'red'
     GREEN = 'green'
     BLUE = 'blue'
+
+
+GGA = tuple[str, Color]
+
+
+def facebook(a: GGA):
+    c, d = a
+    d.value

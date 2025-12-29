@@ -1,11 +1,12 @@
 import pathlib
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 from enum import Enum
 if TYPE_CHECKING:
     from lorelie.database.base import SQLiteBackend
     from lorelie.database.tables.base import Table
     from lorelie.fields import Field
     from lorelie.database.base import Database
+    from lorelie.database.nodes import BaseNode
 
 TypeSQLiteBackend = TypeVar('TypeSQLiteBackend', bound='SQLiteBackend')
 
@@ -24,6 +25,10 @@ TypeField = TypeVar('TypeField', bound='Field')
 
 TypeDatabase = TypeVar('TypeDatabase', bound='Database')
 
+TypeNode = TypeVar('TypeNode', bound='BaseNode')
+
+TypeDecomposedFilterTuple = tuple[str, str, Any]
+
 
 class FieldTypeEnum(Enum):
     TEXT = 'text'
@@ -32,6 +37,7 @@ class FieldTypeEnum(Enum):
     BLOB = 'blob'
     NULL = 'null'
 
+
 class ConstraintTypeEnum(Enum):
     PRIMARY_KEY = 'primary_key'
     UNIQUE = 'unique'
@@ -39,3 +45,12 @@ class ConstraintTypeEnum(Enum):
     DEFAULT = 'default'
     CHECK = 'check'
     FOREIGN_KEY = 'foreign_key'
+
+
+class NodeEnums(Enum):
+    """The different types of nodes available."""
+    SELECT = 'select'
+    INSERT = 'insert'
+    UPDATE = 'update'
+    DELETE = 'delete'
+    CREATE = 'create'

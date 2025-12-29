@@ -40,6 +40,7 @@ class LorelieTestCase(unittest.TestCase):
             BooleanField('is_active', default=True),
             DateTimeField('created_on', auto_add=True)
         ])
+        table.indexes[0].name
         return table
 
     def create_database(self, using=None, log_queries=False):

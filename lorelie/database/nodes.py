@@ -17,13 +17,11 @@ multiple nodes together
 
 import dataclasses
 import re
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, ClassVar, Generic, Optional, override
+from abc import ABC, abstractmethod
 
 from lorelie.expressions import CombinedExpression, Q
-
-if TYPE_CHECKING:
-    from lorelie.backends import SQLiteBackend
-    from lorelie.database.tables.base import Table
+from lorelie.lorelie_typings import TypeNode, TypeSQLiteBackend, TypeTable
 
 
 @dataclasses.dataclass
@@ -49,8 +47,8 @@ class SelectMap:
             self.select == 'select'
         ])
 
-    def resolve(self, backend):
-        nodes = []
+    def resolve(self, backend: TypeSQLiteBackend):
+        nodes: list[str] = []
         nodes.extend(self.select.as_sql(backend))
 
         if self.where is not None:
@@ -83,10 +81,10 @@ class SelectMap:
 
 
 class RawSQL:
-    def __init__(self, backend, *nodes):
+    def __init__(self, backend: TypeSQLiteBackend, *nodes: TypeNode):
         for node in nodes:
             if not isinstance(node, (BaseNode, str)):
-                raise ValueError()
+                raise ValueError('RawSQL only accepts BaseNode or str types')
 
         self.nodes = list(nodes)
         self.backend = backend
@@ -130,14 +128,14 @@ class RawSQL:
         if self.resolve_select:
             return self.select_map.resolve(self.backend)
 
-        sql = []
+        sql: list[str] = []
         for node in self.nodes:
             sql.extend(node.as_sql(self.backend))
         return sql
 
 
-class ComplexNode:
-    def __init__(self, *nodes):
+class ComplexNode(Generic[TypeNode]):
+    def __init__(self, *nodes: TypeNode):
         self.nodes = list(nodes)
 
     def __repr__(self):
@@ -154,14 +152,14 @@ class ComplexNode:
     def __contains__(self, node):
         return node in self.nodes
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         return RawSQL(backend, *self.nodes)
 
 
-class BaseNode:
+class BaseNode(ABC):
     template_sql: Optional[str] = None
 
-    def __init__(self, table: Optional['Table'] = None, fields: list[str] = []):
+    def __init__(self, table: Optional[TypeTable] = None, fields: list[str] = []):
         self.table = table
         self.fields = fields or ['*']
 
@@ -185,29 +183,30 @@ class BaseNode:
     def __and__(self, node):
         return NotImplemented
 
-    def __call__(self, *fields):
+    def __call__(self, *fields: str):
         return NotImplemented
 
     @property
     def node_name(self):
         return NotImplemented
 
-    def as_sql(self, backend: 'SQLiteBackend'):
-        return NotImplemented
+    @abstractmethod
+    def as_sql(self, backend: TypeSQLiteBackend) -> list[str]:
+        raise NotImplemented
 
 
 class SelectNode(BaseNode):
-    template_sql = 'select {fields} from {table}'
+    template_sql: ClassVar[str] = 'select {fields} from {table}'
 
-    def __init__(self, table, *fields, distinct=False, limit=None, view_name=None):
+    def __init__(self, table: TypeTable, *fields: str, distinct: bool = False, limit: Optional[int] = None, view_name: Optional[str] = None):
         super().__init__(table=table, fields=fields)
         self.distinct = distinct
         # This parameter is implemented
-        # afterwards on the SeleectMap
+        # afterwards on the SelectMap
         self.limit = limit
         self.view_name = view_name
 
-    def __call__(self, *fields, **kwargs):
+    def __call__(self, *fields: str, **kwargs):
         new_fields = self.fields.extend(fields)
         return self.__class__(self.table, *new_fields, **kwargs)
 
@@ -215,6 +214,7 @@ class SelectNode(BaseNode):
     def node_name(self):
         return 'select'
 
+    @override
     def as_sql(self, backend):
         select_sql = self.template_sql.format_map({
             'fields': backend.comma_join(self.fields),
@@ -253,15 +253,15 @@ class WhereNode(BaseNode):
     ... "where name='Kendall'"
     """
 
-    template_sql = 'where {params}'
+    template_sql: ClassVar[str] = 'where {params}'
 
     def __init__(self, *args: Q | CombinedExpression, **expressions: Any):
         self.expressions = expressions
         self.func_expressions = list(args)
-        self.invert = False
+        self.invert: bool = False
         super().__init__()
 
-    def __call__(self, *args, **expressions):
+    def __call__(self, *args, **expressions: Any):
         self.expressions.update(expressions)
         self.func_expressions.extend(args)
         return self
@@ -274,7 +274,8 @@ class WhereNode(BaseNode):
     def node_name(self):
         return 'where'
 
-    def as_sql(self, backend):
+    @override
+    def as_sql(self, backend: TypeSQLiteBackend):
         # First, resolve Q, CombinedExpression to
         # their SQL representation. They are more
         # complex SQL expressions

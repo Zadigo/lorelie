@@ -1,5 +1,5 @@
 import pathlib
-from typing import TYPE_CHECKING, Literal, TypeVar
+from typing import TYPE_CHECKING, Literal, Protocol, TypeVar
 from enum import Enum
 
 if TYPE_CHECKING:
@@ -38,6 +38,10 @@ TypeQuery = TypeVar('TypeQuery', bound='Query')
 TypeQ = TypeVar('TypeQ', bound='Q')
 
 TypeExpression = TypeVar('TypeExpression', 'Q', 'CombinedExpression')
+
+
+class TypeNewValue(Protocol):
+    __dataclass_fields__: dict
 
 
 class FieldTypeEnum(Enum):

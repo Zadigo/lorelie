@@ -4,6 +4,8 @@ import unittest
 from typing import Generator
 from unittest.mock import MagicMock, Mock, patch
 
+from dataclasses import dataclass
+
 from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
 from lorelie.queries import log_queries
@@ -336,6 +338,17 @@ class TestTable(LorelieTestCase):
         for row in qs:
             with self.subTest(row=row):
                 self.assertIsNotNone(row.lowered_name)
+
+        @dataclass
+        class Celebrity:
+            name: str
+            height: int
+
+        table.objects.bulk_create([
+            Celebrity(name='Celebrity A', height=180),
+            Celebrity(name='Celebrity B', height=165),
+            Celebrity(name='Celebrity C', height=170),
+        ])
 
         print(list(log_queries))
         # print(row)

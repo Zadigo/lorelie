@@ -2,7 +2,7 @@ import collections
 import dataclasses
 import datetime
 from dataclasses import is_dataclass
-from typing import Any, Generic, Optional
+from typing import Any, Generic, Optional, Sequence
 
 from asgiref.sync import sync_to_async
 
@@ -11,7 +11,7 @@ from lorelie.database.functions.dates import Extract
 from lorelie.database.nodes import (InsertNode, IntersectNode, OrderByNode,
                                     SelectNode, UpdateNode, WhereNode)
 from lorelie.exceptions import FieldExistsError, MigrationsExistsError
-from lorelie.lorelie_typings import TypeAny, TypeDatabase, TypeQuerySet, TypeTable
+from lorelie.lorelie_typings import TypeAny, TypeDatabase, TypeNewValue, TypeQuerySet, TypeTable
 from lorelie.queries import QuerySet, ValuesIterable
 
 
@@ -55,7 +55,7 @@ class DatabaseManager(Generic[TypeQuerySet]):
         instance.auto_created = False
         return instance
 
-    def _validate_auto_fields(self, table: TypeTable, params, update_only: bool = False):
+    def _validate_auto_fields(self, table: TypeTable, params: dict[str, Any], update_only: bool = False):
         # There might be cases where the
         # user does not pass any values
         # in the create fields but that
@@ -442,16 +442,15 @@ class DatabaseManager(Generic[TypeQuerySet]):
             query.add_sql_node(ordering_node)
         return QuerySet(query)
 
-    def bulk_create(self, objs):
+    def bulk_create(self, objs: Sequence[TypeNewValue]):
         """Creates multiple objects in the database at once
         using a list of datasets or dictionnaries
 
         >>> @dataclasses.dataclass
         ... class Celebrity:
         ...     name: str
-
-        >>> db.objects.bulk_create([Celebrity('Taylor Swift')])
-        ... [<Celebrity: 1>]
+        ...
+        ... db.objects.bulk_create([Celebrity('Taylor Swift')])
         """
         invalid_objects_counter = 0
         for obj in objs:
@@ -474,22 +473,16 @@ class DatabaseManager(Generic[TypeQuerySet]):
         columns_to_use = set()
         values_to_create = []
 
+        dataclass_values = []
         for obj in objs:
-            dataclass_values = []
-            dataclass_fields = dataclasses.fields(obj)
+            columns_to_use.update(
+                (field.name for field in dataclasses.fields(obj)))
 
-            dataclass_data = {}
-            for dataclass_field in dataclass_fields:
-                columns_to_use.add(dataclass_field.name)
+            values = dataclasses.asdict(obj)
+            dataclass_values.append(
+                self._validate_auto_fields(self.table, values))
 
-                value = getattr(obj, dataclass_field.name)
-                dataclass_data[dataclass_field.name] = value
-
-            dataclass_values.append(dataclass_data)
             values_to_create.extend(dataclass_values)
-
-            # TODO: We have to validate auto fields
-            # self._validate_auto_fields(self.table, )
 
         # TODO: We have to call validate values
 
@@ -557,7 +550,7 @@ class DatabaseManager(Generic[TypeQuerySet]):
     def only(self):
         return NotImplemented
 
-    def get_or_create(self, create_defaults: dict[str, Any]={}, **kwargs: Any):
+    def get_or_create(self, create_defaults: dict[str, Any] = {}, **kwargs: Any):
         """Tries to get a row in the database using the coditions
         passed in kwargs. It then uses the `defaults`
         parameter to create the values that do not exist.
@@ -605,7 +598,7 @@ class DatabaseManager(Generic[TypeQuerySet]):
     # def select_related()
     # def fetch_related()
 
-    def update_or_create(self, create_defaults: dict[str, Any]={}, **kwargs: Any):
+    def update_or_create(self, create_defaults: dict[str, Any] = {}, **kwargs: Any):
         """Updates a row in the database selected on the
         filters determined by kwargs. It then uses the `create_defaults`
         parameter to create the values that do not exist.
@@ -706,7 +699,7 @@ class DatabaseManager(Generic[TypeQuerySet]):
         # then modify the data in the database
         return QuerySet(new_query)[0]
 
-    def intersect(self, qs1, qs2):
+    def intersect(self, qs1: TypeQuerySet, qs2: TypeQuerySet):
         """The intersect function allows you to combine 
         the result sets of two queries and returns 
         distinct rows that appear in both result sets. 

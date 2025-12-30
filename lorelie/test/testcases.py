@@ -6,11 +6,11 @@ from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.database.base import Database
 from lorelie.database.indexes import Index
+from lorelie.database.tables.base import Table
 from lorelie.exceptions import ValidationError
 from lorelie.expressions import Q
 from lorelie.fields.base import (BooleanField, CharField, DateTimeField,
                                  FloatField, IntegerField)
-from lorelie.database.tables.base import Table
 
 __all__ = [
     'LorelieTestCase'
@@ -23,7 +23,7 @@ class LorelieTestCase(unittest.TestCase):
         return SQLiteBackend()
 
     def create_physical_database(self):
-        return SQLiteBackend(database_or_name='celebrities_test.db', path=pathlib.Path('.').absolute())
+        return SQLiteBackend(database_or_name='celebrities_test')
 
     @cached_property
     def create_empty_database(self):

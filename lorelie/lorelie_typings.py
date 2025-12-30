@@ -134,9 +134,11 @@ TranslatedOperatorType = Literal[
 #                        'second': 'SECOND', 'hour': 'HOUR', 'time': 'TIME'})
 
 
-TypeListExpression = list[str, OperatorType, Any]
+# TypeListExpression = list[str, OperatorType, Any]
 
-TypeListOperatorType = list[str, TranslatedOperatorType, Any]
+# TypeListOperatorType = list[str, TranslatedOperatorType, Any]
 
 
 TypeRow = TypeVar('TypeRow', bound='BaseRow')
+
+TypeLogicalOperators = Literal['and', 'or']

@@ -1,8 +1,11 @@
 import dataclasses
+import pathlib
 import sqlite3
 import unittest
 from unittest.mock import patch
-from lorelie.backends import BaseRow, connections
+
+from lorelie.backends import BaseRow, SQLiteBackend, connections
+from lorelie.database.base import Database
 from lorelie.database.functions.aggregation import Count
 from lorelie.queries import Query
 from lorelie.test.testcases import LorelieTestCase
@@ -10,12 +13,32 @@ from lorelie.test.testcases import LorelieTestCase
 
 class TestSQLiteBackend(LorelieTestCase):
     def test_in_memory(self):
-        connection = self.create_connection()
-        self.assertTrue(connection.database_name == ':memory:')
+        sqlite = self.create_connection()
+        self.assertTrue(sqlite.database_name == ':memory:')
+        self.assertTrue(sqlite.in_memory_connection)
 
     def test_connection(self):
-        connection = self.create_connection()
-        self.assertIsInstance(connection.connection, sqlite3.Connection)
+        sqlite = self.create_connection()
+        self.assertIsInstance(sqlite.connection, sqlite3.Connection)
+        self.assertIsNotNone(sqlite.connection)
+        self.assertTrue(len(connections.created_connections) > 0)
+
+    def test_connection_with_path(self):
+        sqlite = SQLiteBackend(pathlib.Path(
+            '.').joinpath('celebrities_test').absolute())
+        self.assertIsNotNone(sqlite.connection)
+        self.assertTrue(sqlite.database_path.exists())
+
+    def test_connection_with_database(self):
+        db = Database(name='celebrities_test_db')
+        sqlite = SQLiteBackend(database_or_name=db)
+        self.assertIsNotNone(sqlite.connection)
+        self.assertTrue(sqlite.database_path.exists())
+
+        db2 = Database(path=pathlib.Path('.').absolute())
+        sqlite2 = SQLiteBackend(database_or_name=db2)
+        self.assertIsNotNone(sqlite2.connection)
+        self.assertTrue(sqlite2.in_memory_connection)
 
     def test_quote_value(self):
         connection = self.create_connection()
@@ -75,17 +98,26 @@ class TestSQLiteBackend(LorelieTestCase):
         connection = self.create_connection()
         result = connection.quote_startswith('Ken')
         self.assertRegex(result, r'^\'Ken\%\'$')
-        self.assertEqual(result, "Ken%")
+        self.assertEqual(result, "'Ken%'")
+
+        result = connection.quote_startswith(20)
+        self.assertEqual(result, "'20%'")
 
     def test_quote_endswith(self):
         connection = self.create_connection()
         result = connection.quote_endswith('all')
         self.assertRegex(result, r'^\'\%all\'$')
 
+        result = connection.quote_endswith(20)
+        self.assertEqual(result, "'%20'")
+
     def test_quote_like(self):
         connection = self.create_connection()
         result = connection.quote_like('all')
         self.assertRegex(result, r'^\'\%all%\'$')
+
+        result = connection.quote_like(20)
+        self.assertEqual(result, "'%20%'")
 
     def test_dict_to_sql(self):
         connection = self.create_connection()
@@ -93,8 +125,21 @@ class TestSQLiteBackend(LorelieTestCase):
         self.assertIsInstance(result, (list, tuple))
         self.assertTupleEqual(result, (['name__eq'], ["'Kendall'"]))
 
-#     def test_build_script(self):
-#         pass
+    def test_build_script(self):
+        sql_statements = [
+            'create table celebrities (id integer primary key autoincrement not null, name text null)',
+            "insert into celebrities values(1, 'Kendall Jenner')",
+            "select * from celebrities order by id"
+        ]
+        connection = self.create_connection()
+        result = connection.build_script(*sql_statements)
+        self.assertIsInstance(result, str)
+        expected_script = (
+            'create table celebrities (id integer primary key autoincrement not null, name text null);\n'
+            "insert into celebrities values(1, 'Kendall Jenner');\n"
+            'select * from celebrities order by id;'
+        )
+        self.assertEqual(result, expected_script)
 
     def test_decompose_filters_from_string(self):
         connection = self.create_connection()

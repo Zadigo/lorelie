@@ -6,7 +6,7 @@ import re
 import sqlite3
 from collections import defaultdict
 from dataclasses import field
-from typing import TYPE_CHECKING, Any, Optional, Set
+from typing import Any, Optional, Sequence, Set
 
 import pytz
 
@@ -22,13 +22,10 @@ from lorelie.database.nodes import (DeleteNode, SelectNode, UpdateNode,
                                     WhereNode)
 from lorelie.exceptions import ConnectionExistsError
 from lorelie.expressions import Q
-from lorelie.lorelie_typings import TypeRow, TypeStrOrPathLibPath, TypeSQLiteBackend, TypeTable
+from lorelie.lorelie_typings import (TypeDatabase, TypeLogicalOperators,
+                                     TypeRow, TypeSQLiteBackend,
+                                     TypeStrOrPathLibPath, TypeTable)
 from lorelie.queries import Query, QuerySet
-
-
-if TYPE_CHECKING:
-    from lorelie.database.base import Database
-    from lorelie.database.tables.base import Table
 
 
 class Connections:
@@ -383,7 +380,7 @@ class SQL(ExpressionFiltersMixin):
         return ', '.join(map(check_value_type, values))
 
     @staticmethod
-    def operator_join(values, operator='and'):
+    def operator_join(values: list[str], operator: TypeLogicalOperators = 'and'):
         """Joins a set of values using a valid
         operator: and, or
 
@@ -429,7 +426,8 @@ class SQL(ExpressionFiltersMixin):
         return sql
 
     @staticmethod
-    def wrap_parenthentis(value):
+    def wrap_parenthentis(value: str):
+        """Wraps a given value in parenthentis"""
         return f"({value})"
 
     @staticmethod
@@ -438,7 +436,7 @@ class SQL(ExpressionFiltersMixin):
         statement like in `count(name) as top_names`"""
         return f'{condition} as {alias}'
 
-    def build_dot_notation(self, values):
+    def build_dot_notation(self, values: Sequence[Sequence[str]]):
         """Transforms a set of values to a valid
         SQL dot notation
 
@@ -504,27 +502,27 @@ class SQL(ExpressionFiltersMixin):
         """Quotes multiple values at once"""
         return list(map(lambda x: self.quote_value(x), values))
 
-    def quote_startswith(self, value):
+    def quote_startswith(self, value: str):
         """Creates a startswith wildcard and returns
         the quoted condition
 
         >>> self.quote_startswith(self, 'kendall')
         ... "'kendall%'"
         """
-        value = value + '%'
+        value = str(value) + '%'
         return self.quote_value(value)
 
-    def quote_endswith(self, value):
+    def quote_endswith(self, value: str):
         """Creates a endswith wildcard and returns
         the quoted condition
 
         >>> self.quote_endswith(self, 'kendall')
         ... "'%kendall'"
         """
-        value = '%' + value
+        value = '%' + str(value)
         return self.quote_value(value)
 
-    def quote_like(self, value):
+    def quote_like(self, value: str):
         """Creates a like wildcard and returns
         the quoted condition
 
@@ -554,7 +552,7 @@ class SQL(ExpressionFiltersMixin):
             return fields, quoted_value
         return fields, data.values()
 
-    def build_script(self, *sqls):
+    def build_script(self, *sqls: str):
         return '\n'.join(map(lambda x: self.finalize_sql(x), sqls))
 
     def build_annotation(self, conditions):
@@ -636,14 +634,19 @@ class SQL(ExpressionFiltersMixin):
 class SQLiteBackend(SQL):
     """Class that initiates and encapsulates a
     new connection to an sqlite database. The connection
-    can be in memory or to a physical database"""
+    can be in memory or to a physical database
 
-    def __init__(self, database_or_name: Optional['Database'] | Optional[str] = None, log_queries: bool = False, path: Optional[TypeStrOrPathLibPath] = None):
+    Args:
+        database_or_name: Either the database instance or the name of the database to connect to.
+        log_queries: Whether to log the queries that are executed on this backend.
+    """
+
+    def __init__(self, database_or_name: Optional[TypeDatabase | TypeStrOrPathLibPath] = None, log_queries: bool = False):
         self.database_name: Optional[str] = None
-        self.database_path = None
-        self.database_instance = None
+        self.database_path: Optional[pathlib.Path] = None
+        self.database_instance: Optional[TypeDatabase] = None
         self.connection_timestamp = datetime.datetime.now().timestamp()
-        self.in_memory_connection = False
+        self.in_memory_connection: bool = False
 
         # sqlite3.register_adapter(datetime.datetime.now, str)
         sqlite3.register_converter('date', converters.convert_date)
@@ -651,43 +654,50 @@ class SQLiteBackend(SQL):
         sqlite3.register_converter('timestamp', converters.convert_timestamp)
         sqlite3.register_converter('boolean', converters.convert_boolean)
 
-        def build_path(name: str, path_obj: pathlib.Path) -> pathlib.Path:
-            if not path_obj.is_dir():
-                raise ValueError(
-                    "Path should be a path to "
-                    f"a directory: {path_obj}"
-                )
-            return path_obj.joinpath(name)
-
-        # TODO: Review this logic
-        if isinstance(database_or_name, str):
-            if path is not None:
-                self.database_path = build_path(self.database_name, path)
-            self.database_path = self.database_name
-        else:
-            name = getattr(database_or_name, 'database_name', None)
-            if name is not None and path is not None:
-                self.database_path = build_path(f'{name}.sqlite', path)
-
-            if hasattr(database_or_name, 'database_name'):
-                self.database_instance = database_or_name
-
-            self.database_name = name
-
         params = {
             'check_same_thread': False,
             'autocommit': True,
             'detect_types': sqlite3.PARSE_DECLTYPES
         }
 
-        if self.database_name is None:
-            self.in_memory_connection = True
-            connection = sqlite3.connect(':memory:', **params)
-        elif path is not None:
+        if isinstance(database_or_name, str):
+            self.database_name = database_or_name
+            self.database_path = pathlib.Path(database_or_name)
             connection = sqlite3.connect(self.database_path, **params)
+        elif isinstance(database_or_name, pathlib.Path):
+            if database_or_name.is_dir():
+                raise ValueError(
+                    "Path should be a path to "
+                    f"a database file: {database_or_name}"
+                )
+
+            if database_or_name.suffix != '.sqlite':
+                database_or_name = database_or_name.with_suffix('.sqlite')
+
+            self.database_path = database_or_name
+            self.database_name = database_or_name.stem
+            connection = sqlite3.connect(self.database_path, **params)
+        elif hasattr(database_or_name, 'database_name'):
+            name: str = getattr(database_or_name, 'database_name', None)
+            path: pathlib.Path = getattr(database_or_name, 'path', None)
+            self.database_instance = database_or_name
+
+            if name is not None:
+                self.database_name = name
+                self.database_path = path.joinpath(name).with_suffix('.sqlite')
+                connection = sqlite3.connect(self.database_path, **params)
+            else:
+                # This means we are creating an in-memory
+                # database connection
+                self.in_memory_connection = True
+                self.database_name = ':memory:'
+                connection = sqlite3.connect(':memory:', **params)
         else:
-            name_with_extension = f'{self.database_name}.sqlite'
-            connection = sqlite3.connect(name_with_extension, **params)
+            # This means we are creating an in-memory
+            # database connection
+            self.in_memory_connection = True
+            self.database_name = ':memory:'
+            connection = sqlite3.connect(':memory:', **params)
 
         MD5Hash.create_function(connection)
         SHA256Hash.create_function(connection)

@@ -182,14 +182,22 @@ class Database:
             if isinstance(path, str):
                 path = pathlib.Path(path)
 
+            if not path.is_dir():
+                raise ValueError(
+                    "When providing a path, it should be "
+                    "a directory where the database file "
+                    "will be stored"
+                )
+
             self.path = path
 
         # Create a connection to populate the
         # connection pool for the rest of the
-        # operations
+        # operations. THe user can create either
+        # an in-memory database or a physical
+        # database by providing a name
         self.backend_class(
             database_or_name=self,
-            path=self.path,
             log_queries=log_queries
         )
 

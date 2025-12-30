@@ -1,7 +1,8 @@
 import datetime
+from typing import Any
 
 
-def convert_date(data):
+def convert_date(data: Any) -> datetime.date:
     """This function provides a base conversion mechanism 
     for transforming dates stored in the database into Python
     `datetime.date` objects. It is registered via `sqlite3.register_converter`, 
@@ -11,7 +12,7 @@ def convert_date(data):
     return datetime.datetime.strptime(data, '%Y-%m-%d')
 
 
-def convert_datetime(data):
+def convert_datetime(data: Any) -> datetime.datetime:
     """This function provides a base conversion mechanism 
     for transforming dates stored in the database into Python
     `datetime.datetime` objects. It is registered via `sqlite3.register_converter`, 
@@ -24,7 +25,7 @@ def convert_datetime(data):
         return datetime.datetime.strptime(data, '%Y-%m-%d %H:%M:%S.%f')
 
 
-def convert_timestamp(data):
+def convert_timestamp(data: Any) -> datetime.datetime:
     """This function provides a base conversion mechanism 
     for transforming dates stored in the database into Python
     `datetime.datetime.timestamp` objects. It is registered via 
@@ -34,6 +35,11 @@ def convert_timestamp(data):
     return datetime.datetime.fromtimestamp(int(data))
 
 
-def convert_boolean(data):
+def convert_boolean(data: Any) -> bool:
+    """This function provides a base conversion mechanism 
+    for transforming boolean values stored in the database into Python
+    `bool` objects. It is registered via `sqlite3.register_converter`, 
+    to convert boolean fields when data is fetched from the database, ensuring 
+    that boolean values are properly interpreted as Python bool objects"""
     decoded_data = data.decode('utf-8')
     return True if decoded_data == '1' else False

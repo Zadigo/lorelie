@@ -190,7 +190,7 @@ class BaseNode(ABC):
 
     @property
     def node_name(self) -> str:
-        raise NotImplemented
+        return None
 
     @abstractmethod
     def as_sql(self, backend: TypeSQLiteBackend) -> list[str]:
@@ -225,14 +225,9 @@ class SelectNode(BaseNode):
             'table': self.view_name or self.table.name
         })
 
-        # if self.distinct:
-        #     select_sql = select_sql.replace('select', 'select distinct')
-
-        # select_clause = [select_sql]
-
-        # if self.limit:
-        #     limit = backend.LIMIT.format(value=self.limit)
-        #     select_clause.append(limit)
+        if self.limit is not None:
+            limit = backend.LIMIT.format(value=self.limit)
+            select_sql = f'{select_sql} {limit}'
 
         if self.distinct:
             return [select_sql.replace('select', 'select distinct')]

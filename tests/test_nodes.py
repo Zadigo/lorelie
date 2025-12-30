@@ -12,12 +12,15 @@ from lorelie.test.testcases import LorelieTestCase
 
 class TestBaseNode(LorelieTestCase):
     def test_structure(self):
-        node = BaseNode(self.create_table())
+        class CustomNode(BaseNode):
+            def as_sql(self, backend):
+                return 'custom sql'
+
+        node = CustomNode(self.create_table())
         self.assertListEqual(node.fields, ['*'])
-        self.assertEqual(node.node_name, NotImplemented)
+        self.assertIsNone(node.node_name)
         self.assertIsInstance(node + node, ComplexNode)
-        self.assertEqual(node.node_name, NotImplemented)
-        self.assertEqual(node.as_sql(self.create_connection()), NotImplemented)
+        self.assertEqual(node.as_sql(self.create_connection()), 'custom sql')
 
 
 class TestInsertNode(LorelieTestCase):
@@ -96,25 +99,23 @@ class TestSelectNode(LorelieTestCase):
             ['select distinct * from celebrities']
         )
 
-    def test_limit(self, mock_connect):
+    def test_limit(self, msqlite):
         node = SelectNode(self.create_table(), limit=10)
         result = node.as_sql(self.create_connection())
         self.assertListEqual(
             result,
-            ['select * from celebrities', 'limit 10']
+            ['select * from celebrities limit 10']
         )
 
-    def test_all_parameters(self, mock_connect):
-        # TODO: Verify the order in which the limit
-        # argument comes in the select statement
+    def test_all_parameters(self, msqlite):
         node = SelectNode(self.create_table(), distinct=True, limit=10)
         result = node.as_sql(self.create_connection())
         self.assertListEqual(
             result,
-            ['select distinct * from celebrities', 'limit 10']
+            ['select distinct * from celebrities limit 10']
         )
 
-    def test_with_view_name(self, mock_connect):
+    def test_with_view_name(self, msqlite):
         # If the view is specified, the view_name takes precedence
         # over the table
         select = SelectNode(self.create_table(), view_name='view_name')

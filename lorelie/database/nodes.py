@@ -28,14 +28,23 @@ from lorelie.lorelie_typings import (NodeEnums, TypeJoinTypes, TypeNode,
 
 @dataclasses.dataclass
 class SelectMap:
-    """A map that resolves the correct
+    """A map used in Query that resolves the correct
     positions for the different parameters
-    for the select sql statement"""
+    within a select sql statement:
 
+        1. "SELECT" + "FROM"
+        2. "WHERE"
+        3. "GROUP BY" + "HAVING"
+        4. "ORDER BY"
+        5. "LIMIT" + "OFFSET"
+    """
+
+    # The node used to complete the dataclass fields
     select: Optional['SelectNode'] = None
     where: Optional['WhereNode'] = None
     order_by: Optional['OrderByNode'] = None
     limit: Optional[int] = None
+    offset: Optional[int] = None
     groupby: Optional[str] = None
     having: Optional[str] = None
 
@@ -56,21 +65,22 @@ class SelectMap:
         if self.where is not None:
             nodes.extend(self.where.as_sql(backend))
 
-        if self.order_by is not None:
-            nodes.extend(self.order_by.as_sql(backend))
-
-        # TODO: Check the place limit has to
-        # be in the statement
-        if self.limit is not None:
-            if self.select.limit is not None:
-                setattr(self, 'limit', self.select.limit)
-                nodes.extend([f'limit {self.limit}'])
-
         if self.groupby is not None:
             nodes.extend([self.groupby])
 
-        if self.having is not None:
-            nodes.extend([self.having])
+            if self.having is not None:
+                nodes.extend([self.having])
+
+        if self.order_by is not None:
+            nodes.extend(self.order_by.as_sql(backend))
+
+        if self.limit is not None:
+            setattr(self, 'limit', self.select.limit)
+            nodes.extend([f'limit {self.limit}'])
+
+            if self.select.offset is not None:
+                setattr(self, 'offset', self.select.offset)
+                nodes.extend([f'offset {self.offset}'])
 
         return nodes
 
@@ -200,12 +210,13 @@ class BaseNode(ABC):
 class SelectNode(BaseNode):
     template_sql: ClassVar[str] = 'select {fields} from {table}'
 
-    def __init__(self, table: TypeTable, *fields: str, distinct: bool = False, limit: Optional[int] = None, view_name: Optional[str] = None):
+    def __init__(self, table: TypeTable, *fields: str, distinct: bool = False, limit: Optional[int] = None, offset: Optional[int] = None, view_name: Optional[str] = None):
         super().__init__(table=table, fields=fields)
         self.distinct = distinct
         # This parameter is implemented
         # afterwards on the SelectMap
         self.limit = limit
+        self.offset = offset
         self.view_name = view_name
 
     def __call__(self, *fields: str, **kwargs):
@@ -225,13 +236,13 @@ class SelectNode(BaseNode):
             'table': self.view_name or self.table.name
         })
 
-        if self.limit is not None:
-            limit = backend.LIMIT.format(value=self.limit)
-            select_sql = f'{select_sql} {limit}'
-
         if self.distinct:
             return [select_sql.replace('select', 'select distinct')]
 
+        # Returns a regular select sql. The rest of the
+        # parameters (where, order by, limit, offset)
+        # are handled by the SelectMap in the Query class
+        # before final sql generation
         return [select_sql]
 
 

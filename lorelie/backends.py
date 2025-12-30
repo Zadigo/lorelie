@@ -333,6 +333,7 @@ class SQL(ExpressionFiltersMixin):
     WHEN = 'when {condition} then {value}'
 
     LIMIT = 'limit {value}'
+    OFFSET = 'offset {value}'
 
     SQL_REGEXES = [
         re.compile(r'^select\s(.*)\sfrom\s(.*)\s(where)?\s(.*);?$')

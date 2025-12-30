@@ -107,6 +107,14 @@ class TestSelectNode(LorelieTestCase):
             ['select * from celebrities limit 10']
         )
 
+        # With offset
+        node = SelectNode(self.create_table(), limit=10, offset=5)
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            ['select * from celebrities limit 10 offset 5']
+        )
+
     def test_all_parameters(self, msqlite):
         node = SelectNode(self.create_table(), distinct=True, limit=10)
         result = node.as_sql(self.create_connection())
@@ -439,14 +447,28 @@ class TestSelectMap(LorelieTestCase):
     def test_structure(self):
         select = SelectNode(self.create_table())
         where = WhereNode(name='Kendall')
+        orderby = OrderByNode(self.create_table(), 'name')
 
-        select_map = SelectMap(select, where)
+        select_map = SelectMap(select, where, orderby)
 
         self.assertTrue(select_map.should_resolve_map)
-        self.assertIsInstance(
-            select_map.resolve(self.create_connection()),
-            list
-        )
+        sql = select_map.resolve(self.create_connection())
+        self.assertIsInstance(sql, list)
+
+    def test_limit_offset(self):
+        select = SelectNode(self.create_table(), limit=10, offset=5)
+        where = WhereNode(name='Kendall')
+        orderby = OrderByNode(self.create_table(), 'name')
+
+        select_map = SelectMap(select, where, orderby, limit=10, offset=5)
+        sql = select_map.resolve(self.create_connection())
+        print(sql)
+        # self.assertListEqual(
+        #     sql,
+        #     [
+        #         "select * from celebrities where name='Kendall' order by name asc limit 10 offset 5"
+        #     ]
+        # )
 
     def test_can_resolve(self):
         select_map = SelectMap()

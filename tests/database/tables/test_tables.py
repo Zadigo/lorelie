@@ -1,10 +1,13 @@
+import random
 import sqlite3
 import unittest
 from typing import Generator
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
+from lorelie.queries import log_queries
+from lorelie.database.functions.text import Lower
 from lorelie.database.tables.base import Table
 from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
                                 ValidationError)
@@ -15,7 +18,7 @@ from lorelie.test.testcases import LorelieTestCase
 
 class TestTable(LorelieTestCase):
     @patch.object(sqlite3, 'connect')
-    def test_structure(self, mock_connect: Mock):
+    def test_structure(self, msqlite: Mock):
         table = self.create_table()
 
         self.assertTrue(table == table)
@@ -35,12 +38,32 @@ class TestTable(LorelieTestCase):
         mdatabase.relationships = {}
 
         table.prepare(mdatabase)
-
         table._add_field('talent', talent)
+
         self.assertIn('talent', table)
         self.assertTrue(len(table.field_names), 5)
+        self.assertTrue(len(table.fields_map.keys()) > 0)
+        self.assertTrue(len(table.auto_update_fields) > 0)
+        self.assertTrue(len(table.field_names) > 0)
 
-        mock_connect.assert_called_once()
+        msqlite.assert_called_once()
+
+    def test_eq(self):
+        pass
+
+    def test_contains(self):
+        pass
+
+    def test_is_mixed_type_fields(self):
+        field1 = CharField('name')
+        field2 = IntegerField('age')
+        result = Table.is_mixed_type_fields(field1, field2)
+        self.assertTrue(result)
+
+    def test_has_field(self):
+        table = self.create_table()
+        self.assertTrue(table.has_field('name'))
+        self.assertFalse(table.has_field('age'))
 
     @patch.object(sqlite3, 'connect', autospec=True)
     def test_prepare(self, mconnection):
@@ -267,3 +290,53 @@ class TestTable(LorelieTestCase):
         f2 = table.fields_map['name']
         print(f1.index, f2.index)
         # self.assertEqual(f1.index, 1)
+
+    def test_manager(self):
+        table = self.create_table()
+        db = Database(table, name='db_celebrities')
+        db.migrate()
+
+        # table.objects.create(name='Kendall Jenner', height=175)
+        row = table.objects.get_or_create(
+            create_defaults={'height': 171},
+            name='Kylie Jenner'
+        )
+        self.assertIsNotNone(row)
+
+        row = table.objects.get_or_create(
+            create_defaults={'height': 175},
+            name=f'Kendall {random.randint(1, 100)}'
+        )
+
+        row = table.objects.update_or_create(
+            create_defaults={'height': 172},
+            name='Kylie Jenner'
+        )
+
+        qs = table.objects.all()
+        self.assertTrue(len(qs) > 0)
+
+        row = table.objects.first()
+        self.assertIsNotNone(row)
+
+        row = table.objects.last()
+        self.assertIsNotNone(row)
+
+        row = table.objects.get(id=1)
+        self.assertIsNotNone(row)
+
+        row = table.objects.filter(name='Kendall Jenner')
+        self.assertIsNotNone(row)
+
+        qs = table.objects.exclude(id=1)
+        self.assertTrue(len(qs) > 0)
+
+        qs = table.objects.annotate(lowered_name=Lower('name'))
+        self.assertTrue(len(qs) > 0)
+        for row in qs:
+            with self.subTest(row=row):
+                self.assertIsNotNone(row.lowered_name)
+
+        print(list(log_queries))
+        # print(row)
+        # print(qs)

@@ -76,11 +76,11 @@ class AbstractTable(metaclass=BaseTable):
         for value in values:
             yield self.validate_values_from_dict(value)
 
-    def validate_values_from_dict(self, values):
+    def validate_values_from_dict(self, values: dict[str, Any]):
         fields, values = self.backend.dict_to_sql(values, quote_values=False)
         return self.validate_values(fields, values)
 
-    def validate_values(self, fields, values):
+    def validate_values(self, fields: list[str], values: list[Any]):
         """Validate a set of values that the user is 
         trying to insert or update in the database
 

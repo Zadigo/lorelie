@@ -64,9 +64,10 @@ class NodeEnums(Enum):
     UPDATE = 'update'
     DELETE = 'delete'
     CREATE = 'create'
-    # WHERE = 'where'
+    INSERT = 'insert'
+    ORDER_BY = 'order_by'
+    WHERE = 'where'
     # JOIN = 'join'
-    # ORDER_BY = 'order_by'
     # GROUP_BY = 'group_by'
     # HAVING = 'having'
     # LIMIT = 'limit'
@@ -147,3 +148,6 @@ TranslatedOperatorType = Literal[
 TypeRow = TypeVar('TypeRow', bound='BaseRow')
 
 TypeLogicalOperators = Literal['and', 'or']
+
+
+TypeDecomposedFilterTuple = tuple[str, OperatorType, TypeAny]

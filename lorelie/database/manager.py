@@ -2,6 +2,7 @@ import collections
 import dataclasses
 import datetime
 from dataclasses import is_dataclass
+from typing import Any, Generic, Optional
 
 from asgiref.sync import sync_to_async
 
@@ -10,18 +11,19 @@ from lorelie.database.functions.dates import Extract
 from lorelie.database.nodes import (InsertNode, IntersectNode, OrderByNode,
                                     SelectNode, UpdateNode, WhereNode)
 from lorelie.exceptions import FieldExistsError, MigrationsExistsError
+from lorelie.lorelie_typings import TypeAny, TypeDatabase, TypeQuerySet, TypeTable
 from lorelie.queries import QuerySet, ValuesIterable
 
 
-class DatabaseManager:
+class DatabaseManager(Generic[TypeQuerySet]):
     """A manager is a class that implements query
     functionnalities for inserting, updating, deleting
     or retrieving data from the underlying database tables"""
 
     def __init__(self):
         self.table_map = {}
-        self.database = None
-        self.table = None
+        self.database: Optional[TypeDatabase] = None
+        self.table: Optional[TypeTable] = None
         # Tells if the manager was
         # created via as_manager
         self.auto_created = True
@@ -46,14 +48,14 @@ class DatabaseManager:
         return self
 
     @classmethod
-    def as_manager(cls, table_map={}, database=None):
+    def as_manager(cls, table_map={}, database: Optional[TypeDatabase] = None):
         instance = cls()
         instance.table_map = table_map
         instance.database = database
         instance.auto_created = False
         return instance
 
-    def _validate_auto_fields(self, table, params, update_only=False):
+    def _validate_auto_fields(self, table: TypeTable, params, update_only: bool = False):
         # There might be cases where the
         # user does not pass any values
         # in the create fields but that
@@ -121,7 +123,7 @@ class DatabaseManager:
         query.add_sql_node(select_node)
         return QuerySet(query)
 
-    def create(self, **kwargs):
+    def create(self, **kwargs: TypeAny):
         """The create function facilitates the creation 
         of a new row in the specified table within the 
         current database
@@ -202,8 +204,8 @@ class DatabaseManager:
 
         For example, returning each values of the name in lower or uppercase:
 
-        >>> db.objects.annotate('celebrities', lowered_name=Lower('name'))
-        ... db.objects.annotate('celebrities', uppered_name=Upper('name'))
+        >>> db.objects.annotate(lowered_name=Lower('name'))
+        ... db.objects.annotate(uppered_name=Upper('name'))
 
         Returning only the year for a given column:
 
@@ -214,27 +216,27 @@ class DatabaseManager:
 
         >>> condition = When('price=1', 2)
         ... case = Case(condition, default=3, output_field=CharField())
-        ... db.objects.annotate('celebrities', custom_price=case)
+        ... db.objects.annotate(custom_price=case)
 
         Suppose you have two columns `price` and `tax` we can return a new
         column with `price + tax`:
 
-        >>> db.objects.annotate('products', new_price=F('price') + F('tax'))
+        >>> db.objects.annotate(new_price=F('price') + F('tax'))
 
         You can also add a constant value to a column:
 
-        >>> db.objects.annotate('products', new_price=F('price') + 10)
+        >>> db.objects.annotate(new_price=F('price') + 10)
 
         The `Value` expression can be used to return a specific value in a column:        
 
-        >>> db.objects.annotate('products', new_price=Value(1))
+        >>> db.objects.annotate(new_price=Value(1))
 
         Finally, `Q` objects are used to encapsulate a collection 
         of keyword arguments and can be used to evaluate conditions. 
         For instance, to annotate a result indicating whether the price 
         is greater than 1:
 
-        >>> db.objects.annotate('products', result=Q(price__gt=1))
+        >>> db.objects.annotate(result=Q(price__gt=1))
 
         Using expressions without an alias field name will raise an error.
 
@@ -306,7 +308,7 @@ class DatabaseManager:
             query.add_sql_node(orderby_node)
         return QuerySet(query)
 
-    def values(self, *fields):
+    def values(self, *fields: str):
         """Returns data from the database as a list
         of dictionnary values
 
@@ -333,7 +335,7 @@ class DatabaseManager:
         # return list(dictionnaries())
         return list(ValuesIterable(queryset, fields=columns))
 
-    def dataframe(self, *fields):
+    def dataframe(self, *fields: str):
         """This method returns data from the database as a pandas 
         DataFrame object. This allows for easy manipulation and 
         analysis of the data using pandas' powerful data handling 
@@ -345,7 +347,7 @@ class DatabaseManager:
         import pandas
         return pandas.DataFrame(self.values(*fields))
 
-    def order_by(self, *fields):
+    def order_by(self, *fields: str):
         """Returns data ordered by the fields specified
         by the user. It can be sorted in ascending order:
 
@@ -555,7 +557,7 @@ class DatabaseManager:
     def only(self):
         return NotImplemented
 
-    def get_or_create(self, create_defaults={}, **kwargs):
+    def get_or_create(self, create_defaults: dict[str, Any]={}, **kwargs: Any):
         """Tries to get a row in the database using the coditions
         passed in kwargs. It then uses the `defaults`
         parameter to create the values that do not exist.
@@ -564,7 +566,7 @@ class DatabaseManager:
         will become the default `defaults`.
 
         >>> defaults = {'age': 24}
-        ... db.objects.get_or_create('celebrities', create_defaults=defaults, firstname='Margot')
+        ... db.objects.get_or_create(create_defaults=defaults, firstname='Margot')
 
         If the queryset returns multiple elements, an error is raised.
         """
@@ -603,7 +605,7 @@ class DatabaseManager:
     # def select_related()
     # def fetch_related()
 
-    def update_or_create(self, create_defaults={}, **kwargs):
+    def update_or_create(self, create_defaults: dict[str, Any]={}, **kwargs: Any):
         """Updates a row in the database selected on the
         filters determined by kwargs. It then uses the `create_defaults`
         parameter to create the values that do not exist.
@@ -612,7 +614,7 @@ class DatabaseManager:
         will become the default `create_defaults`.
 
         >>> create_defaults = {'age': 24}
-        ... db.objects.update_or_create('celebrities', create_defaults=create_defaults, firstname='Margot')
+        ... db.objects.update_or_create(create_defaults=create_defaults, firstname='Margot')
 
         If the queryset returns multiple elements (from the get conditions specified
         via kwargs), an error is raised.
@@ -714,7 +716,7 @@ class DatabaseManager:
 
         >>> qs1 = db.objects.all('celebrities')
         ... qs2 = db.objects.all('celebrities')
-        ... qs3 = db.objects.intersect('celebrities', qs1, qs2)
+        ... qs3 = db.objects.intersect(qs1, qs2)
         """
         if not isinstance(qs1, QuerySet):
             raise ValueError(f'{qs1} should be an instance of QuerySet')

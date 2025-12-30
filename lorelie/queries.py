@@ -2,7 +2,7 @@ import sqlite3
 import datetime
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
-from typing import Any, Optional, Type
+from typing import Any, Generic, Optional, Type
 
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
@@ -307,7 +307,7 @@ class EmptyQuerySet:
         return False
 
 
-class QuerySet:
+class QuerySet(Generic[TypeRow]):
     """Represents a set of results obtained from executing an SQL query. 
     It provides methods for manipulating and retrieving data from the database
 
@@ -358,11 +358,11 @@ class QuerySet:
         self.load_cache()
         return str(self.result_cache)
 
-    def __getitem__(self, index: int) -> TypeRow:
+    def __getitem__(self, index: int) -> TypeRow | None:
         self.load_cache()
         try:
             return self.result_cache[index]
-        except KeyError:
+        except (KeyError, IndexError):
             return None
 
     def __iter__(self):
@@ -433,15 +433,15 @@ class QuerySet:
                 self.query.transform_to_python()
             self.result_cache = self.query.result_cache
 
-    def first(self) -> Optional[TypeRow]:
+    def first(self):
         self.query.select_map.limit = 1
         self.query.select_map.order_by = OrderByNode(self.query.table, 'id')
-        return self[-1]
+        return self[-0]
 
-    def last(self) -> Optional[TypeRow]:
+    def last(self):
         self.query.select_map.limit = 1
         self.query.select_map.order_by = OrderByNode(self.query.table, '-id')
-        return self
+        return self[-1]
 
     def all(self) -> "QuerySet[TypeRow]":
         self.check_alias_view_name()
@@ -462,7 +462,7 @@ class QuerySet:
                 self.query.select_map.where = WhereNode(*args, **kwargs)
         return QuerySet(self.query)
 
-    def get(self, *args, **kwargs) -> Optional[TypeRow]:
+    def get(self, *args, **kwargs) -> TypeRow | None:
         if not args and not kwargs:
             queryset = QuerySet(self.query)
         else:
@@ -485,7 +485,7 @@ class QuerySet:
         pass
 
     def values(self, *fields):
-        return list(self.values_iterable_class(self, fields=fields))
+        return self.values_iterable_class(self, fields=fields)
 
     def get_dataframe(self, *fields):
         import pandas

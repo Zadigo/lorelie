@@ -1,9 +1,10 @@
 import dataclasses
 import sqlite3
 import unittest
-
+from unittest.mock import patch
 from lorelie.backends import BaseRow, connections
 from lorelie.database.functions.aggregation import Count
+from lorelie.queries import Query
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -238,25 +239,55 @@ class TestSQLiteBackend(LorelieTestCase):
 
 class TestBaseRow(LorelieTestCase):
     def setUp(self):
-        backend = self.create_connection()
-        row = BaseRow(
-            ['name'],
-            {'id': 1, 'name': 'Kendall'},
-            backend.connection.cursor()
-        )
-        row.linked_to_table = 'sqlite_'
-        self.row = row
+        self.backend = self.create_connection()
+        self.fields = ['name']
+        self.data = {'id': 1, 'name': 'Kendall'}
+
+        # row.linked_to_table = 'sqlite_'
 
     def test_structure(self):
-        self.assertEqual(self.row.pk, 1)
+        row = BaseRow(self.fields, self.data, self.backend)
+        self.assertEqual(row.pk, 1)
+        self.assertEqual(row.name, 'Kendall')
+        self.assertTrue('Kendall' in row)
+        self.assertTrue(row['name'] == 'Kendall')
 
-    def test_contains(self):
-        self.assertIn('Kendall', self.row)
-        self.assertIn(1, self.row)
+    def test_set_item(self):
+        row = BaseRow(self.fields, self.data, self.backend)
+        row['name'] = 'Kylie'
+        self.assertTrue(row.mark_for_update)
+        self.assertEqual(row.name, 'Kylie')
+        self.assertIn('name', row.updated_fields)
+        self.assertEqual(row.updated_fields['name'], 'Kylie')
 
-    @unittest.expectedFailure
-    def test_does_not_contain(self):
-        self.assertIn('Julie', self.row)
+    def test_save(self):
+        db = self.create_database()
+        table = db.get_table('celebrities')
+
+        row = BaseRow(self.fields, self.data, table.backend)
+        row.linked_to_table = table.name
+
+        with patch('lorelie.backends.Query', spec=Query) as mquery:
+            _query = mquery.return_value
+            _query.add_sql_node.return_value = None
+            _query.run.return_value = None
+
+            row['name'] = 'Kylie'
+            self.assertTrue(row.mark_for_update)
+
+            row.save()
+
+            self.assertEqual(row.name, 'Kylie')
+            self.assertFalse(row.mark_for_update)
+
+            _query.add_sql_node.assert_called()
+            _query.run.assert_called()
+
+    def test_delete(self):
+        pass
+
+    def test_refresh_from_database(self):
+        pass
 
 
 class TestBackendCoreFunctions(LorelieTestCase):

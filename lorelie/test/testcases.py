@@ -1,3 +1,4 @@
+import pathlib
 import unittest
 from functools import cached_property, lru_cache
 
@@ -20,6 +21,9 @@ class LorelieTestCase(unittest.TestCase):
     @lru_cache(maxsize=300)
     def create_connection(self):
         return SQLiteBackend()
+
+    def create_physical_database(self):
+        return SQLiteBackend(database_or_name='celebrities_test.db', path=pathlib.Path('.').absolute())
 
     @cached_property
     def create_empty_database(self):

@@ -22,7 +22,7 @@ from lorelie.database.nodes import (DeleteNode, SelectNode, UpdateNode,
                                     WhereNode)
 from lorelie.exceptions import ConnectionExistsError
 from lorelie.expressions import Q
-from lorelie.lorelie_typings import TypeStrOrPathLibPath, TypeSQLiteBackend, TypeTable
+from lorelie.lorelie_typings import TypeRow, TypeStrOrPathLibPath, TypeSQLiteBackend, TypeTable
 from lorelie.queries import Query, QuerySet
 
 
@@ -92,7 +92,7 @@ class BaseRow:
     ... row.save()
     """
 
-    def __init__(self, fields, data, cursor=None):
+    def __init__(self, fields: list[str], data: dict, cursor: Optional[sqlite3.Cursor] = None):
         # Indicate that this specific row
         # values have been changed and could
         # eligible for saving
@@ -100,13 +100,13 @@ class BaseRow:
         self.cursor = cursor
         self._fields = fields
         self._cached_data = data
-        self._backend = connections.get_last_connection()
+        self._backend: TypeSQLiteBackend = connections.get_last_connection()
 
         table = getattr(self._backend, 'current_table', None)
-        self.linked_to_table = getattr(table, 'name', None)
+        self.linked_to_table: Optional[str] = getattr(table, 'name', None)
 
-        self.updated_fields = {}
-        self.pk = data.get('rowid', data.get('id', None))
+        self.updated_fields: dict[str, Any] = {}
+        self.pk: Optional[int] = data.get('rowid', data.get('id', None))
 
         for key, value in self._cached_data.items():
             setattr(self, key, value)
@@ -176,6 +176,7 @@ class BaseRow:
         return value in self._cached_data.values()
 
     def __getattr__(self, key):
+        # TODO: Improve foreign key relations handling
         if key.endswith('_rel'):
             backend = self.__dict__['_backend']
             right_table_name, _ = key.split('_')
@@ -201,7 +202,7 @@ class BaseRow:
             self._backend.save_row_object(self)
         except AttributeError:
             raise ExceptionGroup(
-                'Row does not seem to be affiliated to a table',
+                'Row does not seem to be affiliated to a table and database.',
                 [
                     Exception('Could not save row object')
                 ]
@@ -251,12 +252,12 @@ class BaseRow:
         return self
 
 
-def row_factory(backend):
+def row_factory(backend: TypeSQLiteBackend):
     """Base function for generation custom SQLite Row
     that implements additional functionnalities on the 
     results of the database. This function overrides the 
     default class used for the data in the database."""
-    def inner_factory(cursor, row):
+    def inner_factory(cursor: sqlite3.Cursor, row):
         fields = [column[0] for column in cursor.description]
         data = {key: value for key, value in zip(fields, row)}
         return BaseRow(fields, data, cursor=cursor)
@@ -533,7 +534,7 @@ class SQL(ExpressionFiltersMixin):
         value = f'%{value}%'
         return self.quote_value(value)
 
-    def dict_to_sql(self, data: dict[str, Any], quote_values: bool=True):
+    def dict_to_sql(self, data: dict[str, Any], quote_values: bool = True):
         """Convert a dictionnary containing a key
         pair of columns and values into a tuple
         of columns and value list. The values from
@@ -546,7 +547,7 @@ class SQL(ExpressionFiltersMixin):
         if quote_values:
             quoted_value = list(
                 map(
-                    lambda x: self.quote_value(x), 
+                    lambda x: self.quote_value(x),
                     data.values()
                 )
             )
@@ -706,7 +707,7 @@ class SQLiteBackend(SQL):
     def __hash__(self):
         return hash((self.database_name))
 
-    def set_current_table(self, table: 'Table'):
+    def set_current_table(self, table: TypeTable):
         """Track the current table that is being updated
         or queried at the connection level for other parts
         of the project that require this knowledge"""
@@ -715,7 +716,7 @@ class SQLiteBackend(SQL):
         elif self.current_table != table:
             self.current_table = table
 
-    def set_current_table_from_row(self, row):
+    def set_current_table_from_row(self, row: TypeRow):
         """Sets the current table using the table name that
         is attached to the row if current table is None 
         otherwhise skip this action"""
@@ -733,7 +734,7 @@ class SQLiteBackend(SQL):
         query.add_sql_node(f'pragma table_info({table.name})')
         return QuerySet(query)
 
-    def create_table_fields(self, table, columns_to_create):
+    def create_table_fields(self, table: TypeTable, columns_to_create):
         field_params = []
         if columns_to_create:
             while columns_to_create:
@@ -795,7 +796,7 @@ class SQLiteBackend(SQL):
         query.add_sql_nodes([select_sql, where_clause])
         return QuerySet(query, skip_transform=True)
 
-    def list_table_indexes(self, table):
+    def list_table_indexes(self, table: TypeTable):
         # sql = f'PRAGMA index_list({self.quote_value(table.name)})'
         sql = f'PRAGMA index_list({table.name})'
         query = Query(table=table)
@@ -803,7 +804,7 @@ class SQLiteBackend(SQL):
         query.add_sql_node(sql)
         return QuerySet(query)
 
-    def save_row_object(self, row):
+    def save_row_object(self, row: TypeRow):
         """Creates the SQL statement required for
         saving a row in the database
         """
@@ -828,7 +829,7 @@ class SQLiteBackend(SQL):
         query.run(commit=True)
         return query
 
-    def delete_row_object(self, row):
+    def delete_row_object(self, row: TypeRow):
         """Creates the SQL statement required for
         deleting a row in the database
         """

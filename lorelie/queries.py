@@ -1,16 +1,12 @@
 import sqlite3
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
-from typing import TYPE_CHECKING, Optional
+from typing import Generic, Optional
 
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
                                     SelectNode, WhereNode)
-from lorelie.lorelie_typings import TypeSQLiteBackend, TypeTable
-
-if TYPE_CHECKING:
-    from lorelie.backends import SQLiteBackend
-    from lorelie.database.tables.base import Table
+from lorelie.lorelie_typings import TypeNode, TypeRow, TypeSQLiteBackend, TypeTable
 
 
 class Query:
@@ -21,9 +17,13 @@ class Query:
     The class offers methods for executing multiple queries against the database, running scripts, 
     and preparing statements before sending them to the database. It also includes functionality 
     to transform the retrieved data into Python objects.
+
+    Args:
+        table (TypeTable, optional): The table associated with the query. Defaults to None.
+        backend (TypeSQLiteBackend, optional): The database backend to use. Defaults to None.
     """
 
-    def __init__(self, table: Optional['Table'] = None, backend: Optional['SQLiteBackend'] = None):
+    def __init__(self, table: Optional[TypeTable] = None, backend: Optional[TypeSQLiteBackend] = None):
         self.table = table
         self.backend = table.backend if table is not None else backend
 
@@ -60,7 +60,7 @@ class Query:
         return cls(table=table, backend=backend)
 
     @classmethod
-    def run_script(cls, backend: Optional[TypeSQLiteBackend] = None, table: Optional[TypeTable] = None, sql_tokens=[]):
+    def run_script(cls, backend: Optional[TypeSQLiteBackend] = None, table: Optional[TypeTable] = None, sql_tokens: list[TypeNode | str] = []):
         """Runs a script made of multiple sql statements
 
         Args:
@@ -137,7 +137,7 @@ class Query:
 
         self.statements.append(node)
 
-    def add_sql_nodes(self, nodes):
+    def add_sql_nodes(self, nodes: list[TypeNode | str]):
         if not isinstance(nodes, list):
             raise ValueError(
                 f"{nodes} should be an instance "
@@ -305,9 +305,13 @@ class EmptyQuerySet:
         return False
 
 
-class QuerySet:
+class QuerySet(Generic[TypeRow]):
     """Represents a set of results obtained from executing an SQL query. 
     It provides methods for manipulating and retrieving data from the database
+
+    Args:
+        query (Query): The Query object associated with the QuerySet.
+        skip_transform (bool, optional): Whether to skip transforming the data to Python objects. Defaults
     """
 
     def __init__(self, query: Query, skip_transform: bool = False):
@@ -407,21 +411,21 @@ class QuerySet:
                 self.query.transform_to_python()
             self.result_cache = self.query.result_cache
 
-    def first(self):
+    def first(self) -> Optional[TypeRow]:
         self.query.select_map.limit = 1
         self.query.select_map.order_by = OrderByNode(self.query.table, 'id')
         return self[-1]
 
-    def last(self):
+    def last(self) -> Optional[TypeRow]:
         self.query.select_map.limit = 1
         self.query.select_map.order_by = OrderByNode(self.query.table, '-id')
         return self
 
-    def all(self):
+    def all(self) -> "QuerySet[TypeRow]":
         self.check_alias_view_name()
         return self
 
-    def filter(self, *args, **kwargs):
+    def filter(self, *args, **kwargs) -> "QuerySet[TypeRow]":
         backend = self.query.backend
         filters = backend.decompose_filters(**kwargs)
         build_filters = backend.build_filters(filters, space_characters=False)
@@ -436,7 +440,7 @@ class QuerySet:
                 self.query.select_map.where = WhereNode(*args, **kwargs)
         return QuerySet(self.query)
 
-    def get(self, *args, **kwargs):
+    def get(self, *args, **kwargs) -> Optional[TypeRow]:
         if not args and not kwargs:
             queryset = QuerySet(self.query)
         else:

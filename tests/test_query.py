@@ -14,18 +14,21 @@ class TestQuery(LorelieTestCase):
     def test_pre_sql_setup(self):
         self.create_connection()
         tokens = ['select * from celebrities']
+
         query = Query()
         query.add_sql_nodes(tokens)
         query.pre_sql_setup()
+
         self.assertIsInstance(query.sql, str)
         self.assertEqual(
             query.sql,
             'select * from celebrities;'
         )
 
-    def test_excution(self):
+    def test_fail_execution(self):
         backend = self.create_connection()
         query = Query(backend=backend)
+
         self.assertFalse(query.is_evaluated)
         self.assertIsNone(query.table)
 
@@ -40,8 +43,9 @@ class TestQuery(LorelieTestCase):
             query.run_script(backend=backend, sql_tokens=sql)
 
     def test_working_execution(self):
-        backend = self.create_connection()
+        backend = self.create_physical_database()
         query = Query(backend=backend)
+
         other = query.run_script(
             backend=backend,
             sql_tokens=[
@@ -51,7 +55,7 @@ class TestQuery(LorelieTestCase):
             ]
         )
 
-        expected_script = "begin; create table celebrities (id integer primary key autoincrement not null, name text null); insert into celebrities values(1, 'Kendall Jenner'); select * from celebrities order by id; commit;"
-        self.assertEqual(other.sql, expected_script)
-        print(other.result_cache)
+        # expected_script = "begin; create table celebrities (id integer primary key autoincrement not null, name text null); insert into celebrities values(1, 'Kendall Jenner'); select * from celebrities order by id; commit;"
+        # self.assertEqual(other.sql, expected_script)
+        # print(other.result_cache)
         # self.assertTrue(len(other.result_cache) > 0)

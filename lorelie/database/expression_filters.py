@@ -1,10 +1,9 @@
 import re
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Any, Sequence, Union
 from functools import cached_property
 
-from lorelie.lorelie_typings import TypeDecomposedFilterTuple
-
+from lorelie.lorelie_typings import OperatorType, TranslatedOperatorType, TypeDecomposedFilterTuple, TypeTable
 
 
 class ExpressionFiltersMixin:
@@ -40,30 +39,32 @@ class ExpressionFiltersMixin:
     }
 
     @cached_property
-    def list_of_operators(self):
+    def list_of_operators(self) -> list[TranslatedOperatorType]:
         operators = list(self.base_filters.values())
         operators.append('<>')
         return operators
 
-    def is_query_filter(self, value_or_values):
+    def is_query_filter(self, value_or_values: OperatorType | list[OperatorType]) -> bool:
         """Checks that the last value or that a single
         value is a query filtering value. For example
         `eq` in `['name', 'eq']`
 
         >>> self.is_query_filter(['name', 'eq'])
         ... True
+        ... self.is_query_filter('eq')
+        ... True
         """
         if isinstance(value_or_values, list):
             value_or_values = value_or_values[-1]
         return value_or_values in list(self.base_filters.keys())
 
-    def translate_operator_from_tokens(self, tokens):
+    def translate_operator_from_tokens(self, tokens: list[str | OperatorType | Any]):
         """Translates a string filter in a list of tokens
         to a valid mathematical operator
 
         >>> translate_operator_from_tokens(['age', '=', 1])
         """
-        translated = []
+        translated: list[str | TranslatedOperatorType] = []
         for item in tokens:
             if self.is_query_filter(item):
                 translated.append(self.base_filters[item])
@@ -72,20 +73,21 @@ class ExpressionFiltersMixin:
             translated.append(item)
         return translated
 
-    def translate_operators_from_tokens(self, tokens):
+    def translate_operators_from_tokens(self, tokens: Sequence[list[str | OperatorType | Any]]):
         """Translates a string filter in a list of tokens
         to a valid mathematical operator
 
-        >>> translate_operator_from_tokens([['age', 'eq', 1], ['name', '=', 1]])
+        >>> translate_operators_from_tokens([['age', 'eq', 1]])
+        ... ['name', '=', 1]
         """
-        translated = []
+        translated: list[list[str | TranslatedOperatorType | Any]] = []
         for item in tokens:
             if not isinstance(item, (list, tuple)):
                 raise ValueError(f"{item} should be of type list/tuple")
             translated.append(self.translate_operator_from_tokens(item))
         return translated
 
-    def decompose_filters_columns(self, value):
+    def decompose_filters_columns(self, value: str | dict) -> list[str]:
         """Return only the column parts of the filters
         that were passed
 
@@ -171,7 +173,7 @@ class ExpressionFiltersMixin:
                 filters_map.append(tuple(rebuilt_tokens))
         return filters_map
 
-    def build_filters(self, items: list[TypeDecomposedFilterTuple], space_characters: bool = True) -> list[str]:
+    def build_filters(self, items: list[tuple[str | TranslatedOperatorType]], space_characters: bool = True) -> list[str]:
         """Tranform a list of decomposed filters to
         usable string conditions for an sql statement
 
@@ -342,8 +344,8 @@ class ExpressionFilter(ExpressionFiltersMixin):
     ... ExpressionFilter([('age', 'eq', 1)], connection)
     """
 
-    def __init__(self, expression, table=None):
-        self.parsed_expressions = []
+    def __init__(self, expression: Union[str, dict[str, Any], list], table: TypeTable=None):
+        self.parsed_expressions: list[TypeDecomposedFilterTuple] = []
         self.table = table
 
         if isinstance(expression, str):

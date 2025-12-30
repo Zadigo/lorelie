@@ -1,10 +1,10 @@
-from typing import TYPE_CHECKING, Any, Optional
+from abc import ABC, abstractmethod
+from typing import Any, ClassVar, Optional, override
 
-if TYPE_CHECKING:
-    from lorelie.database.base import SQLiteBackend
+from lorelie.lorelie_typings import TypeField, TypeSQLiteBackend
 
 
-class BaseExpression:
+class BaseExpression(ABC):
     template_sql: Optional[str] = None
     # The columns of the table on which
     # the function operates on - these are
@@ -24,12 +24,13 @@ class BaseExpression:
     def get_function_columns(self, expression: dict[str, Any]):
         self._function_columns = list(expression.keys())
 
-    def as_sql(self, backend: 'SQLiteBackend'):
-        return NotImplemented
+    @abstractmethod
+    def as_sql(self, backend: TypeSQLiteBackend):
+        raise NotImplemented
 
 
 class Value(BaseExpression):
-    def __init__(self, value, output_field=None):
+    def __init__(self, value: Any, output_field: Optional[TypeField] = None):
         self.value = value
         self.internal_name = 'value'
         self.output_field = output_field
@@ -54,13 +55,14 @@ class Value(BaseExpression):
             elif isinstance(self.value, dict):
                 self.output_field = JSONField(self.internal_name)
 
-    def to_python(self, value):
+    def to_python(self, value: Any):
         pass
 
     def to_database(self):
         return self.output_field.to_database(self.value)
 
-    def as_sql(self, backend):
+    @override
+    def as_sql(self, backend: TypeSQLiteBackend):
         if callable(self.value):
             self.value = str(self.value)
 
@@ -106,7 +108,7 @@ class NegatedExpression(BaseExpression):
         self.children.append(other)
         return self
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         seen_expressions = []
 
         def map_children(node: 'F | Q | str'):
@@ -127,7 +129,7 @@ class When(BaseExpression):
     the condition is met
     """
 
-    def __init__(self, condition, then_case, **kwargs):
+    def __init__(self, condition: 'Q | CombinedExpression | str', then_case: Any, **kwargs):
         self.condition = condition
         self.then_case = then_case
         self.field_name = None
@@ -135,7 +137,8 @@ class When(BaseExpression):
     def __repr__(self):
         return f'When({self.field_name} -> {self.then_case})'
 
-    def as_sql(self, backend):
+    @override
+    def as_sql(self, backend: TypeSQLiteBackend):
         list_of_filters = []
         if isinstance(self.condition, (Q, CombinedExpression)):
             complex_filter = self.condition.as_sql(backend)
@@ -169,9 +172,9 @@ class Case(BaseExpression):
     ... db.objects.annotate('celebrities', case)
     """
 
-    CASE = 'case {conditions}'
-    CASE_ELSE = 'else {value}'
-    CASE_END = 'end {alias}'
+    CASE: ClassVar[str] = 'case {conditions}'
+    CASE_ELSE: ClassVar[str] = 'else {value}'
+    CASE_END: ClassVar[str] = 'end {alias}'
 
     def __init__(self, *cases: 'When', default: Optional[str] = None):
         self.field_name = None
@@ -187,7 +190,8 @@ class Case(BaseExpression):
         cases_repr = ', '.join(repr(case) for case in self.cases)
         return f'{self.__class__.__name__}({cases_repr})'
 
-    def as_sql(self, backend):
+    @override
+    def as_sql(self, backend: TypeSQLiteBackend):
         fields = set()
         statements_to_join = []
 
@@ -228,11 +232,11 @@ class CombinedExpression:
     ... CombinedExpression(F('age'))
     """
 
-    template_sql = '({inner}) {outer}'
+    template_sql: ClassVar[str] = '({inner}) {outer}'
 
-    def __init__(self, *funcs):
+    def __init__(self, *funcs: 'F | Q'):
         self.others = list(funcs)
-        self.children = []
+        self.children: list['F | Q | str'] = []
         # Indicates that the expression
         # will be a mathematical one
         # e.g. F('age') + 1
@@ -296,7 +300,8 @@ class CombinedExpression:
             if i + 1 != len(self.others):
                 self.children.append(operator)
 
-    def as_sql(self, backend):
+    @override
+    def as_sql(self, backend: TypeSQLiteBackend):
         # if self.is_math:
         #     for child in self.children:
         #         print(child)
@@ -356,7 +361,7 @@ class Q(BaseExpression):
     The above expression results in a logical OR operation.
     """
 
-    def __init__(self, **expressions):
+    def __init__(self, **expressions: Any):
         self.expressions = expressions
 
     def __repr__(self):
@@ -375,7 +380,8 @@ class Q(BaseExpression):
     def __invert__(self):
         return NegatedExpression(self)
 
-    def as_sql(self, backend):
+    @override
+    def as_sql(self, backend: TypeSQLiteBackend):
         filters = backend.decompose_filters(**self.expressions)
         built_filters = backend.build_filters(filters, space_characters=False)
         return [backend.operator_join(built_filters)]
@@ -394,10 +400,10 @@ class F(BaseExpression):
     in the price column will be multiplied by `1.2`
     """
 
-    ADD = '+'
-    SUBSRACT = '-'
-    MULTIPLY = 'x'
-    DIVIDE = '/'
+    ADD: ClassVar[str] = '+'
+    SUBSRACT: ClassVar[str] = '-'
+    MULTIPLY: ClassVar[str] = 'x'
+    DIVIDE: ClassVar[str] = '/'
 
     def __init__(self, field: str):
         self.field = field
@@ -453,5 +459,6 @@ class F(BaseExpression):
     def __neg__(self):
         return NegatedExpression(self)
 
-    def as_sql(self, backend):
+    @override
+    def as_sql(self, backend: TypeSQLiteBackend):
         return [self.field]

@@ -305,7 +305,7 @@ class Migrations:
         # parameters (ex. indexes, constraints) that we
         # are going to run here
         if other_sqls_to_run:
-            Query.run_script(
+            Query.run_transaction(
                 backend=backend,
                 sql_tokens=other_sqls_to_run
             )

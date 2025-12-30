@@ -138,7 +138,7 @@ class BaseRow:
             # first field from the list of fields
             name_to_show = getattr(self, self._fields[-0])
 
-        if 'sqlite_' in self.linked_to_table:
+        if self.linked_to_table is not None and 'sqlite_' in self.linked_to_table:
             return f'<SQLITE: {name_to_show}>'
 
         return f'<{self.linked_to_table.title()}: {name_to_show}>'
@@ -662,7 +662,8 @@ class SQLiteBackend(SQL):
 
         if isinstance(database_or_name, str):
             self.database_name = database_or_name
-            self.database_path = pathlib.Path(database_or_name)
+            self.database_path = pathlib.Path(
+                database_or_name).with_suffix('.sqlite')
             connection = sqlite3.connect(self.database_path, **params)
         elif isinstance(database_or_name, pathlib.Path):
             if database_or_name.is_dir():
@@ -709,7 +710,7 @@ class SQLiteBackend(SQL):
         connection.row_factory = row_factory(self)
 
         self.connection = connection
-        self.current_table = None
+        self.current_table: Optional[TypeTable] = None
         self.log_queries = log_queries
 
         connections.register(self, name=self.database_name)

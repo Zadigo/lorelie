@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from lorelie.database.base import Database
     from lorelie.database.nodes import BaseNode
     from lorelie.backends import BaseRow
-    from lorelie.queries import QuerySet
+    from lorelie.queries import QuerySet, Query
 
 TypeSQLiteBackend = TypeVar('TypeSQLiteBackend', bound='SQLiteBackend')
 
@@ -31,6 +31,8 @@ TypeDatabase = TypeVar('TypeDatabase', bound='Database')
 TypeNode = TypeVar('TypeNode', bound='BaseNode')
 
 TypeQuerySet = TypeVar('TypeQuerySet', bound='QuerySet')
+
+TypeQuery = TypeVar('TypeQuery', bound='Query')
 
 TypeDecomposedFilterTuple = tuple[str, str, Any]
 

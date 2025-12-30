@@ -5,5 +5,13 @@
         "editor.codeActionsOnSave": {
             "source.unusedImports": "always"
         }
-    }
+    },
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "name": "Celebrities",
+            "database": "${workspaceFolder:lorelie}/celebrities_test.sqlite"
+        }
+    ]
 }

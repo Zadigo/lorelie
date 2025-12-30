@@ -1,12 +1,13 @@
 import sqlite3
+import datetime
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
-from typing import Generic, Optional
+from typing import Any, Generic, Optional
 
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
                                     SelectNode, WhereNode)
-from lorelie.lorelie_typings import TypeNode, TypeRow, TypeSQLiteBackend, TypeTable
+from lorelie.lorelie_typings import TypeNode, TypeQuerySet, TypeRow, TypeSQLiteBackend, TypeTable, TypeQuery
 
 
 class Query:
@@ -39,10 +40,10 @@ class Query:
             )
 
         self.backend.set_current_table(table)
-        self.sql = None
-        self.result_cache = []
-        self.alias_fields = []
-        self.is_evaluated = False
+        self.sql: Optional[str] = None
+        self.result_cache: list[TypeRow] = []
+        self.alias_fields: list[str] = []
+        self.is_evaluated: bool = False
         self.statements: list[str] = []
         self.select_map = SelectMap()
         # Since this is a special table that was not created
@@ -50,6 +51,7 @@ class Query:
         # rows that they will not be able to use the current_table
         # property to get the table name
         self.map_to_sqlite_table = False
+        self.is_transactional = False
 
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self.sql}]>'
@@ -60,7 +62,7 @@ class Query:
         return cls(table=table, backend=backend)
 
     @classmethod
-    def run_script(cls, backend: Optional[TypeSQLiteBackend] = None, table: Optional[TypeTable] = None, sql_tokens: list[TypeNode | str] = []):
+    def run_transaction(cls, backend: Optional[TypeSQLiteBackend] = None, table: Optional[TypeTable] = None, sql_tokens: list[TypeNode | str] = []):
         """Runs a script made of multiple sql statements
 
         Args:
@@ -71,20 +73,18 @@ class Query:
         """
         template = 'begin; {statements} commit;'
         instance = cls(table=table, backend=backend)
+        instance.statements = sql_tokens
 
-        statements = []
-        for token in sql_tokens:
-            if not isinstance(token, str):
-                token = token.as_sql(backend)
-            finalized_token = instance.backend.finalize_sql(token)
-            statements.append(finalized_token)
+        instance.pre_sql_setup()
+        script = template.format(statements=instance.sql)
 
-        joined_statements = instance.backend.simple_join(statements)
-        script = template.format(statements=joined_statements)
+        # Clear previous individual statements
+        # in order to keep the SQL script only
+        instance.statements = []
         instance.add_sql_node(script)
 
         try:
-            result = instance.backend.connection.executescript(script)
+            cursor = instance.backend.connection.executescript(script)
         except OperationalError as e:
             print(e, script)
             raise
@@ -95,11 +95,11 @@ class Query:
             print(e, script)
             raise
         else:
-            # print(script)
             instance.backend.connection.commit()
-            instance.result_cache = list(result)
+            instance.result_cache = list(cursor)
             instance.is_evaluated = True
         finally:
+            instance.is_transactional = True
             log_queries.append(script, table=table, backend=backend)
 
             # Logging should not be set to True
@@ -109,9 +109,11 @@ class Query:
             if instance.backend.log_queries:
                 lorelie_logger.warning(
                     "Logging queries in a production environment is high risk "
-                    "and should be disabled. Logging sensitive data in to a log"
-                    "file can cause severe security issues to you data"
+                    "and should be disabled. Logging sensitive data into a log "
+                    "file can cause severe security issues for your data"
                 )
+                lorelie_logger.info(
+                    f"-- Queries on {datetime.datetime.now()}:")
                 for query in log_queries:
                     lorelie_logger.info(f"\"{query}\"")
 
@@ -125,7 +127,7 @@ class Query:
         if not isinstance(node, (BaseNode, str)):
             raise ValueError(
                 f"{node} should be an instance "
-                "of BaseNode or <str>"
+                "of BaseNode or str"
             )
 
         if isinstance(node, BaseNode):
@@ -182,13 +184,13 @@ class Query:
         try:
             result = self.backend.connection.execute(self.sql)
         except OperationalError as e:
-            print(e, self.sql)
+            print(e, 'SQL:', self.sql)
             raise
         except IntegrityError as e:
-            print(e, self.sql)
+            print(e, 'SQL:', self.sql)
             raise
         except Exception as e:
-            print(e, self.sql)
+            print(e, 'SQL:', self.sql)
             raise
         else:
             if commit:
@@ -202,11 +204,11 @@ class Query:
             # current_table of the backend property to get
             # the table name
             if self.map_to_sqlite_table:
-                updated_rows = []
+                # updated_rows = []
                 for row in self.result_cache:
                     setattr(row, 'linked_to_table', 'sqlite_schema')
-                    updated_rows.append(row)
-                self.result_cache = updated_rows
+                #     updated_rows.append(row)
+                # self.result_cache = updated_rows
 
             self.is_evaluated = True
         finally:
@@ -262,7 +264,7 @@ class ValuesIterable:
     """An iterator that generates a dictionnary
     key value pair from queryset"""
 
-    def __init__(self, queryset, fields=[]):
+    def __init__(self, queryset: TypeQuerySet, fields: list[str] = []):
         self.queryset = queryset
         self.fields = fields
 
@@ -275,7 +277,7 @@ class ValuesIterable:
                 list(self.queryset.query.alias_fields)
 
         for row in self.queryset:
-            result = {}
+            result: dict[str, Any] = {}
             for field in self.fields:
                 result[field] = row[field]
             yield result
@@ -305,7 +307,7 @@ class EmptyQuerySet:
         return False
 
 
-class QuerySet(Generic[TypeRow]):
+class QuerySet(Generic[TypeRow, TypeQuery]):
     """Represents a set of results obtained from executing an SQL query. 
     It provides methods for manipulating and retrieving data from the database
 
@@ -314,12 +316,12 @@ class QuerySet(Generic[TypeRow]):
         skip_transform (bool, optional): Whether to skip transforming the data to Python objects. Defaults
     """
 
-    def __init__(self, query: Query, skip_transform: bool = False):
+    def __init__(self, query: TypeQuery, skip_transform: bool = False):
         if not isinstance(query, Query):
             raise ValueError(f"'{query}' should be an instance of Query")
 
         self.query = query
-        self.result_cache = []
+        self.result_cache: list[TypeRow] = []
         self.values_iterable_class = ValuesIterable
         # There are certain cases where we want
         # to use QuerySet but it's not affiliated
@@ -342,15 +344,21 @@ class QuerySet(Generic[TypeRow]):
         # the existing database
         self.force_reload_cache = False
 
-    def __repr__(self):
-        self.load_cache()
-        return f'<{self.__class__.__name__} {self.result_cache}>'
+    # def __repr__(self):
+    #     # NOTE: In test environments, sometimes
+    #     # the __repr__ is called before any of the other
+    #     # methods since the VS Code shows the class representation
+    #     # in the variable explorer. Therefore, if test results
+    #     # can be confusing because of that. Disable __repr__
+    #     # calls in test environments.
+    #     self.load_cache()
+    #     return f'<{self.__class__.__name__} {self.result_cache}>'
 
     def __str__(self):
         self.load_cache()
         return str(self.result_cache)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> TypeRow:
         self.load_cache()
         try:
             return self.result_cache[index]
@@ -362,11 +370,11 @@ class QuerySet(Generic[TypeRow]):
         for item in self.result_cache:
             yield item
 
-    def __contains__(self, value):
+    def __contains__(self, value: Any):
         self.load_cache()
         return any(map(lambda x: value in x, self.result_cache))
 
-    def __eq__(self, value):
+    def __eq__(self, value: Any):
         self.load_cache()
         if not isinstance(value, QuerySet):
             return NotImplemented
@@ -406,6 +414,20 @@ class QuerySet(Generic[TypeRow]):
 
     def load_cache(self):
         if self.force_reload_cache or not self.result_cache:
+            # Transaction queries do no return data
+            # so in that case, we need use a different
+            # query to load the underlying data
+            if self.query.is_evaluated and self.query.is_transactional:
+                new_query = Query(
+                    table=self.query.table,
+                    backend=self.query.backend
+                )
+                new_query.add_sql_node(
+                    SelectNode(self.query.table, '*')
+                )
+                new_query.run()
+                self.query = new_query
+
             self.query.run(commit=self.use_commit)
             if not self.skip_transform:
                 self.query.transform_to_python()
@@ -465,7 +487,7 @@ class QuerySet(Generic[TypeRow]):
     def values(self, *fields):
         return list(self.values_iterable_class(self, fields=fields))
 
-    def dataframe(self, *fields):
+    def get_dataframe(self, *fields):
         import pandas
         return pandas.DataFrame(self.values(*fields))
 

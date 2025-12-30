@@ -72,20 +72,28 @@ class TestQuerySet(LorelieTestCase):
 
     def test_last(self):
         row = self.qs.last()
+        self.assertIsNotNone(row)
         print(row)
         print(list(log_queries))
 
     def test_filter(self):
-        pass
+        qs = self.qs.filter(name='Kendall Jenner')
+        for row in qs:
+            print(row)
 
     def test_get(self):
-        pass
+        row = self.qs.get(id=2)
+        print(row)
 
     def test_annotate(self):
         pass
 
+    def test_all(self):
+        qs = self.qs.all()
+
     def test_values(self):
-        pass
+        values = self.qs.values('name')
+        print(values)
 
     def test_get_dataframe(self):
         pass
@@ -107,6 +115,11 @@ class TestQuerySet(LorelieTestCase):
 
     def test_skip_transforms(self):
         pass
+
+    def test_order_by(self):
+        qs = self.qs.order_by('-name')
+        for row in qs:
+            print(row)
 
     # def test_structure(self):
     #     # Determine how queryset should act if there

@@ -1,5 +1,5 @@
 import pathlib
-from typing import TYPE_CHECKING, Any, Literal, TypeVar
+from typing import TYPE_CHECKING, Literal, TypeVar
 from enum import Enum
 
 if TYPE_CHECKING:
@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from lorelie.database.nodes import BaseNode
     from lorelie.backends import BaseRow
     from lorelie.queries import QuerySet, Query
+    from lorelie.expressions import Q, CombinedExpression
 
 TypeSQLiteBackend = TypeVar('TypeSQLiteBackend', bound='SQLiteBackend')
 
@@ -34,7 +35,9 @@ TypeQuerySet = TypeVar('TypeQuerySet', bound='QuerySet')
 
 TypeQuery = TypeVar('TypeQuery', bound='Query')
 
-TypeDecomposedFilterTuple = tuple[str, str, Any]
+TypeQ = TypeVar('TypeQ', bound='Q')
+
+TypeExpression = TypeVar('TypeExpression', 'Q', 'CombinedExpression')
 
 
 class FieldTypeEnum(Enum):

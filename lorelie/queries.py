@@ -2,12 +2,12 @@ import sqlite3
 import datetime
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
-from typing import Any, Generic, Optional
+from typing import Any, Optional, Type
 
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
                                     SelectNode, WhereNode)
-from lorelie.lorelie_typings import TypeNode, TypeQuerySet, TypeRow, TypeSQLiteBackend, TypeTable, TypeQuery
+from lorelie.lorelie_typings import TypeExpression, TypeNode, TypeQuerySet, TypeRow, TypeSQLiteBackend, TypeTable, TypeQuery
 
 
 class Query:
@@ -307,7 +307,7 @@ class EmptyQuerySet:
         return False
 
 
-class QuerySet(Generic[TypeRow, TypeQuery]):
+class QuerySet:
     """Represents a set of results obtained from executing an SQL query. 
     It provides methods for manipulating and retrieving data from the database
 
@@ -322,7 +322,7 @@ class QuerySet(Generic[TypeRow, TypeQuery]):
 
         self.query = query
         self.result_cache: list[TypeRow] = []
-        self.values_iterable_class = ValuesIterable
+        self.values_iterable_class: Type[ValuesIterable] = ValuesIterable
         # There are certain cases where we want
         # to use QuerySet but it's not affiliated
         # to any table ex. returning a QuerySet of
@@ -447,7 +447,7 @@ class QuerySet(Generic[TypeRow, TypeQuery]):
         self.check_alias_view_name()
         return self
 
-    def filter(self, *args, **kwargs) -> "QuerySet[TypeRow]":
+    def filter(self, *args: TypeExpression, **kwargs: TypeExpression) -> "QuerySet[TypeRow]":
         backend = self.query.backend
         filters = backend.decompose_filters(**kwargs)
         build_filters = backend.build_filters(filters, space_characters=False)
@@ -491,7 +491,7 @@ class QuerySet(Generic[TypeRow, TypeQuery]):
         import pandas
         return pandas.DataFrame(self.values(*fields))
 
-    def order_by(self, *fields):
+    def order_by(self, *fields: str):
         orderby_node = OrderByNode(self.query.table, *fields)
         if not self.query.is_evaluated:
             self.query.add_sql_node(orderby_node)

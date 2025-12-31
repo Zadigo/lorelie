@@ -14,7 +14,7 @@ from lorelie.exceptions import TableExistsError
 from lorelie.fields import IntegerField
 from lorelie.fields.relationships import ForeignKeyField
 from lorelie.queries import Query
-from lorelie.lorelie_typings import TypeStrOrPathLibPath
+from lorelie.lorelie_typings import TypeStrOrPathLibPath, TypeTable
 
 
 @dataclasses.dataclass
@@ -281,7 +281,8 @@ class Database:
     def async_database(cls, *tables: Table, name: Optional[str] = None, path: Optional[TypeStrOrPathLibPath] = None, log_queries: bool = False):
         return sync_to_async(cls)(*tables, name=name, path=path, log_queries=log_queries)
 
-    def _add_table(self, table):
+    def _add_table(self, table: TypeTable):
+        # DELETE: Remove this
         table.load_current_connection()
         self.table_map[table.name] = table
 

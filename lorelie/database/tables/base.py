@@ -322,7 +322,10 @@ class Table(Generic[TypeField], AbstractTable):
         # just like normal fields while check_constraints
         # are just joined by normal space
         joined_unique = self.backend.comma_join(
-            [fields_str, *unique_constraints]
+            [
+                fields_str,
+                *unique_constraints
+            ]
         )
 
         joined_all = self.backend.simple_join(
@@ -336,9 +339,7 @@ class Table(Generic[TypeField], AbstractTable):
         return [sql]
 
     def drop_table_sql(self):
-        sql = self.backend.DROP_TABLE.format_map({
-            'table': self.name
-        })
+        sql = self.backend.DROP_TABLE.format_map({'table': self.name})
         return [sql]
 
     def build_all_field_parameters(self):
@@ -394,14 +395,6 @@ class Table(Generic[TypeField], AbstractTable):
         joined_fields = self.backend.comma_join(field_params)
         create_sql = self.create_table_sql(joined_fields)
 
-        query = database.query_class(backend=self.backend)
-        query.add_sql_nodes(create_sql)
-        query.run(commit=True)
-
-        database.migrations.write_to_sql_file(create_sql)
-
-        self.is_prepared = True
-
         # Once the table is created and everything
         # is setup correctly, we create an abstract
         # database column to interface the column locally
@@ -409,6 +402,15 @@ class Table(Generic[TypeField], AbstractTable):
             column = Column(field)
             column.prepare()
             self.columns_map.setdefault(name, column)
+
+        if not skip_creation:
+            query = database.query_class(backend=self.backend)
+            query.add_sql_nodes(create_sql)
+            query.run(commit=True)
+            database.migrations.write_to_sql_file(create_sql)
+
+        self.is_prepared = True
+        return create_sql
 
     def deconstruct(self):
         """Decomposes the current table into its

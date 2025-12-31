@@ -7,6 +7,26 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "FastApi: Launch",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/_quartdemo/app.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/_quartdemo/.env",
+            "args": [
+                "fastapi"
+            ]
+        },
+        {
+            "name": "Python File: Launch",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/_playground.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
         }
     ]
 }

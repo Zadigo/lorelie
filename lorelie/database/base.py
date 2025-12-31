@@ -3,6 +3,7 @@ import pathlib
 from collections import OrderedDict
 from functools import wraps
 from typing import Optional
+from asgiref.sync import sync_to_async
 
 from lorelie.backends import SQLiteBackend
 from lorelie.database import registry
@@ -176,7 +177,7 @@ class Database:
         self.database_name: str = name
         # Use the immediate parent path if not
         # path is provided by the user
-        self.path = pathlib.Path(__name__).parent.absolute()
+        self.path: pathlib.Path = pathlib.Path(__name__).parent.absolute()
 
         if path is not None:
             if isinstance(path, str):
@@ -275,6 +276,10 @@ class Database:
         if self.database_name is not None:
             return self.database_name.title()
         return 'MEMORY'
+
+    @classmethod
+    def async_database(cls, *tables: Table, name: Optional[str] = None, path: Optional[TypeStrOrPathLibPath] = None, log_queries: bool = False):
+        return sync_to_async(cls)(*tables, name=name, path=path, log_queries=log_queries)
 
     def _add_table(self, table):
         table.load_current_connection()
@@ -427,3 +432,9 @@ class Database:
         relationship_map.relationship_type = 'one'
         self.relationships[name] = ForeignTablesManager(relationship_map)
         relationship_map.left_table.is_foreign_key_table = True
+
+    def deconstruct(self):
+        return {
+            'name': self.database_name,
+            'tables': [table.deconstruct() for table in self.table_instances]
+        }

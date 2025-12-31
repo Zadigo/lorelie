@@ -1,5 +1,5 @@
-import dataclasses
 import datetime
+import dataclasses
 import json
 import secrets
 from collections import defaultdict
@@ -8,8 +8,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING, DefaultDict, Final, Optional, Type
 
 from lorelie.backends import SQLiteBackend, connections
+from lorelie.fields.base import Field
 from lorelie.database.tables.base import Table
-from lorelie.fields.base import CharField, DateTimeField, Field, JSONField
+from lorelie.fields.base import CharField, DateTimeField, JSONField
 from lorelie.lorelie_typings import TypeSQLiteBackend, TypeTable, TypeTableMap
 from lorelie.queries import Query
 from lorelie.utils.json_encoders import DefaultJSonEncoder
@@ -30,7 +31,11 @@ class Schema:
     def __hash__(self):
         return hash((self.table.name, self.database.database_name))
 
-    def prepare(self):
+    def __iter__(self):
+        for key, value in self.deconstruct().items():
+            yield key, value
+
+    def deconstruct(self):
         """Transform the instances into serializable
         data that can be written to a migration file"""
         fields = self.table.field_names
@@ -40,7 +45,10 @@ class Schema:
             'fields': fields,
             'field_params': field_params,
             'indexes': self.indexes,
-            'constraints': self.constraints
+            'constraints': self.constraints,
+            'meta': {
+                'database': self.database.deconstruct()
+            }
         }
 
 
@@ -49,12 +57,17 @@ class JsonMigrationsSchema:
     id: Optional[str] = None
     date: Optional[str] = None
     number: Optional[int] = None
+    migrated: Optional[bool] = False
     tables: list[Schema] = field(default_factory=list)
 
     def __post_init__(self):
         self.id = self.id or secrets.token_hex(5)
         self.date = self.date or str(datetime.datetime.now())
         self.number = self.number or 1
+
+    @property
+    def _table_names(self):
+        return [table.table.name for table in self.tables]
 
 
 def migration_validator(value):
@@ -72,11 +85,17 @@ class Migrations:
     backend_class: Final[Type[SQLiteBackend]] = SQLiteBackend
 
     def __init__(self, database: 'Database'):
-        self.file = database.path / 'migrations.json'
         self.database = database
         self.database_name = database.database_name or 'memory'
-        self.JSON_MIGRATIONS_SCHEMA = self.read_content
+        self.migrations_json_path = database.path / \
+            f'{self.database_name}_migrations.json'
+        self.migrations_sql_path = database.path / \
+            f'{self.database_name}_migrations.sql'
+
+        self.JSON_MIGRATIONS_SCHEMA = self.read_json_migrations
         self.file_id = self.JSON_MIGRATIONS_SCHEMA.id
+
+        self.SQL_MIGRATIONS_SCHEMA = self.read_sql_migrations
 
         try:
             self.tables: list[str] = self.JSON_MIGRATIONS_SCHEMA.tables
@@ -97,7 +116,10 @@ class Migrations:
         # called at least once and that the
         # the underlying database can be
         # fully functionnal
-        self.migrated = False
+        self.migrated = all([
+            self.JSON_MIGRATIONS_SCHEMA.migrated,
+            self.SQL_MIGRATIONS_SCHEMA is not None
+        ])
         self.schemas: DefaultDict[str, Schema] = defaultdict(Schema)
 
     def __repr__(self):
@@ -108,14 +130,24 @@ class Migrations:
         return self.database_name is None
 
     @cached_property
-    def read_content(self):
+    def read_json_migrations(self):
         try:
-            with open(self.file, mode='r') as f:
+            with open(self.migrations_json_path, mode='r') as f:
                 return JsonMigrationsSchema(**json.load(f))
         except FileNotFoundError:
             # Create a blank migration file
             instance = JsonMigrationsSchema()
             return self.blank_migration(instance)
+
+    @cached_property
+    def read_sql_migrations(self):
+        try:
+            with open(self.migrations_sql_path, mode='r') as f:
+                return f.read()
+        except FileNotFoundError:
+            with open(self.migrations_sql_path, mode='w+') as f:
+                f.write('-- Lorelie SQL Migrations File\n')
+            return ''
 
     # def _write_fields(self, table):
     #     """Parses the different fields from
@@ -172,12 +204,7 @@ class Migrations:
         return table
 
     def migrate(self, table_instances: TypeTableMap):
-        # Safeguard that avoids calling
-        # this function in a loop over and
-        # over which can reduce performance
-        if self.migrated:
-            return True
-
+        incoming_tables = []
         errors = []
         for name, table_instance in table_instances.items():
             if not isinstance(table_instance, Table):
@@ -188,12 +215,24 @@ class Migrations:
             schema = self.schemas[name]
             schema.table = table_instance
             schema.database = self.database
+            incoming_tables.append(name)
 
         if errors:
             raise ValueError(*errors)
 
         if not table_instances:
             return
+
+        # Safeguard that avoids calling
+        # this function in a loop over and
+        # over which can reduce performance
+        if self.migrated:
+            # Compare the incoming tables with the
+            # existing ones from from the migration file
+            # and determine whether the code should
+            # proceed or not
+            if self.JSON_MIGRATIONS_SCHEMA._table_names == incoming_tables:
+                return True
 
         # There is a case where makemigrations() is not
         # called which infers that there is no migration
@@ -312,7 +351,7 @@ class Migrations:
 
         self.tables_for_creation.clear()
         self.tables_for_deletion.clear()
-        self.migrated = True
+        self.JSON_MIGRATIONS_SCHEMA.migrated = True
 
         schemas = []
 
@@ -332,9 +371,9 @@ class Migrations:
                     index.fields
                 ]
 
-            schemas.append(schema.prepare())
+            schemas.append(schema.deconstruct())
 
-        with open(self.database.path.joinpath('migrations.json'), mode='w+') as f:
+        with open(self.migrations_json_path, mode='w+') as f:
             self.JSON_MIGRATIONS_SCHEMA.id = secrets.token_hex(5)
             self.JSON_MIGRATIONS_SCHEMA.date = str(datetime.datetime.now())
             self.JSON_MIGRATIONS_SCHEMA.number += 1
@@ -373,7 +412,7 @@ class Migrations:
 
     def blank_migration(self, using: JsonMigrationsSchema):
         """Creates a blank initial migration file"""
-        with open(self.file, mode='w+') as f:
+        with open(self.migrations_json_path, mode='w+') as f:
             json.dump(
                 dataclasses.asdict(using),
                 f,
@@ -405,8 +444,8 @@ class Migrations:
         Args:
             statement_or_statements (str | list[str]): The SQL statement or list of SQL statements
         """
-        with open(self.database.path / 'migrations.sql', mode='a+') as f:
-            with open(self.database.path / 'migrations.sql', mode='r') as fr:
+        with open(self.migrations_sql_path, mode='a+') as f:
+            with open(self.migrations_sql_path, mode='r') as fr:
                 content = fr.read().splitlines()
 
             f.write(f'\n-- Migration executed on {datetime.datetime.now()}\n')

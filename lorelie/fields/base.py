@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 import uuid
 import datetime
 import decimal
@@ -11,26 +11,26 @@ from urllib.parse import unquote
 from lorelie.constraints import (MaxLengthConstraint, MaxValueConstraint,
                                  MinValueConstraint)
 from lorelie.exceptions import ValidationError
-from lorelie.lorelie_typings import TypeTable
+from lorelie.lorelie_typings import TypeAny, TypeAnyNormalTypes, TypeConstraint, TypeTable
 from lorelie.validators import url_validator
 
 
 class Field:
     python_type = str
-    base_validators = []
+    base_validators: list[Callable[[Any], None]] = []
     default_field_errors = {}
 
     def __init__(self, name: str, *, max_length: int = None, null: bool = False, primary_key: bool = False, default=None, unique: bool = False, validators: list[Callable[[Any], None]] = [], verbose_name: str = None, editable: bool = False):
-        self.constraints = []
-        self.name = self.validate_field_name(name)
-        self.verbose_name = verbose_name
-        self.editable = editable
-        self.null = null
-        self.primary_key = primary_key
+        self.constraints: list[TypeConstraint] = []
+        self.name: str = self.validate_field_name(name)
+        self.verbose_name: str = verbose_name
+        self.editable: bool = editable
+        self.null: bool = null
+        self.primary_key: bool = primary_key
         self.default = default
-        self.unique = unique
-        self.table = None
-        self.max_length = max_length
+        self.unique: bool = unique
+        self.table: TypeTable = None
+        self.max_length: int = max_length
         self.base_validators = self.base_validators + validators
         self.standard_field_types = ['text', 'integer', 'blob', 'real', 'null']
         self.is_relationship_field = False
@@ -112,10 +112,10 @@ class Field:
                 raise ValueError('Validator should be a callable')
             validator(value)
 
-    def to_python(self, data):
+    def to_python(self, data: Any) -> TypeAny:
         return data
 
-    def to_database(self, data):
+    def to_database(self, data: TypeAnyNormalTypes) -> TypeAnyNormalTypes:
         """The `to_database` adapts certain types of values
         e.g. dict to the sqlite database. Each subclass should
         define their specific logic for normalizing the data
@@ -226,18 +226,32 @@ class Field:
         self.table = table
 
     def deconstruct(self):
-        return (self.name, self.field_parameters())
+        """Deconstruct the field into its
+        components in order to recreate it
+        later on"""
+        params = {
+            'null': self.null,
+            'primary_key': self.primary_key,
+            'default': self.default,
+            'unique': self.unique,
+            'editable': self.editable
+        }
+
+        if self.max_length is not None:
+            params['max_length'] = self.max_length
+
+        return (self.__class__.__name__, self.name, params)
 
 
 class CharField(Field):
-    def to_database(self, data):
+    def to_database(self, data: Any) -> TypeAny:
         if callable(data):
             data = data()
         return super().to_database(str(data))
 
 
 class NumericFieldMixin:
-    def __init__(self, name, *, min_value=None, max_value=None, **kwargs):
+    def __init__(self, name: str, *, min_value: Optional[int] = None, max_value: Optional[int] = None, **kwargs: str):
         self.min_value = min_value
         self.max_value = max_value
         super().__init__(name, **kwargs)
@@ -258,7 +272,7 @@ class IntegerField(NumericFieldMixin, Field):
     def field_type(self):
         return 'integer'
 
-    def to_database(self, data):
+    def to_database(self, data: Any) -> TypeAny:
         if isinstance(data, str):
             if data.isnumeric() or data.isdigit():
                 return super().to_database(self.python_type(data))
@@ -270,7 +284,7 @@ class IntegerField(NumericFieldMixin, Field):
 class FloatField(NumericFieldMixin, Field):
     python_type = float
 
-    def to_python(self, data):
+    def to_python(self, data: Any) -> TypeAny:
         if data is None or data == '':
             return data
 
@@ -290,7 +304,7 @@ class FloatField(NumericFieldMixin, Field):
 
 
 class DecimalField(NumericFieldMixin, Field):
-    def __init__(self, name, digits=None, **kwargs):
+    def __init__(self, name: str, digits: Optional[int] = None, **kwargs: str):
         super().__init__(name, **kwargs)
         if digits is None:
             raise ValueError(f'{digits} should be an integer')
@@ -320,7 +334,7 @@ class JSONField(Field):
     # def field_type(self):
     #     return 'dict'
 
-    def to_python(self, data):
+    def to_python(self, data: str) -> TypeAny:
         if data is None or data == '':
             return data
 
@@ -332,7 +346,7 @@ class JSONField(Field):
                 name=self.name
             )
 
-    def to_database(self, data):
+    def to_database(self, data: Any) -> TypeAny:
         clean_data = super().to_database(data)
         return json.dumps(clean_data, ensure_ascii=False, sort_keys=True)
 
@@ -346,7 +360,7 @@ class BooleanField(Field):
     def field_type(self):
         return 'boolean'
 
-    def to_database(self, data):
+    def to_database(self, data: Any) -> TypeAny:
         if data in self.truth_types:
             return super().to_database(1)
 
@@ -370,7 +384,7 @@ class DateFieldMixin:
     python_type = str
     date_format = '%Y-%m-%d'
 
-    def __init__(self, name, *, auto_update=False, auto_add=False, **kwargs):
+    def __init__(self, name: str, *, auto_update: bool = False, auto_add: bool = False, **kwargs):
         self.auto_update = auto_update
         self.auto_add = auto_add
 
@@ -379,7 +393,7 @@ class DateFieldMixin:
 
         super().__init__(name, **kwargs)
 
-    def parse_from_format(self, data, formats):
+    def parse_from_format(self, data: Any, formats: tuple[str, ...]) -> datetime.datetime:
         d = None
         for f in formats:
             try:
@@ -405,7 +419,7 @@ class DateField(DateFieldMixin, Field):
     def field_type(self):
         return 'date'
 
-    def to_database(self, data):
+    def to_database(self, data: Any) -> TypeAny:
         if data == '' or data is None:
             return data
 
@@ -454,7 +468,7 @@ class DateTimeField(DateFieldMixin, Field):
     def field_type(self):
         return 'datetime'
 
-    def to_database(self, data):
+    def to_database(self, data: Any) -> TypeAny:
         if data == '' or data is None:
             return data
 
@@ -484,7 +498,7 @@ class DateTimeField(DateFieldMixin, Field):
 class TimeField(DateTimeField):
     date_format = '%H:%M:%S'
 
-    def to_database(self, data):
+    def to_database(self, data: Any) -> TypeAny:
         clean_data = super().to_database(data)
         return datetime.datetime.fromisoformat(clean_data)
 
@@ -510,7 +524,7 @@ class UUIDField(Field):
             return str(data)
         return data.hex
 
-    def to_python(self, data):
+    def to_python(self, data: Any) -> TypeAny:
         if not isinstance(data, uuid.UUID):
             try:
                 param = 'hex' if isinstance(data, int) else 'hex'
@@ -523,7 +537,7 @@ class UUIDField(Field):
 class URLField(CharField):
     base_validators = [url_validator]
 
-    def to_database(self, data):
+    def to_database(self, data: Any) -> TypeAny:
         if data is None or data == '':
             return data
         return super().to_database(unquote(data))
@@ -536,12 +550,12 @@ class BinaryField(Field):
 class CommaSeparatedField(CharField):
     base_validators = []
 
-    def to_python(self, data):
+    def to_python(self, data: Any) -> TypeAny:
         if data is None or data == '':
             return data
         return data.split(',')
 
-    def to_database(self, data):
+    def to_database(self, data: Any) -> TypeAny:
         if isinstance(data, (list, set, tuple)):
             data = ', '.join(data)
         return super().to_database(data)

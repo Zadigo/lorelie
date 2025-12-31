@@ -145,3 +145,4 @@ migrations.json
 lorelie_docs/node_modules
 
 *.sql
+*migrations.json

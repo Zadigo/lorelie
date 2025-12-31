@@ -1,14 +1,9 @@
-import inspect
 import datetime
 import uuid
 
 from lorelie.exceptions import ValidationError
-from lorelie.fields.base import (AliasField, AutoField, BinaryField,
-                                 BooleanField, CharField, CommaSeparatedField,
-                                 DateField, DateTimeField, DecimalField,
-                                 EmailField, Field, FilePathField, FloatField,
-                                 IntegerField, JSONField, SlugField, TimeField,
-                                 URLField, UUIDField)
+from lorelie.fields.base import (BooleanField, CharField, DateField, DateTimeField, Field, FloatField,
+                                 IntegerField, JSONField, UUIDField)
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -20,14 +15,60 @@ class TestField(LorelieTestCase):
         self.assertEqual(params, ['name', 'text', 'not null'])
         self.assertEqual(field.to_python('Kendall Jenner'), 'Kendall Jenner')
         self.assertEqual(field.to_database('Kendall Jenner'), 'Kendall Jenner')
+        self.assertFalse(field.editable)
+        self.assertFalse(field.unique)
+        self.assertIsNone(field.max_length)
+        self.assertIsNone(field.verbose_name)
+        self.assertFalse(field.null)
+        self.assertFalse(field.is_relationship_field)
+        self.assertEqual(field.index, 0)
+        self.assertDictEqual(field.base_field_parameters, {
+            'primary key': False,
+            'null': False,
+            'not null': True,
+            'unique': False
+        })
+        self.assertEqual(field.field_type, 'text')
+        self.assertTrue(field.is_standard_field_type)
+        self.assertEqual(field.to_python('Kendall Jenner'), 'Kendall Jenner')
+
+    def test_validate_field_name(self):
+        pass
+
+    def test_create(self):
+        pass
+
+    def test_run_validators(self):
+        field = Field('name')
+
+        def validate_name(name):
+            if name == 'Kendall':
+                raise ValidationError('Invalid')
+
+        field.base_validators = [validate_name]
+        with self.assertRaises(ValidationError):
+            field.run_validators('Kendall')
 
     def test_constraints(self):
         field = Field('name', max_length=20)
         self.assertEqual(len(field.constraints), 1)
 
+    def test_to_database(self):
+        field = Field('name')
+        self.assertEqual(field.to_database('Kendall Jenner'), 'Kendall Jenner')
+
+        value = field.to_database(lambda: 'Kendall Jenner')
+        self.assertEqual(value, 'Kendall Jenner')
+
+        value = field.to_database(25)
+        self.assertEqual(value, 25)
+
+        value = field.to_database([1, 2, 3])
+        self.assertListEqual(value, [1, 2, 3])
+
     def test_base_field_parameters_boolean(self):
         field = Field('name', null=True, primary_key=True, unique=True)
-        field.field_parameters()
+        result = field.field_parameters()
 
         self.assertDictEqual(
             field.base_field_parameters,
@@ -39,16 +80,21 @@ class TestField(LorelieTestCase):
             }
         )
 
-    def test_validators(self):
-        field = Field('name')
+        self.assertListEqual(
+            result,
+            ['name', 'text', 'primary key', 'null', 'unique']
+        )
 
-        def validate_name(name):
-            if name == 'Kendall':
-                raise ValidationError('Invalid')
+        table = self.create_table()
+        table.backend = self.create_connection()
 
-        field.base_validators = [validate_name]
-        with self.assertRaises(ValidationError):
-            field.run_validators('Kendall')
+        field = Field('name', max_length=100)
+        field.table = table
+        result = field.field_parameters()
+        self.assertListEqual(
+            result,
+            ['name', 'varchar(100)', 'not null', 'check(length(name)>100)']
+        )
 
     def test_to_database(self):
         field = Field('name')

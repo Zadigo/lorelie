@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import ClassVar, Generic, Optional, override
 
 from lorelie.expressions import CombinedExpression, Q
-from lorelie.lorelie_typings import TypeSQLiteBackend
+from lorelie.lorelie_typings import TypeField, TypeSQLiteBackend
 
 
 class BaseConstraint(Generic[TypeSQLiteBackend], ABC):
@@ -33,6 +33,10 @@ class BaseConstraint(Generic[TypeSQLiteBackend], ABC):
     @abstractmethod
     def as_sql(self, backend: TypeSQLiteBackend) -> str:
         raise NotImplemented
+
+    def deconstruct(self) -> tuple[str, list]:
+        params = [self.name]
+        return self.__class__.__name__, params
 
 
 class CheckConstraint(BaseConstraint):
@@ -80,7 +84,7 @@ class UniqueConstraint(BaseConstraint):
     template_sql: ClassVar[str] = 'unique({fields})'
     prefix: ClassVar[str] = 'unq'
 
-    def __init__(self, name, *, fields=[]):
+    def __init__(self, name: str, *, fields: list[str] = []):
         super().__init__(name)
         self.fields = fields
 
@@ -94,7 +98,7 @@ class UniqueConstraint(BaseConstraint):
 
 
 class MinMaxMixin:
-    def __init__(self, limit, field):
+    def __init__(self, limit: int, field: TypeField):
         if not isinstance(limit, int):
             error = self.base_errors['integer']
             raise ValueError(error.format(klass=self.__class__.__name__))
@@ -117,7 +121,7 @@ class MaxLengthConstraint(MinMaxMixin, BaseConstraint):
     @override
     def as_sql(self, backend: TypeSQLiteBackend):
         condition = backend.CONDITION.format_map({
-            'field': self.length_sql.format(self.field.name),
+            'field': self.length_sql.format(column=self.field.name),
             'operator': '>',
             'value': self.limit
         })

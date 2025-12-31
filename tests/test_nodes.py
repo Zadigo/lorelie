@@ -462,13 +462,16 @@ class TestSelectMap(LorelieTestCase):
 
         select_map = SelectMap(select, where, orderby, limit=10, offset=5)
         sql = select_map.resolve(self.create_connection())
-        print(sql)
-        # self.assertListEqual(
-        #     sql,
-        #     [
-        #         "select * from celebrities where name='Kendall' order by name asc limit 10 offset 5"
-        #     ]
-        # )
+        self.assertListEqual(
+            sql,
+            [
+                'select * from celebrities',
+                "where name='Kendall'",
+                'order by name asc',
+                'limit 10',
+                'offset 5'
+            ]
+        )
 
     def test_can_resolve(self):
         select_map = SelectMap()

@@ -11,6 +11,8 @@ if TYPE_CHECKING:
     from lorelie.backends import BaseRow
     from lorelie.queries import QuerySet, Query
     from lorelie.expressions import Q, CombinedExpression
+    from lorelie.constraints import BaseConstraint
+    from lorelie.database.indexes import Index
 
 TypeSQLiteBackend = TypeVar('TypeSQLiteBackend', bound='SQLiteBackend')
 
@@ -25,9 +27,14 @@ TypeStrOrPathLibPath = TypeVar(
 
 TypeAny = TypeVar('TypeAny')
 
+TypeAnyNormalTypes = TypeVar(
+    'TypeAny', bound='str | int | float | bool | dict | list | None')
+
 TypeField = TypeVar('TypeField', bound='Field')
 
 TypeDatabase = TypeVar('TypeDatabase', bound='Database')
+
+TypeIndex = TypeVar('TypeIndex', bound='Index')
 
 TypeNode = TypeVar('TypeNode', bound='BaseNode')
 
@@ -38,6 +45,8 @@ TypeQuery = TypeVar('TypeQuery', bound='Query')
 TypeQ = TypeVar('TypeQ', bound='Q')
 
 TypeExpression = TypeVar('TypeExpression', 'Q', 'CombinedExpression')
+
+TypeConstraint = TypeVar('TypeConstraint', bound='BaseConstraint')
 
 
 class TypeNewValue(Protocol):

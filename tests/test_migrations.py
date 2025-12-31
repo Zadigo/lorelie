@@ -62,6 +62,24 @@ TEST_MIGRATION = {
 }
 
 
+class TestSchemaDataclass(LorelieTestCase):
+    def test_structure(self):
+        table = Table('celebrities')
+        db = Database(table)
+        schema = Schema(table, db)
+
+        assert schema.table == table
+        assert schema.database == db
+
+        result = schema.prepare()
+        self.assertIn('name', result)
+        self.assertIn('fields', result)
+
+        print(dict(schema))
+
+        print(result)
+
+
 class TestMigrations(LorelieTestCase):
     def test_structure(self):
         db = Database()

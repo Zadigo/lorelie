@@ -9,7 +9,7 @@ from lorelie.database.manager import DatabaseManager
 from lorelie.database.tables.columns import Column
 from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
 from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
-from lorelie.lorelie_typings import TypeDatabase, TypeField, TypeSQLiteBackend
+from lorelie.lorelie_typings import TypeConstraint, TypeDatabase, TypeField, TypeIndex, TypeSQLiteBackend
 from lorelie.queries import Query
 
 
@@ -130,7 +130,7 @@ class Table(Generic[TypeField], AbstractTable):
     ... database.objects.all('url')
     """
 
-    def __init__(self, name: str, *, fields: list[TypeField] = [], indexes: list[Index] = [], constraints=[], ordering: list[str] = [], str_field='id'):
+    def __init__(self, name: str, *, fields: list[TypeField] = [], indexes: list[TypeIndex] = [], constraints: list[TypeConstraint] = [], ordering: list[str] = [], str_field='id'):
         self.name = self.validate_table_name(name)
         self.verbose_name = name.lower().title()
         self.indexes = indexes
@@ -409,3 +409,27 @@ class Table(Generic[TypeField], AbstractTable):
             column = Column(field)
             column.prepare()
             self.columns_map.setdefault(name, column)
+
+    def deconstruct(self):
+        """Decomposes the current table into its
+        basic serializable components for migration
+        purposes"""
+        data = {
+            'name': self.name,
+            'fields': [],
+            'indexes': [],
+            'constraints': [],
+            'ordering': list(self.ordering),
+            'str_field': self.str_field
+        }
+
+        for field in self.fields_map.values():
+            data['fields'].append(field.deconstruct())
+
+        for index in self.indexes:
+            data['indexes'].append(index.deconstruct())
+
+        for constraint in self.table_constraints:
+            data['constraints'].append(constraint.deconstruct())
+
+        return data

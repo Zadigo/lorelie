@@ -1,11 +1,8 @@
 import secrets
-from typing import TYPE_CHECKING, Final, ClassVar, Optional
+from typing import ClassVar, Optional
 
 from lorelie.database.nodes import WhereNode
-from lorelie.lorelie_typings import TypeSQLiteBackend, TypeTable
-
-if TYPE_CHECKING:
-    from lorelie.expressions import Q
+from lorelie.lorelie_typings import TypeQ, TypeSQLiteBackend, TypeTable
 
 
 class Index:
@@ -24,13 +21,18 @@ class Index:
     ensuring that the specified fields are indexed properly. It also handles 
     the naming and uniqueness constraints associated with index creation.
 
-    >>> table = Table('celebrities', index=[Index('index_name', 'firstname')])
+    >>> table = Table(index=[Index('index_name', ['firstname'])])
+
+    Args:
+        name (str): The name of the index.
+        fields (list[str]): A list of field names to be indexed.
+        condition (Optional[Q]): An optional condition for partial indexes.
     """
     template_sql: ClassVar[str] = 'create index {name} on {table} ({fields})'
-    prefix = 'idx'
+    prefix: str = 'idx'
     max_name_length = 30
 
-    def __init__(self, name: str, fields: list[str], condition: Optional['Q'] = None):
+    def __init__(self, name: str, fields: list[str], condition: Optional[TypeQ] = None):
         if len(name) > self.max_name_length:
             raise ValueError('Name should be maximum 30 carachters long')
 
@@ -52,6 +54,9 @@ class Index:
 
     def prepare(self, table: TypeTable):
         self.table = table
+
+    def deconstruct(self):
+        return (self.name, self.fields, self.condition)
 
     def as_sql(self, backend: TypeSQLiteBackend) -> str:
         if self.table is None:

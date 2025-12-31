@@ -19,9 +19,6 @@ class DefaultJSonEncoder(JSONEncoder):
                 raise ValueError('Cannot represent timezone-aware times.')
             return obj.isoformat()
 
-        if dataclasses.is_dataclass(obj):
-            return dataclasses.asdict(obj)
-
         if isinstance(obj, datetime.date):
             return str(obj)
 
@@ -32,7 +29,13 @@ class DefaultJSonEncoder(JSONEncoder):
             return float(obj)
 
         if dataclasses.is_dataclass(obj):
-            return dict(obj)
+            try:
+                return dict(obj)
+            except TypeError as e:
+                raise ExceptionGroup(
+                    'Dataclass JSON serialization error',
+                    [e]
+                )
 
         if isinstance(obj, uuid.UUID):
             return str(obj)

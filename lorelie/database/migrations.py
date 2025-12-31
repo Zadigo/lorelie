@@ -38,18 +38,7 @@ class Schema:
     def deconstruct(self):
         """Transform the instances into serializable
         data that can be written to a migration file"""
-        fields = self.table.field_names
-        field_params = list(self.table.build_all_field_parameters())
-        return {
-            'name': self.table.name,
-            'fields': fields,
-            'field_params': field_params,
-            'indexes': self.indexes,
-            'constraints': self.constraints,
-            'meta': {
-                'database': self.database.deconstruct()
-            }
-        }
+        return {**self.database.deconstruct()}
 
 
 @dataclass
@@ -58,12 +47,26 @@ class JsonMigrationsSchema:
     date: Optional[str] = None
     number: Optional[int] = None
     migrated: Optional[bool] = False
-    tables: list[Schema] = field(default_factory=list)
+    schema: list[Schema] = field(default_factory=list)
 
     def __post_init__(self):
         self.id = self.id or secrets.token_hex(5)
         self.date = self.date or str(datetime.datetime.now())
         self.number = self.number or 1
+
+    def __iter__(self):
+        schemas = [item.deconstruct() for item in self.schema]
+
+        template = {
+            'id': self.id,
+            'date': self.date,
+            'number': self.number,
+            'migrated': self.migrated,
+            'schema': schemas
+        }
+
+        for key, value in template.items():
+            yield key, value
 
     @property
     def _table_names(self):
@@ -98,7 +101,7 @@ class Migrations:
         self.SQL_MIGRATIONS_SCHEMA = self.read_sql_migrations
 
         try:
-            self.tables: list[str] = self.JSON_MIGRATIONS_SCHEMA.tables
+            self.tables: list[str] = self.JSON_MIGRATIONS_SCHEMA.schema
         except KeyError:
             raise KeyError('Migration file is not valid')
 
@@ -316,7 +319,7 @@ class Migrations:
             if table_instance is None:
                 continue
 
-            self.check_fields(table_instance, backend)
+            # self.check_fields(table_instance, backend)
 
         for name, table in table_instances.items():
             for index in table.indexes:
@@ -358,7 +361,7 @@ class Migrations:
         # This section will write to the migration file
         for name, table in table_instances.items():
             schema = self.schemas[table.name]
-            self.JSON_MIGRATIONS_SCHEMA.tables.append(schema)
+            self.JSON_MIGRATIONS_SCHEMA.schema.append(schema)
 
             for constraint in table.table_constraints:
                 schema.constraints[constraint.name] = [

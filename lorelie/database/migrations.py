@@ -5,12 +5,12 @@ import secrets
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING, DefaultDict, Final, Optional, Type
+from typing import TYPE_CHECKING, Any, Final, Optional, Type
 
 from lorelie.backends import SQLiteBackend, connections
 from lorelie.database.tables.base import Table
 from lorelie.fields.base import CharField, DateTimeField, JSONField
-from lorelie.lorelie_typings import TypeTableMap
+from lorelie.lorelie_typings import TypeField, TypeTableMap
 from lorelie.queries import Query
 from lorelie.utils.json_encoders import DefaultJSonEncoder
 
@@ -19,30 +19,12 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class Schema:
-    table: Optional[Table] = None
-    database: Optional['Database'] = None
-
-    def __hash__(self):
-        return hash((self.table.name, self.database.database_name))
-
-    def __iter__(self):
-        for key, value in self.deconstruct().items():
-            yield key, value
-
-    def deconstruct(self):
-        """Transform the instances into serializable
-        data that can be written to a migration file"""
-        return {**self.database.deconstruct()}
-
-
-@dataclass
 class JsonMigrationsSchema:
     id: Optional[str] = None
     date: Optional[str] = None
     number: Optional[int] = None
     migrated: Optional[bool] = False
-    schema: list[Schema] = field(default_factory=list)
+    schema: dict = field(default_factory=dict)
 
     def __post_init__(self):
         self.id = self.id or secrets.token_hex(5)
@@ -50,14 +32,12 @@ class JsonMigrationsSchema:
         self.number = self.number or 1
 
     def __iter__(self):
-        schema = self.schema[0].deconstruct()
-
         template = {
             'id': self.id,
             'date': self.date,
             'number': self.number,
             'migrated': self.migrated,
-            'schema': schema
+            'schema': self.schema
         }
 
         for key, value in template.items():
@@ -65,13 +45,40 @@ class JsonMigrationsSchema:
 
     @property
     def _table_names(self):
-        return [schema.table.name for schema in self.schema]
+        tables = self.schema.get('tables', [])
+        return [item['name'] for item in tables]
 
-    def get_schema(self, name: str) -> Optional[Schema]:
-        for table in self.schema:
-            if table.table and table.table.name == name:
-                return table
-        raise ValueError(f'Table {name} not found in migration schema')
+    def get_table(self, table_name: str) -> Optional[dict[str, Any]]:
+        """Returns the table schema for a given table
+        in the current migration schema"""
+        tables = self.schema.get('tables', [])
+        for item in tables:
+            if item.get('name', '') == table_name:
+                return item
+        return None
+
+    def get_table_fields(self, table_name: str) -> Optional[list[list[Any]]]:
+        """Returns the fields map for a given table
+        in the current migration schema"""
+        json_table = self.get_table(table_name)
+        if json_table:
+            return json_table.get('fields', [])
+        return None
+
+    def get_table_field(self, table_name: str, field_name: str):
+        """Returns the field parameters for a given field
+        in a given table from the current migration schema"""
+        json_fields = self.get_table_fields(table_name)
+        if json_fields:
+            for field in json_fields:
+                if field[1] == field_name:
+                    return field
+        return None
+
+    def table_has_field(self, table_name: str, field_name: str) -> bool:
+        """Checks whether a given table has a field in the
+        current migration schema"""
+        return self.get_table_field(table_name, field_name) is not None
 
 
 def migration_validator(value):
@@ -101,21 +108,16 @@ class Migrations:
 
         self.SQL_MIGRATIONS_SCHEMA = self.read_sql_migrations
 
-        try:
-            self.tables: list[str] = self.JSON_MIGRATIONS_SCHEMA.schema
-        except KeyError:
-            raise KeyError('Migration file is not valid')
-
-        self.migration_table_map = [
-            table['name']
-            for table in self.tables if table is not None
-        ]
         self.fields_map = defaultdict(list)
 
+        self.existing_tables = self.JSON_MIGRATIONS_SCHEMA._table_names
         self.tables_for_creation: set[str] = set()
         self.tables_for_deletion: set[str] = set()
-        self.existing_tables: set[str] = set()
-        self.has_migrations = False
+        # Indacate the current migration run
+        # is for updating existing tables
+        # therefore skipping the creation
+        # the migrations table
+        self.for_update = False
         # Indicates that check function was
         # called at least once and that the
         # the underlying database can be
@@ -124,7 +126,6 @@ class Migrations:
             self.JSON_MIGRATIONS_SCHEMA.migrated,
             self.SQL_MIGRATIONS_SCHEMA is not None
         ])
-        self.schemas: DefaultDict[str, Schema] = defaultdict(Schema)
 
     def __repr__(self):
         return f'<{self.__class__.__name__} {self.file_id}>'
@@ -213,19 +214,8 @@ class Migrations:
         # we need to make sure we reload the Python objects
         # for the rest of the code
         if self.JSON_MIGRATIONS_SCHEMA.schema and self.JSON_MIGRATIONS_SCHEMA.migrated:
-            reloaded_schemas = []
-            for item in self.JSON_MIGRATIONS_SCHEMA.schema:
-                json_table = item['tables'][0]
-                table = table_instances[json_table['name']]
-                reloaded_schemas.append(
-                    Schema(
-                        table=table, 
-                        database=self.database
-                    )
-                )
-            self.JSON_MIGRATIONS_SCHEMA.schema = reloaded_schemas
+            pass
 
-        current_tables = set(self.JSON_MIGRATIONS_SCHEMA._table_names)
         incoming_table_names: set[str] = set(table_instances.keys())
 
         errors = []
@@ -235,9 +225,6 @@ class Migrations:
                     f"Value should be instance "
                     f"of Table. Got: {table_instance}"
                 )
-            schema = self.schemas[name]
-            schema.table = table_instance
-            schema.database = self.database
 
         if errors:
             raise ValueError(*errors)
@@ -245,8 +232,16 @@ class Migrations:
         if not table_instances:
             return
 
-        if incoming_table_names != current_tables:
+        # Only tracks tables that are user-defined
+        _current_user_tables = set(self.existing_tables)
+        if 'migrations' in _current_user_tables:
+            _current_user_tables.remove('migrations')
+
+        # Check for tables that might have been
+        # deleted from the incoming tables
+        if incoming_table_names != _current_user_tables:
             self.migrated = False
+            self.for_update = True
 
         # Safeguard that avoids calling
         # this function in a loop over and
@@ -254,14 +249,14 @@ class Migrations:
         if self.migrated:
             return True
 
-            # Compare the incoming tables with the
+        # Compare the incoming tables with the
         # existing ones from from the migration file
         # and determine whether the code should
         # proceed or not
         self.tables_for_creation = incoming_table_names.difference(
-            current_tables
+            _current_user_tables
         )
-        self.tables_for_deletion = current_tables.difference(
+        self.tables_for_deletion = _current_user_tables.difference(
             incoming_table_names
         )
 
@@ -275,16 +270,14 @@ class Migrations:
                 schema = self.schemas[name]
                 sql_statements.extend(schema.table.drop_table_sql())
 
-        if 'migrations' not in self.migration_table_map:
+        if 'migrations' not in self.existing_tables:
             self.tables_for_creation.add('migrations')
 
             migrations_table = self._build_migration_table()
             table_instances['migrations'] = migrations_table
-
-            new_schema = self.schemas['migrations']
-            new_schema.table = migrations_table
-            new_schema.database = self.database
             self.database._add_table(migrations_table)
+
+        self.JSON_MIGRATIONS_SCHEMA.schema = self.database.deconstruct()
 
         if self.tables_for_creation:
             for name in self.tables_for_creation:
@@ -300,33 +293,29 @@ class Migrations:
                     )
                 )
 
-        fields_to_check = defaultdict(dict)
+        fields_to_check: defaultdict[str, dict[str, TypeField]] = defaultdict(dict)
         # Now here we check for existing tables
         # that might need to be altered. We start from
         # a macro level: indexes, constraints, fields
         # existing_tables = current_tables.intersection(incoming_table_names)
-        for name in current_tables:
-            schema = self.JSON_MIGRATIONS_SCHEMA.get_schema(name)
-            if schema is not None:
-                if len(schema.table.indexes) > 0:
-                    pass
+        for name in _current_user_tables:
+            table = table_instances[name]
 
-                if len(schema.table.table_constraints) > 0:
-                    pass
+            if len(table.indexes) > 0:
+                pass
 
-                fields_to_check[name] = {
-                    'existing_fields': {
-                        field['name']: field
-                        for field in schema.table.fields_map.values()
-                    },
-                    'incoming_fields': {
-                        field.name: field
-                        for field in table_instances[name].fields_map.values()
-                    }
-                }
+            if len(table.table_constraints) > 0:
+                pass
 
-        for _, schema in self.schemas.items():
-            self.JSON_MIGRATIONS_SCHEMA.schema.append(schema)
+            for field_name in table.fields_map.keys():
+                has_field = self.JSON_MIGRATIONS_SCHEMA.table_has_field(
+                    table_name=name,
+                    field_name=field_name
+                )
+
+                # if not has_field:
+                #     fields_to_check[name][field_name] = table.get_field(field_name)
+                #     fields_to_check[name][field_name]['action'] = 'delete'
 
         backend = connections.get_last_connection()
         Query.run_transaction(backend=backend, sql_tokens=sql_statements)
@@ -350,7 +339,6 @@ class Migrations:
 
             self.tables_for_creation.clear()
             self.tables_for_deletion.clear()
-
 
     def blank_migration(self, using: JsonMigrationsSchema):
         """Creates a blank initial migration file"""

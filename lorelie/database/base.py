@@ -285,6 +285,7 @@ class Database:
         # DELETE: Remove this
         table.load_current_connection()
         self.table_map[table.name] = table
+        self.table_instances.append(table)
 
     def _prepare_relationship_map(self, right_table, left_table):
         if (not isinstance(left_table, Table) and

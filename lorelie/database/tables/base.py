@@ -148,7 +148,7 @@ class Table(Generic[TypeField], AbstractTable):
         self.ordering = set(ordering)
 
         super().__init__()
-        self.fields_map: dict[str, TypeField] = OrderedDict()
+        self.fields_map: OrderedDict[str, TypeField] = OrderedDict()
         self.auto_add_fields: set[str] = set()
         self.auto_update_fields: set[str] = set()
 
@@ -341,6 +341,26 @@ class Table(Generic[TypeField], AbstractTable):
     def drop_table_sql(self):
         sql = self.backend.DROP_TABLE.format_map({'table': self.name})
         return [sql]
+
+    # def create_field_sql(self, field: TypeField):
+    #     field_params = field.field_parameters()
+    #     joined_params = self.backend.simple_join(field_params)
+
+    #     sql = self.backend.ADD_COLUMN.format_map({
+    #         'table': self.name,
+    #         'field_definition': joined_params
+    #     })
+    #     return [sql]
+
+    # def alter_field_sql(self, field: TypeField):
+    #     field_params = field.field_parameters()
+    #     joined_params = self.backend.simple_join(field_params)
+
+    #     sql = self.backend.ALTER_COLUMN.format_map({
+    #         'table': self.name,
+    #         'field_definition': joined_params
+    #     })
+    #     return [sql]
 
     def build_all_field_parameters(self):
         """Returns the paramaters for all

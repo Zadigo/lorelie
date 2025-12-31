@@ -1,83 +1,40 @@
 
+import json
+import pathlib
 from unittest.mock import patch
 
 from lorelie.database.base import Database
-from lorelie.database.migrations import JsonMigrationsSchema, Migrations, Schema
+from lorelie.database.migrations import JsonMigrationsSchema, Migrations
 from lorelie.database.tables.base import Table
 from lorelie.queries import Query
 from lorelie.test.testcases import LorelieTestCase
 
-EMPTY_MIGRATION = {
-    'id': None,
-    'date': None,
-    'number': 1,
-    'tables': []
-}
-
-TEST_MIGRATION = {
-    'id': '2cd78eb43f',
-    'date': '2025-12-29 17:05:09.283195',
-    'number': 6,
-    'tables': [
-        {
-            'name': 'celebrities',
-            'fields': [
-                'name',
-                'height',
-                'created_on',
-                'id',
-                'rowid'
-            ],
-            'field_params': [
-                [
-                    'name',
-                    'text',
-                    'not null'
-                ],
-                [
-                    'height',
-                    'integer',
-                    'default',
-                    152,
-                    'not null',
-                    'check(height>150)'
-                ],
-                [
-                    'created_on',
-                    'datetime',
-                    'null'
-                ],
-                [
-                    'id',
-                    'integer',
-                    'primary key',
-                    'autoincrement',
-                    'not null'
-                ]
-            ],
-            'indexes': {},
-            'constraints': {}
-        }
-    ]
-}
-
 
 class TestSchemaDataclass(LorelieTestCase):
+    @classmethod
+    def setUpClass(cls):
+        path = pathlib.Path(__file__).parent / 'test_migration.json'
+        with open(path, 'r') as f:
+            data = json.load(f)
+        cls.TEST_MIGRATION = data
+
     def test_structure(self):
-        table = Table('celebrities')
-        db = Database(table)
-        schema = Schema(table, db)
+        instance = JsonMigrationsSchema(**self.TEST_MIGRATION)
 
-        assert schema.table == table
-        assert schema.database == db
+        json_table = instance.get_table('company')
+        self.assertIsInstance(json_table, dict)
+        self.assertEqual(json_table.get('name'), 'company')
 
-        result = schema.prepare()
-        self.assertIn('name', result)
-        self.assertIn('fields', result)
+        json_fields = instance.get_table_fields('company')
+        self.assertIsInstance(json_fields, list)
+        self.assertIsInstance(json_fields[0], list)
 
-        print(dict(schema))
-
-        print(result)
+        json_field = instance.get_table_field('company', 'name')
+        field_type, name, params = json_field
+        self.assertIsInstance(json_field, list)
+        self.assertEqual(field_type, 'CharField')
+        self.assertEqual(name, 'name')
+        self.assertIsInstance(params, dict)
 
 
 class TestMigrations(LorelieTestCase):
@@ -86,16 +43,25 @@ class TestMigrations(LorelieTestCase):
         migrations = Migrations(db)
         self.assertFalse(migrations.migrated)
 
-    def test_migrate(self):
-        # Check the migration class on
-        # its very own by destructuring the
-        # building process
+    def test_migrate_creation_mode(self):
         table = self.create_table()
         table.backend = self.create_connection()
 
         db = Database(table)
         migrations = Migrations(db)
         migrations.migrate({'celebrities': table})
+
+    def test_migrate_table_deletion_mode(self):
+        pass
+
+    def test_migrate_index_deletion_mode(self):
+        pass
+
+    def test_migration_field_deletion_mode(self):
+        pass
+
+    def test_migration_constraint_deletion_mode(self):
+        pass
 
     def test_write_sql_file(self):
         with patch.object(Migrations, 'read_content') as mocked_read_content:

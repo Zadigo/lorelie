@@ -3,7 +3,6 @@ import datetime
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
 from typing import Any, Generic, Optional, Type
-
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
                                     SelectNode, WhereNode)

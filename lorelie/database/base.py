@@ -210,7 +210,10 @@ class Database:
                 raise ValueError('Value should be an instance of Table')
 
             self.table_map[table.name] = table
+            # Allows accessing the table directly
+            # from the database instance
             setattr(self, table.name, table)
+            # Referene the database on the table
             setattr(table, 'attached_to_database', self)
             table.load_current_connection()
 
@@ -218,7 +221,6 @@ class Database:
         self.relationships = OrderedDict()
         self.log_queries = log_queries
 
-        # databases.register(self)
         # FIXME: Seems like if this class is not called
         # after all the elements have been set, this
         # raises an error. Maybe create a special prepare
@@ -285,8 +287,9 @@ class Database:
 
     def _add_table(self, table: TypeTable):
         # DELETE: Remove this
-        table.load_current_connection()
         self.table_map[table.name] = table
+        setattr(table, 'attached_to_database', self)
+        table.load_current_connection()
         self.table_instances.append(table)
 
     @deprecated("Relationships are not yet fully supported")

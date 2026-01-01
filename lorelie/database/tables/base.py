@@ -107,6 +107,8 @@ class AbstractTable(metaclass=BaseTable):
         return validated_values, validated_dict_values
 
     def load_current_connection(self):
+        """Loads the current SQLite connection and attaches
+        it to the table instance for further usage"""
         from lorelie.backends import connections
         self.backend = connections.get_last_connection()
 
@@ -227,6 +229,7 @@ class Table(Generic[TypeField], AbstractTable):
             pass
         return super().__setattr__(name, value)
 
+    # REMOVE:
     def __getattribute__(self, name: str) -> Any:
         if name == 'backend':
             backend = self.__dict__['backend']
@@ -388,14 +391,6 @@ class Table(Generic[TypeField], AbstractTable):
             database (TypeDatabase): The database instance to which the table is being prepared and attached
             skip_creation (bool): Can be used to prevent the creationg process for tables that were created outside of this prepare function 
         """
-        # if skip_creation:
-        #     self.attached_to_database = database
-        #     return True
-
-        # if self.attached_to_database is None:
-        #     self.attached_to_database = database
-        #     self.load_current_connection()
-
         field_params = self.build_all_field_parameters()
         field_params = [
             self.backend.simple_join(params)

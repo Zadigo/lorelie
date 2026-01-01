@@ -350,20 +350,21 @@ class Migrations:
             self.tables_for_creation.clear()
             self.tables_for_deletion.clear()
 
-            try:
-                # Save the migrations state in the
-                # migrations table
-                table = self.database.get_table('migrations')
-                table.objects.create(
-                    name=f'Migration {self.JSON_MIGRATIONS_SCHEMA.number}',
-                    db_name=self.database_name,
-                    migration=final_migration
-                )
-            except Exception as e:
-                raise TypeError(
-                    "Could not log migration "
-                    "in the migrations table."
-                )
+            if not dry_run:
+                try:
+                    # Save the migrations state in the
+                    # migrations table
+                    table = self.database.get_table('migrations')
+                    table.objects.create(
+                        name=f'Migration {self.JSON_MIGRATIONS_SCHEMA.number}',
+                        db_name=self.database_name,
+                        migration=final_migration
+                    )
+                except Exception as e:
+                    raise TypeError(
+                        "Could not log migration "
+                        "in the migrations table."
+                    )
 
             return True
 

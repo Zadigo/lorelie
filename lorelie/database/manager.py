@@ -2,7 +2,7 @@ import collections
 import dataclasses
 import datetime
 from dataclasses import is_dataclass
-from typing import Any, Generic, Optional, Sequence
+from typing import Any, Generic, Optional, Sequence, Type
 
 from asgiref.sync import sync_to_async
 
@@ -21,20 +21,21 @@ class DatabaseManager(Generic[TypeQuerySet]):
     or retrieving data from the underlying database tables"""
 
     def __init__(self):
-        self.table_map = {}
+        self.table_map: dict[str, TypeTable] = {}
         self.database: Optional[TypeDatabase] = None
         self.table: Optional[TypeTable] = None
         # Tells if the manager was
         # created via as_manager
-        self.auto_created = True
+        self.auto_created: bool = True
         self._test_current_table_on_manager = None
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.database}>'
 
-    def __get__(self, instance, cls=None):
+    def __get__(self, instance: TypeTable, cls: Optional[Type[TypeTable]] = None):
         if not self.table_map:
             self.table = instance
+            
             try:
                 self.database = instance.attached_to_database
                 self.table_map = instance.attached_to_database.table_map
@@ -131,7 +132,7 @@ class DatabaseManager(Generic[TypeQuerySet]):
         >>> db.objects.create(firstname='Kendall')
         """
         kwargs = self._validate_auto_fields(self.table, kwargs)
-        values, kwargs = self.table.validate_values_from_dict(kwargs)
+        _, kwargs = self.table.validate_values_from_dict(kwargs)
 
         query = self.database.query_class(table=self.table)
         insert_node = InsertNode(

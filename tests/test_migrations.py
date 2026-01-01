@@ -74,7 +74,7 @@ class TestMigrations(LorelieTestCase):
 
             self.assertTrue(len(migration.existing_tables) == 0)
 
-            state = migration.migrate(db.table_map)
+            state = migration.migrate(db.table_map, dry_run=True)
             self.assertTrue(state)
 
     def test_migrate_table_deletion_mode(self, mblank):

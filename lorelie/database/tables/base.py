@@ -385,7 +385,9 @@ class Table(Generic[TypeField], AbstractTable):
         parameters e.g. null, autoincrement
         used to define/create the field in 
         the database on creation or update"""
-        for field in self.fields_map.values():
+        fields = list(self.fields_map.values())
+
+        for field in fields:
             yield field.field_parameters()
 
             if field.is_relationship_field:

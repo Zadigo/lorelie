@@ -72,7 +72,12 @@ class Query:
         """
         template = 'begin; {statements} commit;'
         instance = cls(table=table, backend=backend)
-        instance.statements = sql_tokens
+        # Ensure that all the statements terminate with a `;`
+        # since we are going to use a transaction script
+        instance.statements = [
+            instance.backend.finalize_sql(token)
+            for token in sql_tokens
+        ]
 
         instance.pre_sql_setup()
         script = template.format(statements=instance.sql)
@@ -171,8 +176,10 @@ class Query:
         sql = self.backend.simple_join(text_statements)
         finalized_sql = self.backend.finalize_sql(sql)
         is_valid = sqlite3.complete_statement(finalized_sql)
+
         if not is_valid:
             pass
+        
         self.sql = finalized_sql
 
     def run(self, commit=False):

@@ -19,5 +19,5 @@ indexes = [
 tb = Table('company', fields=fields, indexes=indexes)
 
 
-db = Database(tb, name='companies', path=pathlib.Path('.'))
+db = Database(tb, name='companies', path=pathlib.Path('.'), log_queries=True)
 db.migrate()

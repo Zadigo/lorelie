@@ -1,13 +1,14 @@
+from dataclasses import dataclass
 import random
 import sqlite3
 import unittest
 from typing import Generator
 from unittest.mock import MagicMock, Mock, patch
 
-
+from dataclasses import dataclass
 from lorelie.constraints import CheckConstraint
 from lorelie.database.base import Database
-from lorelie.queries import log_queries
+from lorelie.database.functions.text import Lower
 from lorelie.database.tables.base import Table
 from lorelie.exceptions import (ConnectionExistsError, FieldExistsError,
                                 ValidationError)
@@ -312,7 +313,7 @@ class TestTable(LorelieTestCase):
         db = Database(table, name='db_celebrities')
         db.migrate()
 
-        # table.objects.create(name='Kendall Jenner', height=175)
+        table.objects.create(name='Kendall Jenner', height=175)
         row = table.objects.get_or_create(
             create_defaults={'height': 171},
             name='Kylie Jenner'
@@ -329,41 +330,37 @@ class TestTable(LorelieTestCase):
             name='Kylie Jenner'
         )
 
-        # qs = table.objects.all()
-        # self.assertTrue(len(qs) > 0)
+        qs = table.objects.all()
+        self.assertTrue(len(qs) > 0)
 
-        # row = table.objects.first()
-        # self.assertIsNotNone(row)
+        row = table.objects.first()
+        self.assertIsNotNone(row)
 
-        # row = table.objects.last()
-        # self.assertIsNotNone(row)
+        row = table.objects.last()
+        self.assertIsNotNone(row)
 
-        # row = table.objects.get(id=1)
-        # self.assertIsNotNone(row)
+        row = table.objects.get(id=1)
+        self.assertIsNotNone(row)
 
-        # row = table.objects.filter(name='Kendall Jenner')
-        # self.assertIsNotNone(row)
+        row = table.objects.filter(name='Kendall Jenner')
+        self.assertIsNotNone(row)
 
-        # qs = table.objects.exclude(id=1)
-        # self.assertTrue(len(qs) > 0)
+        qs = table.objects.exclude(id=1)
+        self.assertTrue(len(qs) > 0)
 
-        # qs = table.objects.annotate(lowered_name=Lower('name'))
-        # self.assertTrue(len(qs) > 0)
-        # for row in qs:
-        #     with self.subTest(row=row):
-        #         self.assertIsNotNone(row.lowered_name)
+        qs = table.objects.annotate(lowered_name=Lower('name'))
+        self.assertTrue(len(qs) > 0)
+        for row in qs:
+            with self.subTest(row=row):
+                self.assertIsNotNone(row.lowered_name)
 
-        # @dataclass
-        # class Celebrity:
-        #     name: str
-        #     height: int
+        @dataclass
+        class Celebrity:
+            name: str
+            height: int
 
-        # table.objects.bulk_create([
-        #     Celebrity(name='Celebrity A', height=180),
-        #     Celebrity(name='Celebrity B', height=165),
-        #     Celebrity(name='Celebrity C', height=170),
-        # ])
-
-        print(list(log_queries))
-        # print(row)
-        # print(qs)
+        table.objects.bulk_create([
+            Celebrity(name='Celebrity A', height=180),
+            Celebrity(name='Celebrity B', height=165),
+            Celebrity(name='Celebrity C', height=170),
+        ])

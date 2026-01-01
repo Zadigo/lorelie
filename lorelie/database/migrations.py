@@ -13,6 +13,7 @@ from lorelie.database.tables.base import Table
 from lorelie.fields.base import CharField, DateTimeField, JSONField
 from lorelie.lorelie_typings import TypeConstraint, TypeDatabase, TypeDeconstructedField, TypeDeconstructedIndex, TypeField, TypeTable, TypeTableMap
 from lorelie.queries import Query
+from lorelie import lorelie_logger
 
 
 @dataclass
@@ -214,11 +215,13 @@ class Migrations:
         return []
 
     def migrate(self, table_instances: TypeTableMap, dry_run: bool = False):
-        # When we reload the migration file from the JSON,
-        # we need to make sure we reload the Python objects
-        # for the rest of the code
-        if self.JSON_MIGRATIONS_SCHEMA.schema and self.JSON_MIGRATIONS_SCHEMA.migrated:
-            pass
+        lorelie_logger.info("🔄 Starting migration process...")
+
+        if self.JSON_MIGRATIONS_SCHEMA.migrated:
+            lorelie_logger.info(
+                "🔄 Reloading database schema from "
+                f"the existing migration file: {self.migrations_json_path.absolute()}..."
+            )
 
         incoming_table_names: set[str] = set(table_instances.keys())
 
@@ -236,6 +239,9 @@ class Migrations:
         if not self.JSON_MIGRATIONS_SCHEMA.migrated and not table_instances:
             # The user is trying to migrate without any tables
             # and without having previously migrated the database
+            lorelie_logger.info(
+                "❌ No tables were found to migrate. Aborting migration process."
+            )
             return False
 
         # Only tracks tables that are user-defined
@@ -253,6 +259,10 @@ class Migrations:
         # this function in a loop over and
         # over which can reduce performance
         if self.migrated:
+            lorelie_logger.info(
+                "✅ No tables were found to migrate. "
+                "Aborting migration process."
+            )
             return True
 
         # Compare the incoming tables with the
@@ -296,6 +306,8 @@ class Migrations:
                 if table is None:
                     continue
 
+                lorelie_logger.info(f"🛠 Creating table '{table.name}'...")
+
                 sql_statements.extend(
                     table.prepare(
                         self.database,
@@ -321,6 +333,7 @@ class Migrations:
 
         if not dry_run:
             backend = connections.get_last_connection()
+
             try:
                 Query.run_transaction(
                     backend=backend,
@@ -350,6 +363,11 @@ class Migrations:
             with open(self.migrations_json_path, mode='w', encoding='utf-8') as f:
                 value = buffer.getvalue()
                 f.write(value)
+
+                lorelie_logger.info(
+                    f"✅ Migration {self.JSON_MIGRATIONS_SCHEMA.number} "
+                    "applied successfully."
+                )
 
                 # try:
                 #     # Save the migrations state in the

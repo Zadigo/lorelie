@@ -6,13 +6,12 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Final, Optional, Type
-
+from io import StringIO
 from lorelie.backends import SQLiteBackend, connections
 from lorelie.database.tables.base import Table
 from lorelie.fields.base import CharField, DateTimeField, JSONField
 from lorelie.lorelie_typings import TypeField, TypeTableMap
 from lorelie.queries import Query
-from lorelie.utils.json_encoders import DefaultJSonEncoder
 
 if TYPE_CHECKING:
     from lorelie.database.base import Database
@@ -330,27 +329,22 @@ class Migrations:
             backend = connections.get_last_connection()
             Query.run_transaction(backend=backend, sql_tokens=sql_statements)
 
-        # Finalize by writing to the migration files
-        with open(self.migrations_json_path, mode='w+') as f:
-            self.JSON_MIGRATIONS_SCHEMA.migrated = True
-            self.JSON_MIGRATIONS_SCHEMA.id = secrets.token_hex(5)
-            self.JSON_MIGRATIONS_SCHEMA.date = str(datetime.datetime.now())
-            self.JSON_MIGRATIONS_SCHEMA.number += 1
-            final_migration = dict(self.JSON_MIGRATIONS_SCHEMA)
+        buffer = StringIO()
 
-            json.dump(
-                final_migration,
-                f,
-                indent=4,
-                ensure_ascii=False,
-                cls=DefaultJSonEncoder
-            )
-            self.write_to_sql_file(sql_statements)
+        self.JSON_MIGRATIONS_SCHEMA.migrated = True
+        self.JSON_MIGRATIONS_SCHEMA.id = secrets.token_hex(5)
+        self.JSON_MIGRATIONS_SCHEMA.date = datetime.datetime.now().isoformat()
+        self.JSON_MIGRATIONS_SCHEMA.number += 1
 
-            self.tables_for_creation.clear()
-            self.tables_for_deletion.clear()
+        final_migration = dict(self.JSON_MIGRATIONS_SCHEMA)
 
-            if not dry_run:
+        json.dump(final_migration, buffer, indent=4, ensure_ascii=False)
+
+        if not dry_run:
+            with open(self.migrations_json_path, mode='w', encoding='utf-8') as f:
+                value = buffer.getvalue()
+                f.write(value)
+
                 try:
                     # Save the migrations state in the
                     # migrations table
@@ -366,7 +360,7 @@ class Migrations:
                         "in the migrations table."
                     )
 
-            return True
+        return True
 
     def blank_migration(self, using: JsonMigrationsSchema):
         """Creates a blank initial migration file"""

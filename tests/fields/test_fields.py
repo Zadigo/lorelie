@@ -2,7 +2,7 @@ import datetime
 import uuid
 
 from lorelie.exceptions import ValidationError
-from lorelie.fields.base import (BooleanField, CharField, DateField, DateTimeField, Field, FloatField,
+from lorelie.fields.base import (AutoField, BooleanField, CharField, DateField, DateTimeField, Field, FloatField,
                                  IntegerField, JSONField, UUIDField)
 from lorelie.test.testcases import LorelieTestCase
 
@@ -24,13 +24,38 @@ class TestField(LorelieTestCase):
         self.assertEqual(field.index, 0)
         self.assertDictEqual(field.base_field_parameters, {
             'primary key': False,
-            'null': False,
             'not null': True,
             'unique': False
         })
         self.assertEqual(field.field_type, 'text')
         self.assertTrue(field.is_standard_field_type)
         self.assertEqual(field.to_python('Kendall Jenner'), 'Kendall Jenner')
+
+    def test_default(self):
+        defaults = [
+            ('Kendall', ['name', 'text', 'default', "'Kendall'", 'not null']),
+            ('25', ['name', 'text', 'default', "'25'", 'not null']),
+            ('3.14', ['name', 'text', 'default', "'3.14'", 'not null']),
+            ('1', ['name', 'text', 'default', "'1'", 'not null']),
+            ('0', ['name', 'text', 'default', "'0'", 'not null']),
+            (
+                lambda: 'Kendall',
+                ['name', 'text', 'default', "'Kendall'", 'not null']
+            )
+        ]
+
+        for default_value, expected in defaults:
+            with self.subTest(default_value=default_value):
+                field = Field('name', default=default_value)
+
+                field.table = self.create_table()
+                field.table.backend = self.create_connection()
+
+                params = field.field_parameters()
+                self.assertEqual(
+                    params,
+                    expected
+                )
 
     def test_validate_field_name(self):
         pass
@@ -74,17 +99,17 @@ class TestField(LorelieTestCase):
             field.base_field_parameters,
             {
                 'primary key': True,
-                'null': True,
-                'not null': False,
+                'not null': True,
                 'unique': True
             }
         )
 
         self.assertListEqual(
             result,
-            ['name', 'text', 'primary key', 'null', 'unique']
+            ['name', 'text', 'primary key', 'not null', 'unique']
         )
 
+    def test_field_parameters_with_max_length(self):
         table = self.create_table()
         table.backend = self.create_connection()
 
@@ -114,7 +139,6 @@ class TestField(LorelieTestCase):
             f1.base_field_parameters,
             {
                 'primary key': False,
-                'null': False,
                 'not null': True,
                 'unique': False
             }
@@ -122,11 +146,11 @@ class TestField(LorelieTestCase):
 
         f2 = Field('name', null=True, unique=True)
         f2.field_parameters()
+
         self.assertDictEqual(
             f2.base_field_parameters,
             {
-                'not null': False,
-                'null': True,
+                'not null': True,
                 'primary key': False,
                 'unique': True
             }
@@ -261,13 +285,16 @@ class TestUUIDField(LorelieTestCase):
         self.assertIsInstance(revert_value, uuid.UUID)
 
 
-# class TestAutoField(unittest.TestCase):
-#     def test_result(self):
-#         field = AutoField()
-#         field.prepare(table)
+class TestAutoField(LorelieTestCase):
+    def setUp(self):
+        self.field = AutoField()
 
-#         name, params = field.deconstruct()
-#         self.assertListEqual(
-#             params,
-#             ['id', 'integer', 'primary key', 'autoincrement', 'not null']
-#         )
+    def test_result(self):
+        params = self.field.field_parameters()
+        self.assertListEqual(
+            params,
+            ['id', 'integer', 'primary key', 'autoincrement']
+        )
+
+    def test_deconstruct(self):
+        field_type, name, params = self.field.deconstruct()

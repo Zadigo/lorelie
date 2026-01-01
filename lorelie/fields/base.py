@@ -37,7 +37,6 @@ class Field:
         self.index = 0
         self.base_field_parameters = {
             'primary key': False,
-            'null': False,
             'not null': True,
             'unique': False
         }
@@ -130,7 +129,7 @@ class Field:
         # type of the field we are trying to set
         if not isinstance(data, self.python_type):
             raise TypeError(
-                f"{data} for column '{self.name}' "
+                f"Value '{data}' for column '{self.name}' "
                 f"should be an instance of {self.python_type}"
             )
 
@@ -145,7 +144,7 @@ class Field:
         ... field.field_parameters()
         ... ['visited', 'integer', 'not null', 'default', 0]
         """
-        field_type = None
+        field_type: str = None
         if self.max_length is not None:
             # varchar does not raise constraint. It only
             # says that the field should be of x length
@@ -153,22 +152,21 @@ class Field:
 
         initial_parameters = [self.name, field_type or self.field_type]
 
-        if self.null:
-            self.base_field_parameters['null'] = True
-            self.base_field_parameters['not null'] = False
-        else:
-            self.base_field_parameters['null'] = False
+        if not self.null:
+            # Columns are nullable by default so only
+            # indicate not null if the field is not nullable
             self.base_field_parameters['not null'] = True
 
         self.base_field_parameters['primary key'] = self.primary_key
+        if self.primary_key:
+            # Primary keys are not null by default so there's not
+            # need to indicate both
+            self.base_field_parameters['not null'] = False
+
         self.base_field_parameters['unique'] = self.unique
 
         if self.default is not None:
-            default_value = self.default
-            if callable(self.default):
-                default_value = self.default()
-
-            database_value = self.to_database(default_value)
+            database_value = self.to_database(self.default)
 
             try:
                 value = self.table.backend.quote_value(database_value)
@@ -180,11 +178,19 @@ class Field:
             else:
                 initial_parameters.extend(['default', value])
 
-        true_parameters = list(filter(
-            lambda x: x[1] is True,
-            self.base_field_parameters.items()
-        ))
-        additional_parameters = list(map(lambda x: x[0], true_parameters))
+        _additional_parameters: list[tuple[str, bool]] = list(
+            filter(
+                lambda x: x[1] is True,
+                self.base_field_parameters.items()
+            )
+        )
+        additional_parameters = list(
+            map(
+                lambda x: x[0],
+                _additional_parameters
+            )
+        )
+
         base_field_parameters = initial_parameters + additional_parameters
 
         for constraint in self.constraints:
@@ -375,7 +381,6 @@ class AutoField(IntegerField):
 
     def __init__(self):
         super().__init__('id', primary_key=True)
-        self.base_field_parameters.pop('null')
         self.base_field_parameters.pop('not null')
         self.base_field_parameters['autoincrement'] = True
 

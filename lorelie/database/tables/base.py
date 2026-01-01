@@ -147,6 +147,7 @@ class Table(Generic[TypeField], AbstractTable):
         # the column in the BaseRow
         self.str_field = str_field
 
+        self.field_counter: int = 0
         self.ordering = set(ordering)
 
         super().__init__()
@@ -178,7 +179,7 @@ class Table(Generic[TypeField], AbstractTable):
 
             self.field_types[field.name] = field.field_type
 
-            field.index = i
+            field.index = self.field_counter
             field.prepare(self)
             # If the user uses the same keys multiple
             # times, leave the error for him to resolve
@@ -188,6 +189,7 @@ class Table(Generic[TypeField], AbstractTable):
             # TODO: Delegate this section to the prepare
             # method of the field directly
             self.fields_map[field.name] = field
+            self.field_counter += 1
 
         # Automatically create an ID field and set
         # it up with the table and backend
@@ -195,7 +197,8 @@ class Table(Generic[TypeField], AbstractTable):
         id_field.prepare(self)
         self.field_types['id'] = id_field.field_type
         self.fields_map['id'] = id_field
-        id_field.index = len(self.fields_map.keys()) - 1
+        self.field_counter += 1
+        id_field.index = self.field_counter
 
         field_names = list(self.fields_map.keys())
         field_names.append('rowid')
@@ -295,8 +298,8 @@ class Table(Generic[TypeField], AbstractTable):
                 "being populated. Please make sure the table is prepared"
             )
 
-        last_column = sorted_columns[-1]
-        field.index = last_column.index
+        self.field_counter += 1
+        field.index = self.field_counter
         return field_params
 
     # TODO: Rename to check_field
@@ -309,7 +312,7 @@ class Table(Generic[TypeField], AbstractTable):
     def get_field(self, name: str):
         return self.fields_map[name]
 
-    def create_table_sql(self, fields_str: str):
+    def create_table_sql(self, joined_fields_str: str):
         """Generates the SQL statement required to create
         the current table in the database"""
         unique_constraints = []
@@ -328,7 +331,7 @@ class Table(Generic[TypeField], AbstractTable):
         # are just joined by normal space
         joined_unique = self.backend.comma_join(
             [
-                fields_str,
+                joined_fields_str,
                 *unique_constraints
             ]
         )

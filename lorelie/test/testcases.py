@@ -1,4 +1,3 @@
-import pathlib
 import unittest
 from functools import cached_property, lru_cache
 
@@ -58,12 +57,14 @@ class LorelieTestCase(unittest.TestCase):
         return db
 
     def create_table(self):
-        table = Table('celebrities', fields=[
+        fields = [
             CharField('name'),
             IntegerField('height', min_value=150, default=152),
+            DateTimeField('updated_on', auto_update=True),
             DateTimeField('created_on', auto_add=True)
-        ])
-        return table
+        ]
+
+        return Table('celebrities', fields=fields)
 
     def create_constrained_table(self):
         table = Table(

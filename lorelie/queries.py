@@ -85,13 +85,13 @@ class Query:
         try:
             cursor = instance.backend.connection.executescript(script)
         except OperationalError as e:
-            print(e, script)
+            lorelie_logger.error(e, exc_info=True)
             raise
         except IntegrityError as e:
-            print(e, script)
+            lorelie_logger.error(e, exc_info=True)
             raise
         except Exception as e:
-            print(e, script)
+            lorelie_logger.error(e, exc_info=True)
             raise
         else:
             instance.backend.connection.commit()

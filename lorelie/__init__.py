@@ -1,10 +1,10 @@
 import logging
+import logging.config
 import pathlib
 from collections import defaultdict, deque
 
 PROJECT_PATH = pathlib.Path(__file__).parent.parent.absolute()
 
-DATABASE = 'scraping'
 
 
 # __all__ = [
@@ -55,30 +55,65 @@ class LogQueries:
 log_queries = LogQueries()
 
 
-class LorelieLogger:
-    def __init__(self):
-        logger = logging.getLogger('lorelie')
+log_config = {
+    'version': 1,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s - %(name)s - %(levelname)s: %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M'
+        }
+    },
+    'handlers': {
+        'stdout_handler': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard',
+            'level': 'DEBUG',
+        },
+        'file_handler': {
+            'class': 'logging.FileHandler',
+            'filename': 'queries.log',
+            'formatter': 'standard',
+            'level': 'DEBUG',
+        }
+    },
+    'loggers': {
+        'lorelie': {
+            'handlers': ['file_handler', 'stdout_handler'],
+            'level': 'DEBUG',
+            'propagate': False,
+        }
+    }
+}
 
-        handler = logging.FileHandler('queries.log')
-        logger.addHandler(handler)
-        logger.setLevel(logging.DEBUG)
 
-        log_format = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s: %(message)s',
-            datefmt='%Y-%m-%d %H:%M'
-        )
-        handler.setFormatter(log_format)
+# class LorelieLogger:
+#     def __init__(self):
+#         logger = logging.getLogger('lorelie')
 
-        self.logger = logger
-    
-    def debug(self, message, *args, **kwargs):
-        self.logger.debug(message, *args, **kwargs)
+#         handler = logging.FileHandler('queries.log')
+#         logger.addHandler(handler)
+#         logger.setLevel(logging.DEBUG)
 
-    def info(self, message, *args, **kwargs):
-        self.logger.info(message, *args, **kwargs)
+#         log_format = logging.Formatter(
+#             '%(asctime)s - %(name)s - %(levelname)s: %(message)s',
+#             datefmt='%Y-%m-%d %H:%M'
+#         )
+#         handler.setFormatter(log_format)
 
-    def warning(self, message, *args, **kwargs):
-        self.logger.warning(message, *args, **kwargs)
+#         self.logger = logger
+
+#     def debug(self, message, *args, **kwargs):
+#         self.logger.debug(message, *args, **kwargs)
+
+#     def info(self, message, *args, **kwargs):
+#         self.logger.info(message, *args, **kwargs)
+
+#     def warning(self, message, *args, **kwargs):
+#         self.logger.warning(message, *args, **kwargs)
+
+def get_logger(name: str = 'lorelie') -> logging.Logger:
+    logging.config.dictConfig(log_config)
+    return logging.getLogger(name)
 
 
-lorelie_logger = LorelieLogger()
+lorelie_logger = get_logger()

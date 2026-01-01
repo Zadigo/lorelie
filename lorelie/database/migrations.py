@@ -321,7 +321,17 @@ class Migrations:
 
         if not dry_run:
             backend = connections.get_last_connection()
-            Query.run_transaction(backend=backend, sql_tokens=sql_statements)
+            try:
+                Query.run_transaction(
+                    backend=backend,
+                    sql_tokens=sql_statements
+                )
+            except Exception as e:
+                raise ExceptionGroup(
+                    "An error occurred while executing "
+                    "the migration transaction",
+                    [e]
+                )
 
         buffer = StringIO()
 

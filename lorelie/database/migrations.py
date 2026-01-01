@@ -267,8 +267,14 @@ class Migrations:
 
         if self.tables_for_deletion:
             for name in self.tables_for_deletion:
-                schema = self.schemas[name]
-                sql_statements.extend(schema.table.drop_table_sql())
+                # Since the table is not present
+                # in the incoming tables, we have to
+                # create a dummy Table instance in order
+                # to call the drop sql statement
+                table = Table(name)
+                table.backend = connections.get_last_connection()
+                sql_statements.extend(table.drop_table_sql())
+                _current_user_tables.remove(name)
 
         if 'migrations' not in self.existing_tables:
             self.tables_for_creation.add('migrations')
@@ -321,6 +327,8 @@ class Migrations:
         if not dry_run:
             backend = connections.get_last_connection()
             Query.run_transaction(backend=backend, sql_tokens=sql_statements)
+
+        print(sql_statements)
 
         # Finalize by writing to the migration files
         with open(self.migrations_json_path, mode='w+') as f:

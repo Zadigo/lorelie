@@ -336,7 +336,7 @@ class Database:
         """
         self.migrations.migrate(self.table_map, dry_run=dry_run)
 
-    @deprecated(reason="Use migrate instead")
+    @deprecated("Use migrate instead")
     def simple_load(self):
         """Loads an existing sqlite and checks that the
         columns of the existing tables match those of the
@@ -349,11 +349,11 @@ class Database:
         return NotImplemented
 
     # TODO: Remove this line
-    @deprecated(reason="Views are created with the View class now")
+    @deprecated("Views are created with the View class now")
     def create_view(self, name, queryset, temporary=True):
         return NotImplemented
 
-    @deprecated(reason="Triggers are not yet supported")
+    @deprecated("Triggers are not yet supported")
     def register_trigger(self, trigger, table: Optional[TypeTable] = None):
         """Registers a trigger function onto the database
         and that will get called at a specific stage of

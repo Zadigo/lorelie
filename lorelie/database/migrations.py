@@ -193,7 +193,11 @@ class Migrations:
         for index in table.indexes:
             for name, _, _ in old_indexes:
                 if index.name != name:
-                    create_sql_statements.extend(index.as_sql(table.backend))
+                    lorelie_logger.info(
+                        f"✅ Creating index '{index.name}' "
+                        f"on table '{table.name}'..."
+                    )
+                    create_sql_statements.extend([index.as_sql(table.backend)])
                     continue
 
         # Search for indexes that are present

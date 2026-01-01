@@ -433,3 +433,44 @@ class Migrations:
                 f"✅ Updated SQL migrations file "
                 f"at: {self.migrations_sql_path.absolute()}"
             )
+
+    def write_to_json_file(self, dry_run: bool = False, sql_statements: list[str] = []):
+        """Writes the different JSON migration schema
+        to a physical JSON file for reference and later usage"""
+        buffer = StringIO()
+
+        self.JSON_MIGRATIONS_SCHEMA.migrated = True
+        self.JSON_MIGRATIONS_SCHEMA.id = secrets.token_hex(5)
+        self.JSON_MIGRATIONS_SCHEMA.date = datetime.datetime.now().isoformat()
+        self.JSON_MIGRATIONS_SCHEMA.number += 1
+
+        final_migration = dict(self.JSON_MIGRATIONS_SCHEMA)
+
+        json.dump(final_migration, buffer, indent=4, ensure_ascii=False)
+
+        if not dry_run:
+            self.write_to_sql_file(sql_statements)
+
+            with open(self.migrations_json_path, mode='w', encoding='utf-8') as f:
+                value = buffer.getvalue()
+                f.write(value)
+
+                lorelie_logger.info(
+                    f"✅ Migration {self.JSON_MIGRATIONS_SCHEMA.number} "
+                    "applied successfully."
+                )
+
+                try:
+                    # Save the migrations state in the
+                    # migrations table
+                    table = self.database.get_table('migrations')
+                    table.objects.create(
+                        name=f'Migration {self.JSON_MIGRATIONS_SCHEMA.number}',
+                        database=self.database.database_name,
+                        migration=final_migration
+                    )
+                except Exception as e:
+                    raise TypeError(
+                        "Could not log migration "
+                        "in the migrations table."
+                    )

@@ -502,7 +502,7 @@ In this example, a check constraint is applied to the `age` column of the table,
 The Lower function is designed to facilitate text manipulation within your SQLite database by converting each value of a specified column to lowercase. This function is particularly useful for standardizing text data, enabling efficient comparison, sorting, and search operations.
 
 ```python
-database.objects.annotate('table_name', new_column_name=Lower('column_name'))
+database.objects.annotate(new_column_name=Lower('column_name'))
 ```
 
 ```sql
@@ -525,7 +525,7 @@ Consider a scenario where you have a table named 'employees' with a column named
 The Upper function facilitates text manipulation within your SQLite database by converting each value of a specified column to uppercase. This function is particularly useful for standardizing text data, enabling efficient comparison, sorting, and search operations.
 
 ```python
-database.objects.annotate('table_name', new_column_name=Upper('column_name'))
+database.objects.annotate(new_column_name=Upper('column_name'))
 ```
 
 ```sql
@@ -547,7 +547,7 @@ Consider a scenario where you have a table named 'employees' with a column named
 The Upper function facilitates text manipulation within your SQLite database by converting each value of a specified column to uppercase. This function is particularly useful for standardizing text data, enabling efficient comparison, sorting, and search operations.
 
 ```python
-database.objects.annotate('table_name', new_column_name=Length('column_name'))
+database.objects.annotate(new_column_name=Length('column_name'))
 ```
 
 ```sql
@@ -569,7 +569,7 @@ Consider a scenario where you have a table named 'articles' with a column named 
 The `MD5Hash` function calculates the MD5 hash of each value in a specified column.
 
 ```python
-db.objects.annotate('table_name', year=MD5Hash('date_column'))
+db.objects.annotate(year=MD5Hash('date_column'))
 ```
 
 ```sql
@@ -589,7 +589,7 @@ This will add a new column named 'minute' to the 'celebrities' table, containing
 The `ExtractYear` function extracts the year component from a date value in a specified column.
 
 ```python
-db.objects.annotate('table_name', year=ExtractYear('date_column'))
+db.objects.annotate(year=ExtractYear('date_column'))
 ```
 
 ```sql
@@ -606,7 +606,7 @@ This will add a new column named 'year' to the 'celebrities' table, containing t
 Like [ExtractYear](#extractyear) but extracts the month component from a date value in a specified column.
 
 ```python
-db.objects.annotate('table_name', year=ExtractMonth('date_column'))
+db.objects.annotate(year=ExtractMonth('date_column'))
 ```
 
 ```sql
@@ -622,7 +622,7 @@ This will add a new column named 'month' to the 'celebrities' table, containing 
 Like [ExtractYear](#extractyear) and [ExtractYear](#extractmonth) but extracts the day component from a date value in a specified column.
 
 ```python
-db.objects.annotate('table_name', year=ExtractDay('date_column'))
+db.objects.annotate(year=ExtractDay('date_column'))
 ```
 
 ```sql
@@ -638,7 +638,7 @@ This will add a new column named 'day' to the 'celebrities' table, containing th
 Like [ExtractYear](#extractyear), [ExtractYear](#extractmonth) and [ExtractYear](#extractday) but extracts the hour component from a datetime value in a specified column.
 
 ```python
-db.objects.annotate('table_name', year=ExtractHour('date_column'))
+db.objects.annotate(year=ExtractHour('date_column'))
 ```
 
 ```sql
@@ -654,7 +654,7 @@ This will add a new column named 'hour' to the 'celebrities' table, containing t
 Like [ExtractYear](#extracthour) but extracts the minute component from a datetime value in a specified column.
 
 ```python
-db.objects.annotate('table_name', year=ExtractMinute('date_column'))
+db.objects.annotate(year=ExtractMinute('date_column'))
 ```
 
 ```sql

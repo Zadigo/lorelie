@@ -291,6 +291,7 @@ class Migrations:
                 table.backend = connections.get_last_connection()
                 sql_statements.extend(table.drop_table_sql())
                 _current_user_tables.remove(name)
+                lorelie_logger.info(f"❎ Dropping table '{name}'...")
 
         if 'migrations' not in self.existing_tables:
             self.tables_for_creation.add('migrations')
@@ -389,12 +390,9 @@ class Migrations:
     def blank_migration(self, using: JsonMigrationsSchema):
         """Creates a blank initial migration file"""
         with open(self.migrations_json_path, mode='w+') as f:
-            json.dump(
-                dataclasses.asdict(using),
-                f,
-                indent=4,
-                ensure_ascii=False
-            )
+            data = dataclasses.asdict(using)
+            json.dump(data, f, indent=4, ensure_ascii=False)
+            lorelie_logger.info(f"✅ Created new blank JSON migration file...")
         return using
 
     def write_to_sql_file(self, statement_or_statements: str | list[str]):
@@ -421,3 +419,8 @@ class Migrations:
             else:
                 if not statement_or_statements in content:
                     f.write(statement_or_statements + ';')
+
+            lorelie_logger.info(
+                f"✅ Updated SQL migrations file "
+                f"at: {self.migrations_sql_path.absolute()}"
+            )

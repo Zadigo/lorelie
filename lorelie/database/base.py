@@ -143,11 +143,7 @@ class Database:
     the tables and in the fields that were created in a `migrations.json`
     local file:
 
-    >>> db.make_migrations()
-    ... db.migrate()
-
-    `make_migrations` writes the physical changes to the
-    local tables into the `migrations.json` file
+    >>> db.migrate()
 
     `migrate` implements the changes from the migration
     file into the SQLite database. It syncs the changes from
@@ -157,7 +153,7 @@ class Database:
     Once the database is created, we can then run various operations
     on the tables within it:
 
-    >>> db.objects.create('my_table', url='http://example.com')
+    >>> db.objects.create(url='http://example.com')
     ... db.objects.all()
 
     Args:
@@ -317,17 +313,6 @@ class Database:
         except KeyError:
             raise TableExistsError(table_name)
 
-    # def make_migrations(self):
-    #     """The function `make_migrations` serves as a pivotal step
-    #     in the database schema evolution process. It collects the
-    #     various elements from the fields, tables, constraints,
-    #     and indexes defined by the user, capturing these changes in a
-    #     structured manner. These collected elements are then organized and stored in
-    #     a migration JSON file. Additionally, the function inserts this collected data into
-    #     a designated table named lorelie_migrations within the database."""
-    #     self.migrations.has_migrations = True
-    #     self.migrations.make_migrations(self.table_instances)
-
     def migrate(self, dry_run: bool = False):
         """This function executes the modifications outlined in the 
         migration file onto the database. It achieves this by orchestrating 
@@ -451,7 +436,30 @@ class Database:
         relationship_map.left_table.is_foreign_key_table = True
 
     def deconstruct(self):
+        """Deconstructs the database into a dictionary
+        representation that can be used to recreate
+        the database structure including its tables
+        and fields."""
         return {
             'name': self.database_name,
             'tables': [table.deconstruct() for table in self.table_instances]
         }
+
+    def rewind(self):
+        """Rewinds the database to its initial state by
+        dropping all tables and recreating them from
+        scratch based on the current table definitions.
+        This effectively clears all data and resets the
+        schema to match the defined tables."""
+        pass
+
+    def rerun(self, start: int = 0, end: Optional[int] = None):
+        """Reruns migrations from a specified start point to an optional end point with
+        the statements present in the SQL migrations file. This allows for selective reapplication of 
+        migrations within a defined range.
+
+        Args:
+            start (int, optional): The starting migration index from which to begin rerunning. Defaults to 0.
+            end (Optional[int], optional): The ending migration index at which to stop rerunning. Defaults to None, which means all migrations from the start index onward will be rerun.
+        """
+        pass

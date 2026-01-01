@@ -114,22 +114,53 @@ class AbstractTable(metaclass=BaseTable):
 
 
 class Table(Generic[TypeField], AbstractTable):
-    """To create a table in the SQLite database, you first need to 
-    create an instance of the Table class and then use it with the 
-    Database class, which represents the actual database. The make_migrations 
-    function can be called to generate a JSON file that contains all 
-    the historical changes made to the database.
+    """You can use the Table class to define a table
+    in your database. This class is used to represent
+    the table structure including its fields, indexes
+    and constraints.
 
-    Represents a table in your database which is managed within a Database class. 
-    This setup allows you to handle migration files and perform various 
-    table-related tasks:
+    A table is then attached to a Database instance
+    which manages the actual database file and
+    connection.
 
-    >>> table = Table('my_table', 'my_database', fields=[Field('url')])
-    ... database = Database('my_database', table)
-    ... database.make_migrations()
+    >>> table = Table('my_table', fields=[CharField('url')])
+    ... database = Database(table)
     ... database.migrate()
-    ... database.objects.create('url', url='http://example.com')
-    ... database.objects.all('url')
+    ... database.objects.create(url='http://example.com')
+    ... database.objects.all()
+
+    If the table dooes not have any fields, an ID field
+    is automatically created for you.
+
+    A table can also have indexes and constraints
+    associated with it:
+
+    >>> from lorelie.database.tables.base import Table
+    ... from lorelie.fields.base import CharField
+    ... from lorelie.database.indexes import Index
+    ... from lorelie.expressions import Q
+    ... fields = [
+    ...     CharField('name', max_length=5)
+    ... ]
+    ... indexes = [
+    ...     Index('unique_name', ['name']),
+    ...     Index('another_index', ['name'], condition=Q(name='Kendall'))
+    ... ]
+    ... tb = Table('company', fields=fields, indexes=indexes)   
+
+    Args:
+        name (str): The name of the table
+        fields (list[TypeField], optional): The fields to be included in the table. Defaults to [].
+        indexes (list[TypeIndex], optional): The indexes to be included in the table. Defaults to [].
+        constraints (list[TypeConstraint], optional): The constraints to be included in the table. Defaults to [].
+        ordering (list[str], optional): The default ordering for the table. Defaults to [].
+        str_field (str, optional): The field to be used for string representation. Defaults to 'id'.
+
+    Returns:
+        Table: The constructed Table instance
+
+    Raises:
+        ValueError: If any of the fields or indexes are invalid
     """
 
     def __init__(self, name: str, *, fields: list[TypeField] = [], indexes: list[TypeIndex] = [], constraints: list[TypeConstraint] = [], ordering: list[str] = [], str_field='id'):

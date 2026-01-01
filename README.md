@@ -1,6 +1,6 @@
 # Lorelie
 
-Welcome to Lorelie, a lightweight framework designed to simplify database interactions and queries using SQLite. Lorelie makes it easy to define tables, fields, and perform database migrations. This guide will walk you through the process of creating a database and performing queries using the Lorelie framework.
+Lorelie, a lightweight framework designed to simplify database interactions and queries using SQLite. Lorelie makes it easy to define tables, fields, and perform database migrations. This guide will walk you through the process of creating a database and performing queries using the Lorelie framework.
 
 ## Database
 
@@ -35,26 +35,111 @@ __Migrations__
 
 ```json
 {
-    "id": null,
-    "date": null,
-    "number": 0,
-    "indexes": [],
-    "tables": [
-        {
-            "name": "celebrities",
-            "fields": [
-                {
-                    "name": "name",
-                    "params": [
+    "id": "79f47320e4",
+    "date": "2025-12-31 22:34:28.716799",
+    "number": 1,
+    "migrated": true,
+    "schema": {
+        "name": "companies",
+        "tables": [
+            {
+                "name": "company",
+                "fields": [
+                    [
+                        "CharField",
                         "name",
-                        "varchar(300)",
-                        "not null",
+                        {
+                            "null": false,
+                            "primary_key": false,
+                            "default": null,
+                            "unique": false,
+                            "editable": false,
+                            "max_length": 5
+                        }
+                    ],
+                    [
+                        "AutoField",
+                        "id",
+                        {
+                            "null": false,
+                            "primary_key": true,
+                            "default": null,
+                            "unique": false,
+                            "editable": false
+                        }
                     ]
-                }
-            ],
-            "indexes": {}
-        }
-    ]
+                ],
+                "indexes": [],
+                "constraints": [],
+                "ordering": [],
+                "str_field": "id"
+            },
+            {
+                "name": "migrations",
+                "fields": [
+                    [
+                        "CharField",
+                        "name",
+                        {
+                            "null": false,
+                            "primary_key": false,
+                            "default": null,
+                            "unique": true,
+                            "editable": false
+                        }
+                    ],
+                    [
+                        "CharField",
+                        "db_name",
+                        {
+                            "null": false,
+                            "primary_key": false,
+                            "default": null,
+                            "unique": false,
+                            "editable": false
+                        }
+                    ],
+                    [
+                        "JSONField",
+                        "migration",
+                        {
+                            "null": false,
+                            "primary_key": false,
+                            "default": null,
+                            "unique": false,
+                            "editable": false
+                        }
+                    ],
+                    [
+                        "DateTimeField",
+                        "applied",
+                        {
+                            "null": true,
+                            "primary_key": false,
+                            "default": null,
+                            "unique": false,
+                            "editable": false
+                        }
+                    ],
+                    [
+                        "AutoField",
+                        "id",
+                        {
+                            "null": false,
+                            "primary_key": true,
+                            "default": null,
+                            "unique": false,
+                            "editable": false
+                        }
+                    ]
+                ],
+                "indexes": [],
+                "constraints": [],
+                "ordering": [],
+                "str_field": "name"
+            }
+        ]
+    }
 }
 ```
 

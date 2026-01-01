@@ -320,19 +320,24 @@ class Migrations:
                     )
                 )
 
-        fields_to_check: defaultdict[str,
-                                     dict[str, TypeField]] = defaultdict(dict)
+        # fields_to_check: defaultdict[str, dict[str, TypeField]] = defaultdict(dict)
         # Now here we check for existing tables
         # that might need to be altered. We start from
         # a macro level: indexes, constraints, fields
-        for name in _current_user_tables:
-            table = table_instances[name]
-            sql_statements.extend(self._check_table_indexes(table))
-            sql_statements.extend(self._check_table_constraints(table))
+        self._check_existing_tables(
+            table_instances,
+            _current_user_tables,
+            sql_statements
+        )
 
-            # Now check changes at the field level
-            for field_name in table.fields_map.keys():
-                pass
+        # for name in _current_user_tables:
+        #     table = table_instances[name]
+        #     sql_statements.extend(self._check_table_indexes(table))
+        #     sql_statements.extend(self._check_table_constraints(table))
+
+        #     # Now check changes at the field level
+        #     for field_name in table.fields_map.keys():
+        #         pass
 
         self.JSON_MIGRATIONS_SCHEMA.schema = self.database.deconstruct()
 

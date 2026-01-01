@@ -184,7 +184,7 @@ class Migrations:
 
         # https://sqlite.org/pragma.html
         create_sql_statements: list[str] = [
-            'pragma optimize;'
+            'pragma optimize'
         ]
 
         # Search for new indexes on the table

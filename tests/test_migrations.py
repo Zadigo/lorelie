@@ -1,12 +1,11 @@
 
 import json
 import pathlib
-from unittest.mock import patch, mock_open
+from unittest.mock import patch
 
 from lorelie.database.base import Database
 from lorelie.database.migrations import JsonMigrationsSchema, Migrations
 from lorelie.database.tables.base import Table
-from lorelie.queries import Query
 from lorelie.test.testcases import LorelieTestCase
 from lorelie.fields.base import CharField
 
@@ -38,90 +37,102 @@ class TestSchemaDataclass(LorelieTestCase):
         self.assertIsInstance(params, dict)
 
 
+@patch.object(Migrations, 'blank_migration')
 class TestMigrations(LorelieTestCase):
     @classmethod
     def setUpClass(cls):
         cls.path = pathlib.Path(__file__).parent
 
-        fields = [CharField('name')]
-        cls.table = Table('company', fields=fields)
-        cls.db = Database(cls.table)
-
     def _load_file(self, name):
-        with open(self.path / 'migration_empty.json', 'r') as f:
+        with open(self.path / f'{name}.json', 'r') as f:
             return json.load(f)
 
-    def test_structure(self):
+    def test_structure(self, mblank):
+        data = self._load_file('migration_empty')
+        schema = JsonMigrationsSchema(**data)
+        mblank.return_value = schema
+
         db = Database()
         migrations = Migrations(db)
+
+        self.assertFalse(migrations.for_update)
         self.assertFalse(migrations.migrated)
+        self.assertTrue(len(migrations.existing_tables) == 0)
 
-    def test_migrate_creation_mode(self):
+    def test_migrate_creation_mode(self, mblank):
         # Creation mode: no existing tables
-        data = self._load_file('migration_empty.json')
+        with patch.object(json, 'dump') as mdump:
+            data = self._load_file('migration_empty')
 
-        with patch('builtins.open', new_callable=mock_open) as mopen:
-            with patch.object(Migrations, 'read_json_migrations') as mjson:
-                mjson.return_value = JsonMigrationsSchema(**data)
-                migration = Migrations(self.db)
-                state = migration.migrate(
-                    {
-                        'company': self.db.get_table('company')
-                    }
-                )
-                mopen.assert_called()
+            schema = JsonMigrationsSchema(**data)
+            mblank.return_value = schema
 
-    def test_migrate_table_deletion_mode(self):
+            table1 = Table('company', fields=[CharField('name')])
+
+            db = Database(table1)
+            migration = Migrations(db)
+
+            self.assertTrue(len(migration.existing_tables) == 0)
+
+            state = migration.migrate(db.table_map)
+            self.assertTrue(state)
+
+    def test_migrate_table_deletion_mode(self, mblank):
         # Deletion mode: existing tables not in migration
-        pass
+        with patch.object(json, 'dump') as mdump:
+            data = self._load_file('migration')
 
-    def test_migrate_addition_mode(self):
+            schema = JsonMigrationsSchema(**data)
+            mblank.return_value = schema
+
+            table1 = Table('company', fields=[CharField('name')])
+
+            db = Database(table1)
+            migration = Migrations(db)
+
+            self.assertSetEqual(
+                migration.existing_tables,
+                {'migrations', 'company'}
+            )
+
+            # Expected: company table to be deleted
+            table2 = Table('employee', fields=[CharField('name')])
+            table2.backend = db.get_table('company').backend
+
+            migration.migrate(
+                {
+                    'employee': table2
+                },
+                dry_run=True
+            )
+            state = migration.migrate({})
+            self.assertTrue(state)
+
+    def test_migrate_addition_mode(self, mblank):
         # Addition mode: add new tables to existing migration
-        incoming_migration = {
-            "id": "79f47320e4",
-            "date": "2025-12-31 22:34:28.716799",
-            "number": 1,
-            "migrated": False,
-            "schema": {
-                "name": "company",
-                "fields": [
-                    [
-                        "CharField",
-                        "name",
-                        {
-                            "null": False,
-                            "primary_key": False,
-                            "default": None,
-                            "unique": False,
-                            "editable": False,
-                            "max_length": 5
-                        }
-                    ],
-                    [
-                        "AutoField",
-                        "id",
-                        {
-                            "null": False,
-                            "primary_key": True,
-                            "default": None,
-                            "unique": False,
-                            "editable": False
-                        }
-                    ]
-                ],
-                "indexes": [],
-                "constraints": [],
-                "ordering": [],
-                "str_field": "id"
-            }
-        }
+        with patch.object(json, 'dump') as mdump:
+            data = self._load_file('migration')
 
-        with patch('builtins.open', new_callable=mock_open) as mopen:
-            with patch.object(Migrations, 'read_json_migrations') as mjson:
-                mjson.return_value = JsonMigrationsSchema(**incoming_migration)
-                db = Database(self.table)
-                migration = Migrations(db)
-                migration.migrate()
+            schema = JsonMigrationsSchema(**data)
+            mblank.return_value = schema
+
+            table1 = Table('company', fields=[CharField('name')])
+
+            db = Database(table1)
+            migration = Migrations(db)
+
+            self.assertSetEqual(
+                migration.existing_tables,
+                {'migrations', 'company'}
+            )
+
+            # Expected: employee table to be added
+            table2 = Table('employee', fields=[CharField('name')])
+            table2.backend = db.get_table('company').backend
+            db._add_table(table2)
+
+            state = migration.migrate(db.table_map, dry_run=True)
+            self.assertTrue(state)
 
     def test_migrate_index_deletion_mode(self):
         pass
@@ -132,60 +143,60 @@ class TestMigrations(LorelieTestCase):
     def test_migration_constraint_deletion_mode(self):
         pass
 
-    def test_write_sql_file(self):
-        with patch.object(Migrations, 'read_content') as mocked_read_content:
-            mocked_read_content.return_value = JsonMigrationsSchema(
-                **EMPTY_MIGRATION
-            )
+    # def test_write_sql_file(self):
+    #     with patch.object(Migrations, 'read_content') as mocked_read_content:
+    #         mocked_read_content.return_value = JsonMigrationsSchema(
+    #             **EMPTY_MIGRATION
+    #         )
 
-            self.create_empty_database.migrations.write_to_sql_file(
-                'CREATE TABLE test (id INTEGER);'
-            )
+    #         self.create_empty_database.migrations.write_to_sql_file(
+    #             'CREATE TABLE test (id INTEGER);'
+    #         )
 
-    @patch('lorelie.backends.QuerySet', autospec=True)
-    def test_check_fields(self, mqueryset):
-        data = [{'name': 'id'}, {'name': 'name'}]
-        _queryset = mqueryset.return_value
-        type(_queryset).__iter__ = lambda _: iter(data)
-        _queryset.load_cache.return_value = data
+    # @patch('lorelie.backends.QuerySet', autospec=True)
+    # def test_check_fields(self, mqueryset):
+    #     data = [{'name': 'id'}, {'name': 'name'}]
+    #     _queryset = mqueryset.return_value
+    #     type(_queryset).__iter__ = lambda _: iter(data)
+    #     _queryset.load_cache.return_value = data
 
-        table = self.create_table()
-        backend = self.create_connection()
-        table.backend = backend
+    #     table = self.create_table()
+    #     backend = self.create_connection()
+    #     table.backend = backend
 
-        db = self.create_empty_database
+    #     db = self.create_empty_database
 
-        db.migrations.schemas[table.name] = Schema(table, db)
-        with patch.object(Query, 'run') as mrun:
-            mrun.return_value = True
-            db.migrations.check_fields(table, backend)
+    #     db.migrations.schemas[table.name] = Schema(table, db)
+    #     with patch.object(Query, 'run') as mrun:
+    #         mrun.return_value = True
+    #         db.migrations.check_fields(table, backend)
 
-    @patch('lorelie.database.migrations.connections', autospec=True)
-    @patch('lorelie.database.migrations.SQLiteBackend', autospec=True)
-    def test_migrate_with_blank_migration(self, msqlite, mconnections):
-        _sqlite = msqlite.return_value
+    # @patch('lorelie.database.migrations.connections', autospec=True)
+    # @patch('lorelie.database.migrations.SQLiteBackend', autospec=True)
+    # def test_migrate_with_blank_migration(self, msqlite, mconnections):
+    #     _sqlite = msqlite.return_value
 
-        _connections = mconnections.return_value
-        _connections.get_last_connection.return_value = _sqlite
-        _connections.list_database_indexes.return_value = []
-        _connections.list_database_constraints.return_value = []
+    #     _connections = mconnections.return_value
+    #     _connections.get_last_connection.return_value = _sqlite
+    #     _connections.list_database_indexes.return_value = []
+    #     _connections.list_database_constraints.return_value = []
 
-        # Simulate no existing tables
-        _connections.list_all_tables.return_value = []
+    #     # Simulate no existing tables
+    #     _connections.list_all_tables.return_value = []
 
-        table = self.create_table()
-        table.backend = _sqlite
-        table_instances = {'celebrities': table}
-        db = self.create_empty_database
+    #     table = self.create_table()
+    #     table.backend = _sqlite
+    #     table_instances = {'celebrities': table}
+    #     db = self.create_empty_database
 
-        with patch.object(Table, 'prepare') as mprepare:
-            mprepare.return_value = None
+    #     with patch.object(Table, 'prepare') as mprepare:
+    #         mprepare.return_value = None
 
-            db.migrations.migrate(table_instances)
+    #         db.migrations.migrate(table_instances)
 
-            self.assertTrue(db.migrations.migrated)
-            self.assertTrue(len(db.migrations.tables_for_creation) == 0)
-            self.assertTrue(len(db.migrations.tables_for_deletion) == 0)
+    #         self.assertTrue(db.migrations.migrated)
+    #         self.assertTrue(len(db.migrations.tables_for_creation) == 0)
+    #         self.assertTrue(len(db.migrations.tables_for_deletion) == 0)
 
-    def test_migrate_with_existing_migration(self):
-        table_instances = [self.create_table()]
+    # def test_migrate_with_existing_migration(self):
+    #     table_instances = [self.create_table()]

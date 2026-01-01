@@ -3,7 +3,7 @@ import pathlib
 from collections import OrderedDict
 from functools import wraps
 from typing import Callable, Optional
-from warnings import deprecated
+from warnings import deprecated, warn
 
 from asgiref.sync import sync_to_async
 
@@ -289,6 +289,7 @@ class Database:
         self.table_map[table.name] = table
         self.table_instances.append(table)
 
+    @deprecated("Relationships are not yet fully supported")
     def _prepare_relationship_map(self, right_table, left_table):
         if (not isinstance(left_table, Table) and
                 not isinstance(right_table, Table)):

@@ -1,6 +1,8 @@
+from warnings import deprecated
 from lorelie.fields.base import Field
 
 
+@deprecated("ForeignKeyAction not supported yet")
 class ForeignKeyAction:
     str_choice = None
 
@@ -16,6 +18,7 @@ class ForeignKeyAction:
             return f"on delete {cls.str_choice}"
 
 
+@deprecated("ForeignKeyActions not supported yet")
 class ForeignKeyActions:
     """Default actions to be run on the
     foreign key when the parent is updated
@@ -27,6 +30,7 @@ class ForeignKeyActions:
     DO_NOTHING = ForeignKeyAction('no action')
 
 
+@deprecated("BaseRelationshipField not supported yet")
 class BaseRelationshipField(Field):
     """A special field used to access the
     relationship between two given tables"""
@@ -64,6 +68,7 @@ class BaseRelationshipField(Field):
         self.database = database
 
 
+@deprecated("ForeignKeyField not supported yet")
 class ForeignKeyField(BaseRelationshipField):
     def __init__(self, on_delete=None, **kwargs):
         self.on_delete = on_delete

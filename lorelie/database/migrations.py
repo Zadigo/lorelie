@@ -44,9 +44,9 @@ class JsonMigrationsSchema:
             yield key, value
 
     @property
-    def _table_names(self):
+    def _table_names(self) -> set[str]:
         tables = self.schema.get('tables', [])
-        return [item['name'] for item in tables]
+        return {item['name'] for item in tables}
 
     def get_table(self, table_name: str) -> Optional[dict[str, Any]]:
         """Returns the table schema for a given table
@@ -229,7 +229,9 @@ class Migrations:
         if errors:
             raise ValueError(*errors)
 
-        if not table_instances:
+        if not self.JSON_MIGRATIONS_SCHEMA.migrated and not table_instances:
+            # The user is trying to migrate without any tables
+            # and without having previously migrated the database
             return False
 
         # Only tracks tables that are user-defined
@@ -328,8 +330,6 @@ class Migrations:
             backend = connections.get_last_connection()
             Query.run_transaction(backend=backend, sql_tokens=sql_statements)
 
-        print(sql_statements)
-
         # Finalize by writing to the migration files
         with open(self.migrations_json_path, mode='w+') as f:
             self.JSON_MIGRATIONS_SCHEMA.migrated = True
@@ -349,6 +349,7 @@ class Migrations:
 
             self.tables_for_creation.clear()
             self.tables_for_deletion.clear()
+            return True
 
     def blank_migration(self, using: JsonMigrationsSchema):
         """Creates a blank initial migration file"""

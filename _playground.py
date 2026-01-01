@@ -21,3 +21,5 @@ tb = Table('company', fields=fields, indexes=indexes)
 
 db = Database(tb, name='companies', path=pathlib.Path('.'), log_queries=True)
 db.migrate()
+
+tb.objects.create(name='Kendall')

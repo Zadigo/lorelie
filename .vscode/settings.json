@@ -10,14 +10,8 @@
         {
             "previewLimit": 50,
             "driver": "SQLite",
-            "name": "Celebrities",
-            "database": "${workspaceFolder:lorelie}/celebrities_test.sqlite"
-        },
-        {
-            "previewLimit": 50,
-            "driver": "SQLite",
-            "name": "DB Celebrities",
-            "database": "${workspaceFolder:lorelie}/db_celebrities.sqlite"
+            "database": "${workspaceFolder:lorelie}/companies.sqlite",
+            "name": "Cmopanies"
         }
     ]
 }

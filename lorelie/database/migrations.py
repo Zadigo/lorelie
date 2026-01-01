@@ -168,13 +168,9 @@ class Migrations:
         table = Table(
             name,
             fields=[
-                CharField('name', null=False, unique=True),
-                CharField('db_name', null=False),
-                JSONField(
-                    'migration',
-                    null=False,
-                    validators=[migration_validator]
-                ),
+                CharField('name', unique=True),
+                CharField('database'),
+                JSONField('migration', validators=[migration_validator]),
                 DateTimeField('applied', auto_add=True)
             ],
             str_field='name'
@@ -186,7 +182,10 @@ class Migrations:
             table.name
         )
 
-        create_sql_statements: list[str] = []
+        # https://sqlite.org/pragma.html
+        create_sql_statements: list[str] = [
+            'pragma optimize;'
+        ]
 
         # Search for new indexes on the table
         # instance that are not present
@@ -279,7 +278,12 @@ class Migrations:
         # This will hold the different SQL statements
         # that will be executed to perform the
         # migration as single transaction
-        sql_statements = []
+        sql_statements = [
+            "pragma encoding = 'UTF-8'",
+            'pragma cache_size=-64000',
+            # 'pragma journal_mode = WAL',
+            # 'pragma synchronous = NORMAL',
+        ]
 
         if self.tables_for_deletion:
             for name in self.tables_for_deletion:
@@ -370,20 +374,20 @@ class Migrations:
                     "applied successfully."
                 )
 
-                # try:
-                #     # Save the migrations state in the
-                #     # migrations table
-                #     table = self.database.get_table('migrations')
-                #     table.objects.create(
-                #         name=f'Migration {self.JSON_MIGRATIONS_SCHEMA.number}',
-                #         db_name=self.database_name,
-                #         migration=final_migration
-                #     )
-                # except Exception as e:
-                #     raise TypeError(
-                #         "Could not log migration "
-                #         "in the migrations table."
-                #     )
+                try:
+                    # Save the migrations state in the
+                    # migrations table
+                    table = self.database.get_table('migrations')
+                    table.objects.create(
+                        name=f'Migration {self.JSON_MIGRATIONS_SCHEMA.number}',
+                        database=self.database.database_name,
+                        migration=final_migration
+                    )
+                except Exception as e:
+                    raise TypeError(
+                        "Could not log migration "
+                        "in the migrations table."
+                    )
 
         return True
 

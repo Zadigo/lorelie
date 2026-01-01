@@ -238,8 +238,8 @@ class Migrations:
         if not self.JSON_MIGRATIONS_SCHEMA.migrated and not table_instances:
             # The user is trying to migrate without any tables
             # and without having previously migrated the database
-            lorelie_logger.info(
-                "❌ No tables were found to migrate. Aborting migration process."
+            lorelie_logger.warning(
+                "🔴 No tables were found to migrate. Aborting migration process."
             )
             return False
 

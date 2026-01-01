@@ -308,7 +308,7 @@ class Database:
         right_table.is_foreign_key_table = True
         return RelationshipMap(left_table, right_table)
 
-    def get_table(self, table_name):
+    def get_table(self, table_name: str):
         try:
             return self.table_map[table_name]
         except KeyError:

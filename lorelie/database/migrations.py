@@ -5,16 +5,14 @@ import secrets
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Final, Optional, Type
+from typing import Any, Final, Optional, Type
 from io import StringIO
 from lorelie.backends import SQLiteBackend, connections
+from lorelie.database.indexes import Index
 from lorelie.database.tables.base import Table
 from lorelie.fields.base import CharField, DateTimeField, JSONField
-from lorelie.lorelie_typings import TypeField, TypeTableMap
+from lorelie.lorelie_typings import TypeConstraint, TypeDatabase, TypeDeconstructedField, TypeDeconstructedIndex, TypeField, TypeTable, TypeTableMap
 from lorelie.queries import Query
-
-if TYPE_CHECKING:
-    from lorelie.database.base import Database
 
 
 @dataclass
@@ -47,6 +45,13 @@ class JsonMigrationsSchema:
         tables = self.schema.get('tables', [])
         return {item['name'] for item in tables}
 
+    def get_table_indexes(self, table_name: str) -> list[TypeDeconstructedIndex]:
+        table = self.get_table(table_name)
+        if table is None:
+            return set()
+
+        return table.get('indexes', [])
+
     def get_table(self, table_name: str) -> Optional[dict[str, Any]]:
         """Returns the table schema for a given table
         in the current migration schema"""
@@ -56,7 +61,7 @@ class JsonMigrationsSchema:
                 return item
         return None
 
-    def get_table_fields(self, table_name: str) -> Optional[list[list[Any]]]:
+    def get_table_fields(self, table_name: str) -> list[TypeDeconstructedField]:
         """Returns the fields map for a given table
         in the current migration schema"""
         json_table = self.get_table(table_name)
@@ -64,14 +69,14 @@ class JsonMigrationsSchema:
             return json_table.get('fields', [])
         return None
 
-    def get_table_field(self, table_name: str, field_name: str):
+    def get_table_field(self, table_name: str, field_name: str) -> TypeDeconstructedField:
         """Returns the field parameters for a given field
         in a given table from the current migration schema"""
         json_fields = self.get_table_fields(table_name)
         if json_fields:
-            for field in json_fields:
-                if field[1] == field_name:
-                    return field
+            for field_type, name, params in json_fields:
+                if name == field_name:
+                    return (field_type, name, params)
         return None
 
     def table_has_field(self, table_name: str, field_name: str) -> bool:
@@ -94,9 +99,10 @@ class Migrations:
     JSON_MIGRATIONS_SCHEMA: Optional[JsonMigrationsSchema] = None
     backend_class: Final[Type[SQLiteBackend]] = SQLiteBackend
 
-    def __init__(self, database: 'Database'):
+    def __init__(self, database: TypeDatabase):
         self.database = database
         self.database_name = database.database_name or 'memory'
+
         self.migrations_json_path = database.path / \
             f'{self.database_name}_migrations.json'
         self.migrations_sql_path = database.path / \
@@ -154,40 +160,6 @@ class Migrations:
                 f.write('-- Lorelie SQL Migrations File\n')
             return ''
 
-    # def _write_fields(self, table):
-    #     """Parses the different fields from
-    #     a given table for a migration file"""
-    #     fields_map = []
-    #     for name, field in table.fields_map.items():
-    #         field_name, params = list(field.deconstruct())
-    #         fields_map.append({
-    #             'name': field_name,
-    #             'params': params
-    #         })
-    #     self.fields_map[table.name] = fields_map
-
-    # def _write_indexes(self, table, backend=None):
-    #     """Parses the different indexes from
-    #     a given table for a migration file"""
-    #     indexes = {}
-    #     for index in table.indexes:
-    #         indexes[index.index_name] = [
-    #             index.fields,
-    #             index.condition.as_sql(backend)
-    #         ]
-    #     return indexes
-
-    # def _write_constraints(self, table, backend=None):
-    #     """Parses the different constraints from
-    #     a given table for a migration file"""
-    #     indexes = {}
-    #     for constraint in table.table_constraints:
-    #         indexes[constraint.name] = [
-    #             constraint.name,
-    #             constraint.as_sql(backend)
-    #         ]
-    #     return indexes
-
     def _build_migration_table(self, name: str = 'migrations'):
         """Creates a migrations table in the database
         which stores the different configuration for
@@ -207,6 +179,39 @@ class Migrations:
             str_field='name'
         )
         return table
+
+    def _check_table_indexes(self, table: TypeTable):
+        old_indexes = self.JSON_MIGRATIONS_SCHEMA.get_table_indexes(
+            table.name
+        )
+
+        create_sql_statements: list[str] = []
+
+        # Search for new indexes on the table
+        # instance that are not present
+        # in the existing migration schema
+        for index in table.indexes:
+            for name, _, _ in old_indexes:
+                if index.name != name:
+                    create_sql_statements.extend(index.as_sql(table.backend))
+                    continue
+
+        # Search for indexes that are present
+        # in the existing migration schema
+        # but not in the current table instance
+        remove_sql_statements: list[str] = []
+
+        for name, fields, _ in old_indexes:
+            if name not in table.indexes:
+                old_index_instance = Index(name, fields)
+                remove_sql_statements.extend(
+                    table.drop_index_sql(old_index_instance)
+                )
+
+        return create_sql_statements + remove_sql_statements
+
+    def _check_table_constraints(self, constraints: list[TypeConstraint]):
+        return []
 
     def migrate(self, table_instances: TypeTableMap, dry_run: bool = False):
         # When we reload the migration file from the JSON,
@@ -284,8 +289,6 @@ class Migrations:
             table_instances['migrations'] = migrations_table
             self.database._add_table(migrations_table)
 
-        self.JSON_MIGRATIONS_SCHEMA.schema = self.database.deconstruct()
-
         if self.tables_for_creation:
             for name in self.tables_for_creation:
                 table = table_instances.get(name, None)
@@ -305,25 +308,16 @@ class Migrations:
         # Now here we check for existing tables
         # that might need to be altered. We start from
         # a macro level: indexes, constraints, fields
-        # existing_tables = current_tables.intersection(incoming_table_names)
         for name in _current_user_tables:
             table = table_instances[name]
+            sql_statements.extend(self._check_table_indexes(table))
+            sql_statements.extend(self._check_table_constraints(table))
 
-            if len(table.indexes) > 0:
-                pass
-
-            if len(table.table_constraints) > 0:
-                pass
-
+            # Now check changes at the field level
             for field_name in table.fields_map.keys():
-                has_field = self.JSON_MIGRATIONS_SCHEMA.table_has_field(
-                    table_name=name,
-                    field_name=field_name
-                )
+                pass
 
-                # if not has_field:
-                #     fields_to_check[name][field_name] = table.get_field(field_name)
-                #     fields_to_check[name][field_name]['action'] = 'delete'
+        self.JSON_MIGRATIONS_SCHEMA.schema = self.database.deconstruct()
 
         if not dry_run:
             backend = connections.get_last_connection()
@@ -341,24 +335,26 @@ class Migrations:
         json.dump(final_migration, buffer, indent=4, ensure_ascii=False)
 
         if not dry_run:
+            self.write_to_sql_file(sql_statements)
+
             with open(self.migrations_json_path, mode='w', encoding='utf-8') as f:
                 value = buffer.getvalue()
                 f.write(value)
 
-                try:
-                    # Save the migrations state in the
-                    # migrations table
-                    table = self.database.get_table('migrations')
-                    table.objects.create(
-                        name=f'Migration {self.JSON_MIGRATIONS_SCHEMA.number}',
-                        db_name=self.database_name,
-                        migration=final_migration
-                    )
-                except Exception as e:
-                    raise TypeError(
-                        "Could not log migration "
-                        "in the migrations table."
-                    )
+                # try:
+                #     # Save the migrations state in the
+                #     # migrations table
+                #     table = self.database.get_table('migrations')
+                #     table.objects.create(
+                #         name=f'Migration {self.JSON_MIGRATIONS_SCHEMA.number}',
+                #         db_name=self.database_name,
+                #         migration=final_migration
+                #     )
+                # except Exception as e:
+                #     raise TypeError(
+                #         "Could not log migration "
+                #         "in the migrations table."
+                #     )
 
         return True
 

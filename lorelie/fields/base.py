@@ -11,7 +11,7 @@ from urllib.parse import unquote
 from lorelie.constraints import (MaxLengthConstraint, MaxValueConstraint,
                                  MinValueConstraint)
 from lorelie.exceptions import ValidationError
-from lorelie.lorelie_typings import TypeAny, TypeAnyNormalTypes, TypeConstraint, TypeTable
+from lorelie.lorelie_typings import TypeAny, TypeAnyNormalTypes, TypeConstraint, TypeDeconstructedField, TypeTable
 from lorelie.validators import url_validator
 
 
@@ -225,7 +225,7 @@ class Field:
 
         self.table = table
 
-    def deconstruct(self):
+    def deconstruct(self) -> TypeDeconstructedField:
         """Deconstruct the field into its
         components in order to recreate it
         later on"""

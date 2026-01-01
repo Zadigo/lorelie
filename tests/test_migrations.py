@@ -4,6 +4,7 @@ import pathlib
 from unittest.mock import patch
 
 from lorelie.database.base import Database
+from lorelie.database.indexes import Index
 from lorelie.database.migrations import JsonMigrationsSchema, Migrations
 from lorelie.database.tables.base import Table
 from lorelie.test.testcases import LorelieTestCase
@@ -135,8 +136,48 @@ class TestMigrations(LorelieTestCase):
             state = migration.migrate(db.table_map, dry_run=True)
             self.assertTrue(state)
 
-    def test_migrate_index_deletion_mode(self):
-        pass
+    def test_migrate_index_check_mode(self, mblank):
+        # Addition mode: migrate new index to a table that
+        # does not have one
+        with patch.object(json, 'dump') as mdump:
+            data = self._load_file('migration')
+
+            schema = JsonMigrationsSchema(**data)
+            schema.migrated = False
+            mblank.return_value = schema
+
+            table1 = Table(
+                'company',
+                fields=[CharField('name')],
+                indexes=[Index('unique_name', ['name'])]
+            )
+
+            db = Database(table1)
+            migration = Migrations(db)
+
+            self.assertSetEqual(
+                migration.existing_tables,
+                {'migrations', 'company'}
+            )
+
+            self.assertTrue(
+                len(
+                    migration.JSON_MIGRATIONS_SCHEMA.get_table_indexes(
+                        table1.name
+                    )
+                ) == 0
+            )
+
+            # First table has one single index
+            state = migration.migrate(db.table_map, dry_run=True)
+            self.assertTrue(state)
+
+            migration.migrated = False
+
+            # Remove the index and try again
+            table1.indexes = []
+            state = migration.migrate(db.table_map, dry_run=True)
+            self.assertTrue(state)
 
     def test_migration_field_deletion_mode(self):
         pass

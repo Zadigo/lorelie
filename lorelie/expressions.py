@@ -28,6 +28,9 @@ class BaseExpression(ABC):
     def as_sql(self, backend: TypeSQLiteBackend):
         raise NotImplemented
 
+    def deconstruct(self):
+        return {'type': self.__class__.__name__}
+
 
 class Value(BaseExpression):
     def __init__(self, value: Any, output_field: Optional[TypeField] = None):
@@ -385,6 +388,11 @@ class Q(BaseExpression):
         filters = backend.decompose_filters(**self.expressions)
         built_filters = backend.build_filters(filters, space_characters=False)
         return [backend.operator_join(built_filters)]
+
+    def deconstruct(self):
+        value = super().deconstruct()
+        value.update({'expressions': self.expressions})
+        return value
 
 
 class F(BaseExpression):

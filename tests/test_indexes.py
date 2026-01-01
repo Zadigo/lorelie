@@ -15,8 +15,23 @@ class TestIndex(LorelieTestCase):
         result = instance.as_sql(table.backend)
 
         self.assertIsInstance(result, str)
-        self.assertTrue("create index idx_test_name_" in result)
+        self.assertTrue(result.startswith('create unique index'))
         self.assertTrue("on celebrities (name)" in result)
+
+    def test_contains(self):
+        index1 = Index('test_name', fields=['name'])
+        index2 = Index('test_name', fields=['name', 'age'])
+        self.assertIn('test_name', [index1, index2])
+
+    def test_deconstruct(self):
+        index = Index('test_name', fields=['name', 'age'], condition=Q(age=30))
+        deconstructed = index.deconstruct()
+        self.assertIsInstance(deconstructed, tuple)
+
+        name, fields, condition = deconstructed
+        self.assertEqual(name, 'test_name')
+        self.assertEqual(fields, ['name', 'age'])
+        self.assertIsInstance(condition, dict)
 
     def test_with_functions(self):
         table = self.create_table()

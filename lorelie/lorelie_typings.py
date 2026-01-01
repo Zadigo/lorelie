@@ -1,5 +1,5 @@
 import pathlib
-from typing import TYPE_CHECKING, Literal, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, Protocol, Tuple, TypeVar
 from enum import Enum
 
 if TYPE_CHECKING:
@@ -188,3 +188,8 @@ class TriggerEnum(Enum):
     AFTER_UPDATE = 'after_update'
     BEFORE_DELETE = 'before_delete'
     AFTER_DELETE = 'after_delete'
+
+
+TypeDeconstructedIndex = Tuple[str, list[str], dict[str, Any]]
+
+TypeDeconstructedField = Tuple[str, str, dict[str, bool]]

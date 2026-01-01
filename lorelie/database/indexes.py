@@ -1,8 +1,8 @@
 import secrets
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
 from lorelie.database.nodes import WhereNode
-from lorelie.lorelie_typings import TypeQ, TypeSQLiteBackend, TypeTable
+from lorelie.lorelie_typings import TypeDeconstructedIndex, TypeQ, TypeSQLiteBackend, TypeTable
 
 
 class Index:
@@ -28,7 +28,7 @@ class Index:
         fields (list[str]): A list of field names to be indexed.
         condition (Optional[Q]): An optional condition for partial indexes.
     """
-    template_sql: ClassVar[str] = 'create index {name} on {table} ({fields})'
+    template_sql: ClassVar[str] = 'create unique index {name} on {table} ({fields})'
     prefix: str = 'idx'
     max_name_length = 30
 
@@ -45,18 +45,29 @@ class Index:
         self.name = name
         self.fields = list(fields)
         self.condition = condition
+
         index_id = secrets.token_hex(nbytes=5)
         self.index_name = f'{self.prefix}_{name}_{index_id}'
+
         self.table: Optional[TypeTable] = None
 
     def __repr__(self):
         return f'<Index: fields={self.fields} condition={self.condition}>'
 
+    def __eq__(self, value: Any):
+        if isinstance(value, Index):
+            return self.name == value.name
+
+        if isinstance(value, str):
+            return self.name == value
+
+        return False
+
     def prepare(self, table: TypeTable):
         self.table = table
 
-    def deconstruct(self):
-        return (self.name, self.fields, self.condition)
+    def deconstruct(self) -> TypeDeconstructedIndex:
+        return (self.name, self.fields, {} if self.condition is None else self.condition.deconstruct())
 
     def as_sql(self, backend: TypeSQLiteBackend) -> str:
         if self.table is None:

@@ -310,6 +310,8 @@ class Table(Generic[TypeField], AbstractTable):
         return self.fields_map[name]
 
     def create_table_sql(self, fields_str: str):
+        """Generates the SQL statement required to create
+        the current table in the database"""
         unique_constraints = []
         check_constraints = []
 
@@ -343,6 +345,14 @@ class Table(Generic[TypeField], AbstractTable):
 
     def drop_table_sql(self):
         sql = self.backend.DROP_TABLE.format_map({'table': self.name})
+        return [sql]
+
+    def create_index_sql(self, index: TypeIndex):
+        sql = index.as_sql(self.backend)
+        return [sql]
+
+    def drop_index_sql(self, index: TypeIndex):
+        sql = self.backend.DROP_INDEX.format_map({'value': index.name})
         return [sql]
 
     # def create_field_sql(self, field: TypeField):
@@ -397,15 +407,16 @@ class Table(Generic[TypeField], AbstractTable):
             for params in field_params
         ]
 
-        if database.has_relationships:
-            for _, manager in database.relationships.items():
-                if not manager.relationship_map.can_be_validated:
-                    raise ValueError(manager.relationship_map.error_message)
+        # TODO: Relationships validation
+        # if database.has_relationships:
+        #     for _, manager in database.relationships.items():
+        #         if not manager.relationship_map.can_be_validated:
+        #             raise ValueError(manager.relationship_map.error_message)
 
-                if manager.relationship_map.creates_relationship(self):
-                    # TODO: Gather all the fields and append the sql
-                    # used for creating the relationship on table
-                    continue
+        #         if manager.relationship_map.creates_relationship(self):
+        #             # TODO: Gather all the fields and append the sql
+        #             # used for creating the relationship on table
+        #             continue
 
         joined_fields = self.backend.comma_join(field_params)
         create_sql = self.create_table_sql(joined_fields)

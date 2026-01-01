@@ -872,7 +872,7 @@ The Q function empowers you to construct complex SQL expressions for filtering, 
 __Basic Filtering with Single Condition__
 
 ```python
-db.objects.filter('celebrities', Q(age__gt=20))
+db.objects.filter(Q(age__gt=20))
 ```
 
 In this example, the Q function is used to create a filter condition where the 'age' column should be greater than 20 in the 'celebrities' table.
@@ -880,7 +880,7 @@ In this example, the Q function is used to create a filter condition where the '
 __Filtering with Multiple Conditions using Logical AND__
 
 ```python
-db.objects.filter('celebrities', Q(age__gt=20) & Q(age__lt=30))
+db.objects.filter(Q(age__gt=20) & Q(age__lt=30))
 ```
 
 Here, the Q function constructs a filter condition with two criteria joined by a logical __AND__ operator. It filters rows from the 'celebrities' table where the 'age' column is greater than 20 and less than 30.
@@ -888,7 +888,7 @@ Here, the Q function constructs a filter condition with two criteria joined by a
 __Filtering with Multiple Conditions using Logical OR__
 
 ```python
-db.objects.filter('celebrities', Q(age__gt=20) | Q(age__lt=30))
+db.objects.filter(Q(age__gt=20) | Q(age__lt=30))
 ```
 
 Similarly, the Q function is employed to create a filter condition with two criteria joined by a logical __OR__ operator. It retrieves rows from the 'celebrities' table where the 'age' column is either greater than 20 or less than 30.
@@ -904,7 +904,7 @@ In this case, the Q function is used to create a complex filter condition combin
 __Inversion Operation__
 
 ```python
-db.objects.filter('celebrities', ~Q(age__gt=20))
+db.objects.filter(~Q(age__gt=20))
 ```
 
 In this example, the tilde (~) operator is applied to the Q function, signifying an inversion operation. The inversion reverses the logical condition specified within the Q object. Here, the query retrieves rows from the 'celebrities' table where the 'age' column is not greater than 20.
@@ -934,7 +934,7 @@ You can utilize the `F` expression to reference database columns within SQL quer
 __Single Column Reference and Arithmetic Operation__
 
 ```python
-db.objects.annotate('celebrities', age_plus_one=F('age') + 1)
+db.objects.annotate(age_plus_one=F('age') + 1)
 ```
 
 In this example, the `F` expression is used to reference the `age` column in the `celebrities` table. By adding 1 to the value of `age`, users can create a new alias column named `age_plus_one` in the query result, where each value is incremented by 1.
@@ -942,7 +942,7 @@ In this example, the `F` expression is used to reference the `age` column in the
 __Multiple Column Reference and Arithmetic Operation__
 
 ```python
-db.objects.annotate('celebrities', age_plus_age=F('age') + F('age'))
+db.objects.annotate(age_plus_age=F('age') + F('age'))
 ```
 
 Here, the F expression is used to reference the `age` column twice in the `celebrities` table. By adding the values of `age` together, you can create a new alias column named `age_plus_age` in the query result, where each value is the sum of the corresponding `age` values.
@@ -950,7 +950,7 @@ Here, the F expression is used to reference the `age` column twice in the `celeb
 __Single Column Reference without Operation__
 
 ```python
-db.objects.annotate('celebrities', age_alias=F('age'))
+db.objects.annotate(age_alias=F('age'))
 ```
 
 In this case, the F expression is used to reference the `age` column in the `celebrities` table without performing any arithmetic operation. This creates a new alias column named `age_plus_one` in the query result, where each value is the same as the original `age` column.
@@ -973,7 +973,7 @@ case = Case(logic)
 
 # Annotate the 'celebrities' table with the Case expression
 # The result will be stored in the 'other_name' alias column
-db.objects.annotate('celebrities', other_name=case)
+db.objects.annotate(other_name=case)
 
 ```
 

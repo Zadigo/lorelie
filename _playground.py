@@ -16,5 +16,4 @@ tb2 = Table('employee', fields=fields)
 # db = Database(tb, name='companies', path=pathlib.Path('.'))
 db = Database(tb, tb2, name='companies', path=pathlib.Path('.'))
 db.migrate()
-
 # print(tb.objects.create(name='Test Company 1'))

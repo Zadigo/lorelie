@@ -2,7 +2,9 @@ import dataclasses
 import pathlib
 from collections import OrderedDict
 from functools import wraps
-from typing import Optional
+from typing import Callable, Optional
+from warnings import deprecated
+
 from asgiref.sync import sync_to_async
 
 from lorelie.backends import SQLiteBackend
@@ -14,7 +16,7 @@ from lorelie.exceptions import TableExistsError
 from lorelie.fields import IntegerField
 from lorelie.fields.relationships import ForeignKeyField
 from lorelie.queries import Query
-from lorelie.lorelie_typings import TypeStrOrPathLibPath, TypeTable
+from lorelie.lorelie_typings import TypeDatabase, TypeOnDeleteTypes, TypeStrOrPathLibPath, TypeTable
 
 
 @dataclasses.dataclass
@@ -322,13 +324,19 @@ class Database:
     #     self.migrations.has_migrations = True
     #     self.migrations.make_migrations(self.table_instances)
 
-    def migrate(self):
+    def migrate(self, dry_run: bool = False):
         """This function executes the modifications outlined in the 
         migration file onto the database. It achieves this by orchestrating 
         various actions such as creating tables, implementing constraints, 
-        and applying other specified parameters to the tables."""
-        self.migrations.migrate(self.table_map)
+        and applying other specified parameters to the tables.
 
+        Args:
+            dry_run (bool, optional): If set to True, the migration process will simulate the 
+                                      changes without actually applying them to the database. Defaults to False.
+        """
+        self.migrations.migrate(self.table_map, dry_run=dry_run)
+
+    @deprecated(reason="Use migrate instead")
     def simple_load(self):
         """Loads an existing sqlite and checks that the
         columns of the existing tables match those of the
@@ -341,10 +349,12 @@ class Database:
         return NotImplemented
 
     # TODO: Remove this line
+    @deprecated(reason="Views are created with the View class now")
     def create_view(self, name, queryset, temporary=True):
         return NotImplemented
 
-    def register_trigger(self, trigger, table=None):
+    @deprecated(reason="Triggers are not yet supported")
+    def register_trigger(self, trigger, table: Optional[TypeTable] = None):
         """Registers a trigger function onto the database
         and that will get called at a specific stage of
         when the database runs a specific type of operation
@@ -354,7 +364,7 @@ class Database:
         ... def my_trigger(database, table, **kwargs):
         ...     pass
         """
-        def wrapper(func):
+        def wrapper(func: Callable[[TypeDatabase, TypeTable], None]):
             if table is not None:
                 values = [table.name, trigger, func]
             else:
@@ -365,9 +375,10 @@ class Database:
             def inner(**kwargs):
                 func(database=self, table=table, **kwargs)
             return inner
+
         return wrapper
 
-    def foreign_key(self, name, left_table, right_table, on_delete=None, related_name=None):
+    def foreign_key(self, name: str, left_table: TypeTable, right_table: TypeTable, on_delete: Optional[TypeOnDeleteTypes] = None, related_name: Optional[str] = None):
         """Adds a foreign key between two tables by using the
         default primary ID field. The orientation for the foreign
         key goes from `left_table.id` to `right_table.field_id`
@@ -376,7 +387,7 @@ class Database:
         ... table2 = Table('social_media', fields=[CharField('name', max_length=200)])
 
         >>> db = Database(table1, table2)
-        ... db.foreign_key('followers', table1, table2, on_delete='cascade', related_name='f_my_table')
+        ... db.foreign_key('followers', table1, table2, on_delete=OnDeleteEnum.CASCADE, related_name='f_my_table')
         ... db.migrate()
         ... db.social_media_tbl.all()
         ... db.celebrity_tbl_set.all()
@@ -406,7 +417,7 @@ class Database:
             field
         )
 
-    def many_to_many(self, name, left_table, right_table):
+    def many_to_many(self, name: str, left_table: TypeTable, right_table: TypeTable):
         # TODO: Create an intermediate junction table that
         # will serve to query many to many fields
         # junction_name = f'{left_table.name}_{right_table.name}'
@@ -426,7 +437,7 @@ class Database:
         self.foreign_key(
             name, relationship_map.foreign_forward_related_field_name, right_table, junction_table)
 
-    def one_to_one_key(self, name, left_table, right_table, on_delete=None):
+    def one_to_one_key(self, name: str, left_table: TypeTable, right_table: TypeTable, on_delete: Optional[TypeOnDeleteTypes] = None):
         relationship_map = self._prepare_relationship_map(
             right_table,
             left_table

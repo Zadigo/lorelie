@@ -164,3 +164,27 @@ TypeLogicalOperators = Literal['and', 'or']
 
 
 TypeDecomposedFilterTuple = tuple[str, OperatorType, TypeAny]
+
+
+class OnDeleteEnum(Enum):
+    CASCADE = 'cascade'
+    SET_NULL = 'set_null'
+    RESTRICT = 'restrict'
+    NO_ACTION = 'no_action'
+    SET_DEFAULT = 'set_default'
+
+
+TypeOnDeleteTypes = Literal[OnDeleteEnum.CASCADE,
+                            OnDeleteEnum.SET_NULL,
+                            OnDeleteEnum.RESTRICT,
+                            OnDeleteEnum.NO_ACTION,
+                            OnDeleteEnum.SET_DEFAULT]
+
+
+class TriggerEnum(Enum):
+    BEFORE_INSERT = 'before_insert'
+    AFTER_INSERT = 'after_insert'
+    BEFORE_UPDATE = 'before_update'
+    AFTER_UPDATE = 'after_update'
+    BEFORE_DELETE = 'before_delete'
+    AFTER_DELETE = 'after_delete'

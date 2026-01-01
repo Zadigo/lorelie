@@ -209,7 +209,7 @@ class Migrations:
         )
         return table
 
-    def migrate(self, table_instances: TypeTableMap):
+    def migrate(self, table_instances: TypeTableMap, dry_run: bool = False):
         # When we reload the migration file from the JSON,
         # we need to make sure we reload the Python objects
         # for the rest of the code
@@ -230,7 +230,7 @@ class Migrations:
             raise ValueError(*errors)
 
         if not table_instances:
-            return
+            return False
 
         # Only tracks tables that are user-defined
         _current_user_tables = set(self.existing_tables)
@@ -293,7 +293,8 @@ class Migrations:
                     )
                 )
 
-        fields_to_check: defaultdict[str, dict[str, TypeField]] = defaultdict(dict)
+        fields_to_check: defaultdict[str,
+                                     dict[str, TypeField]] = defaultdict(dict)
         # Now here we check for existing tables
         # that might need to be altered. We start from
         # a macro level: indexes, constraints, fields
@@ -317,8 +318,9 @@ class Migrations:
                 #     fields_to_check[name][field_name] = table.get_field(field_name)
                 #     fields_to_check[name][field_name]['action'] = 'delete'
 
-        backend = connections.get_last_connection()
-        Query.run_transaction(backend=backend, sql_tokens=sql_statements)
+        if not dry_run:
+            backend = connections.get_last_connection()
+            Query.run_transaction(backend=backend, sql_tokens=sql_statements)
 
         # Finalize by writing to the migration files
         with open(self.migrations_json_path, mode='w+') as f:

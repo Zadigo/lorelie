@@ -1,13 +1,14 @@
 
 import json
 import pathlib
-from unittest.mock import patch
+from unittest.mock import patch, mock_open
 
 from lorelie.database.base import Database
 from lorelie.database.migrations import JsonMigrationsSchema, Migrations
 from lorelie.database.tables.base import Table
 from lorelie.queries import Query
 from lorelie.test.testcases import LorelieTestCase
+from lorelie.fields.base import CharField
 
 
 class TestSchemaDataclass(LorelieTestCase):
@@ -38,21 +39,89 @@ class TestSchemaDataclass(LorelieTestCase):
 
 
 class TestMigrations(LorelieTestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.path = pathlib.Path(__file__).parent
+
+        fields = [CharField('name')]
+        cls.table = Table('company', fields=fields)
+        cls.db = Database(cls.table)
+
+    def _load_file(self, name):
+        with open(self.path / 'migration_empty.json', 'r') as f:
+            return json.load(f)
+
     def test_structure(self):
         db = Database()
         migrations = Migrations(db)
         self.assertFalse(migrations.migrated)
 
     def test_migrate_creation_mode(self):
-        table = self.create_table()
-        table.backend = self.create_connection()
+        # Creation mode: no existing tables
+        data = self._load_file('migration_empty.json')
 
-        db = Database(table)
-        migrations = Migrations(db)
-        migrations.migrate({'celebrities': table})
+        with patch('builtins.open', new_callable=mock_open) as mopen:
+            with patch.object(Migrations, 'read_json_migrations') as mjson:
+                mjson.return_value = JsonMigrationsSchema(**data)
+                migration = Migrations(self.db)
+                state = migration.migrate(
+                    {
+                        'company': self.db.get_table('company')
+                    }
+                )
+                mopen.assert_called()
 
     def test_migrate_table_deletion_mode(self):
+        # Deletion mode: existing tables not in migration
         pass
+
+    def test_migrate_addition_mode(self):
+        # Addition mode: add new tables to existing migration
+        incoming_migration = {
+            "id": "79f47320e4",
+            "date": "2025-12-31 22:34:28.716799",
+            "number": 1,
+            "migrated": False,
+            "schema": {
+                "name": "company",
+                "fields": [
+                    [
+                        "CharField",
+                        "name",
+                        {
+                            "null": False,
+                            "primary_key": False,
+                            "default": None,
+                            "unique": False,
+                            "editable": False,
+                            "max_length": 5
+                        }
+                    ],
+                    [
+                        "AutoField",
+                        "id",
+                        {
+                            "null": False,
+                            "primary_key": True,
+                            "default": None,
+                            "unique": False,
+                            "editable": False
+                        }
+                    ]
+                ],
+                "indexes": [],
+                "constraints": [],
+                "ordering": [],
+                "str_field": "id"
+            }
+        }
+
+        with patch('builtins.open', new_callable=mock_open) as mopen:
+            with patch.object(Migrations, 'read_json_migrations') as mjson:
+                mjson.return_value = JsonMigrationsSchema(**incoming_migration)
+                db = Database(self.table)
+                migration = Migrations(db)
+                migration.migrate()
 
     def test_migrate_index_deletion_mode(self):
         pass

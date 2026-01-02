@@ -35,7 +35,7 @@ class DatabaseManager(Generic[TypeQuerySet]):
     def __get__(self, instance: TypeTable, cls: Optional[Type[TypeTable]] = None):
         if not self.table_map:
             self.table = instance
-            
+
             try:
                 self.database = instance.attached_to_database
                 self.table_map = instance.attached_to_database.table_map
@@ -46,6 +46,13 @@ class DatabaseManager(Generic[TypeQuerySet]):
                         MigrationsExistsError()
                     ]
                 )
+
+        # We need to match the current the
+        # table on the manager to the
+        # instance table (or current incoming table)
+        if instance != self.table:
+            self.table = instance
+
         return self
 
     @classmethod

@@ -640,6 +640,15 @@ class SQLiteBackend(SQL):
     Args:
         database_or_name: Either the database instance or the name of the database to connect to.
         log_queries: Whether to log the queries that are executed on this backend.
+        mask_values: Whether to mask sensitive values in the logs on insert operations. Defaults to False.
+
+    Returns:
+        SQLiteBackend: An instance of the SQLiteBackend class
+
+    Examples:
+        >>> connection = SQLiteBackend('my_database', log_queries=True)
+        >>> connection = SQLiteBackend(pathlib.Path('/path/to/database.sqlite'), log_queries=True)
+        >>> connection = SQLiteBackend(database_instance, log_queries=True)
     """
 
     def __init__(self, database_or_name: Optional[TypeDatabase | TypeStrOrPathLibPath] = None, log_queries: bool = False):
@@ -648,6 +657,7 @@ class SQLiteBackend(SQL):
         self.database_instance: Optional[TypeDatabase] = None
         self.connection_timestamp = datetime.datetime.now().timestamp()
         self.in_memory_connection: bool = False
+        self.mask_values = mask_values
 
         # sqlite3.register_adapter(datetime.datetime.now, str)
         sqlite3.register_converter('date', converters.convert_date)

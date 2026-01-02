@@ -161,6 +161,7 @@ class Database:
         name (Optional[str], optional): The name of the database. If None, an in-memory database is created. Defaults to None.
         path (Optional[TypeStrOrPathLibPath], optional): The path where the database file will be stored. Defaults to None.
         log_queries (bool, optional): Whether to log SQL queries executed on the database. Defaults to False.
+        mask_values (bool, optional): Whether to mask sensitive values in the logs on insert operations. Defaults to False.
 
     Returns:
         Database: An instance of the Database class
@@ -170,7 +171,7 @@ class Database:
     query_class = Query
     migrations_class = Migrations
     backend_class = SQLiteBackend
-
+    def __init__(self, *tables: Table, name: Optional[str] = None, path: Optional[TypeStrOrPathLibPath] = None, log_queries: bool = False, mask_values: bool = False):
     def __init__(self, *tables: Table, name: Optional[str] = None, path: Optional[TypeStrOrPathLibPath] = None, log_queries: bool = False):
         self.database_name: str = name
         # Use the immediate parent path if not
@@ -216,6 +217,7 @@ class Database:
         self.table_instances = list(tables)
         self.relationships = OrderedDict()
         self.log_queries = log_queries
+        self.mask_values = mask_values
 
         # FIXME: Seems like if this class is not called
         # after all the elements have been set, this

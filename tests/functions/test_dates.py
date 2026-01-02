@@ -11,14 +11,15 @@ from lorelie.test.testcases import LorelieTestCase
 class TestDates(LorelieTestCase):
     def test_structure(self):
         db = self.create_database()
-        db.celebrities.objects.create(
-            'celebrities', name='Kendall', height=202)
+        table = db.get_table('celebrities')
 
-        queryset = db.celebrities.objects.annotate(
-            'celebrities',
-            year=Extract('created_on', 'year')
-        )
+        table.objects.create(name='Kendall', height=202)
+
+        instance = Extract('created_on', 'year')
+        queryset = table.objects.annotate(year=instance)
+
         item = queryset[0]
+
         current_year = datetime.datetime.now().year
         self.assertEqual(item.year, str(current_year))
 

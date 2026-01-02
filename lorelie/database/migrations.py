@@ -23,7 +23,8 @@ class JsonMigrationsSchema:
     id: Optional[str] = None
     date: Optional[str] = None
     number: Optional[int] = None
-    migrated: Optional[bool] = False
+    migrated: bool = False
+    in_memory: bool = False
     schema: dict = field(default_factory=dict)
 
     def __post_init__(self):
@@ -37,6 +38,7 @@ class JsonMigrationsSchema:
             'date': self.date,
             'number': self.number,
             'migrated': self.migrated,
+            'in_memory': self.in_memory,
             'schema': self.schema
         }
 
@@ -113,6 +115,7 @@ class Migrations:
 
         self.JSON_MIGRATIONS_SCHEMA = self.read_json_migrations
         self.file_id = self.JSON_MIGRATIONS_SCHEMA.id
+        self.JSON_MIGRATIONS_SCHEMA.in_memory = database.in_memory
 
         self.SQL_MIGRATIONS_SCHEMA = self.read_sql_migrations
 
@@ -226,6 +229,9 @@ class Migrations:
     def _check_existing_tables(self, table_instances: TypeTableMap, current_user_tables: set[str], sql_statements: list[str] = []):
         """"Helper method for checking the state of existing tables
         that might need to be altered"""
+        if self.JSON_MIGRATIONS_SCHEMA.in_memory:
+            return
+        
         fields_to_check: TypeFieldsToCheck = defaultdict(dict)
         # Now here we check for existing tables
         # that might need to be altered. We start from
@@ -241,12 +247,6 @@ class Migrations:
 
     def migrate(self, table_instances: TypeTableMap, dry_run: bool = False):
         lorelie_logger.info("🔄 Starting migration process...")
-
-        if self.JSON_MIGRATIONS_SCHEMA.migrated:
-            lorelie_logger.info(
-                "🔄 Reloading database schema from "
-                f"the existing migration file: {self.migrations_json_path.absolute()}..."
-            )
 
         incoming_table_names: set[str] = set(table_instances.keys())
 
@@ -280,14 +280,19 @@ class Migrations:
             self.migrated = False
             self.for_update = True
 
-        # Safeguard that avoids calling
-        # this function in a loop over and
-        # over which can reduce performance
+        # In memory databases need to be recreated all the time
+        # since the tables are not persistent
+        if self.JSON_MIGRATIONS_SCHEMA.in_memory:
+            self.migrated = False
+            self.for_update = True
+
         if self.migrated:
             lorelie_logger.info(
-                "✅ No tables were found to migrate. "
-                "Aborting migration process."
+                "🔄 Reloading database schema from "
+                f"the existing migration file: {self.migrations_json_path.absolute()}..."
             )
+
+            lorelie_logger.info("✅ No tables were found to migrate.")
 
             statements = []
 
@@ -310,16 +315,24 @@ class Migrations:
 
             return True
 
-        # Compare the incoming tables with the
-        # existing ones from from the migration file
-        # and determine whether the code should
-        # proceed or not
-        self.tables_for_creation = incoming_table_names.difference(
-            _current_user_tables
-        )
-        self.tables_for_deletion = _current_user_tables.difference(
-            incoming_table_names
-        )
+        if self.JSON_MIGRATIONS_SCHEMA.in_memory:
+            lorelie_logger.info(
+                "🔄 In-memory database detected. "
+                "Recreating all tables..."
+            )
+            self.tables_for_creation = incoming_table_names
+            self.existing_tables.remove('migrations')
+        else:
+            # Compare the incoming tables with the
+            # existing ones from from the migration file
+            # and determine whether the code should
+            # proceed or not
+            self.tables_for_creation = incoming_table_names.difference(
+                _current_user_tables
+            )
+            self.tables_for_deletion = _current_user_tables.difference(
+                incoming_table_names
+            )
 
         # This will hold the different SQL statements
         # that will be executed to perform the

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from lorelie.database.indexes import Index
     from lorelie.database.manager import DatabaseManager
     from lorelie.database.functions.base import Functions
+    from lorelie.database.functions.window import Rank, PercentRank, CumeDist, Lead, Lag, DenseRank, LastValue, FirstValue, NthValue, NTile, RowNumber
 
 TypeSQLiteBackend = TypeVar('TypeSQLiteBackend', bound='SQLiteBackend')
 
@@ -200,3 +201,5 @@ TypeDeconstructedField = Tuple[str, str, dict[str, bool]]
 
 
 TypeFunction = TypeVar('TypeFunction', bound='Functions')
+
+TypeWindowFunction = TypeVar('TypeWindowFunction', 'Rank', 'PercentRank', 'CumeDist', 'Lead', 'Lag')

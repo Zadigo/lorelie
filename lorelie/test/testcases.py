@@ -54,6 +54,7 @@ class LorelieTestCase(unittest.TestCase):
 
         db = Database(table, log_queries=log_queries)
         db.migrate()
+
         return db
 
     def create_table(self):

@@ -2,10 +2,10 @@ import collections
 import dataclasses
 import datetime
 from dataclasses import is_dataclass
-from typing import Any, Generic, Optional, Sequence, Type
+from typing import Any, Generator, Generic, Iterator, Optional, Sequence, Type
 
 from asgiref.sync import sync_to_async
-
+import inspect
 from lorelie.database.functions.aggregation import Count
 from lorelie.database.functions.dates import Extract
 from lorelie.database.nodes import (InsertNode, IntersectNode, OrderByNode,
@@ -445,7 +445,7 @@ class DatabaseManager(Generic[TypeQuerySet]):
             query.add_sql_node(ordering_node)
         return QuerySet(query)
 
-    def bulk_create(self, objs: Sequence[TypeNewValue]):
+    def bulk_create(self, objs: Sequence[TypeNewValue] | Iterator[TypeNewValue] | Generator[TypeNewValue, None, None]):
         """Creates multiple objects in the database at once
         using a list of datasets or dictionnaries
 
@@ -455,6 +455,9 @@ class DatabaseManager(Generic[TypeQuerySet]):
         ...
         ... db.objects.bulk_create([Celebrity('Taylor Swift')])
         """
+        if inspect.isgenerator(objs):
+            objs = list(objs)
+
         invalid_objects_counter = 0
         for obj in objs:
             if not is_dataclass(obj):
@@ -471,7 +474,7 @@ class DatabaseManager(Generic[TypeQuerySet]):
             fields = dataclasses.fields(obj)
             for field in fields:
                 if not self.table.has_field(field.name):
-                    raise FieldExistsError(field, self.table)
+                    raise FieldExistsError(field.name, self.table)
 
         columns_to_use = set()
         values_to_create = []

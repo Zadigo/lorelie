@@ -282,7 +282,8 @@ class ValuesIterable:
         if not self.fields:
             self.fields = list(self.queryset.query.table.field_names)
 
-        if self.queryset.query.annotation_map.alias_fields:
+        if (self.queryset.query.annotation_map is not None and
+                self.queryset.query.annotation_map.alias_fields):
             self.fields = (
                 list(self.fields) +
                 list(self.queryset.query.annotation_map.alias_fields)
@@ -446,6 +447,9 @@ class QuerySet:
                 self.query.transform_to_python()
             self.result_cache = self.query.result_cache
 
+    def get_master_manager(self) -> TypeDatabaseManager:
+        return getattr(self.query.table, 'objects')
+
     def get_master_queryset(self) -> TypeQuerySet:
         # This technique allows us to get the main master queryset
         # without evaluaing it. It populates the SelectMap. This allows then
@@ -457,8 +461,6 @@ class QuerySet:
         return master_objects.all()
 
     def first(self) -> TypeRow | None:
-        master_qs = self.get_master_queryset()
-
         self.query.select_map.limit = 1
 
         other_by_node = OrderByNode(self.query.table, 'id')
@@ -466,8 +468,6 @@ class QuerySet:
         return self[0]
 
     def last(self) -> TypeRow | None:
-        master_qs = self.get_master_queryset()
-
         self.query.select_map.limit = 1
 
         other_by_node = OrderByNode(self.query.table, '-id')
@@ -475,9 +475,12 @@ class QuerySet:
         return self[0]
 
     def all(self):
-        # self.check_alias_view_name()
-        # return self
-        return self.get_master_queryset()
+        # if self.query.annotation_map is not None:
+        #     other_qs = self.get_master_manager().all()
+        #     _, _, fields, _ = other_qs.query.select_map.select.deconstruct()
+        #     self.query.select_map.select = other_select_node
+        #     self.query.annotation_map = other_qs.query.annotation_map
+        return self
 
     def filter(self, *args: TypeExpression, **kwargs: TypeExpression):
         master_objects: TypeDatabaseManager = getattr(
@@ -531,15 +534,21 @@ class QuerySet:
     def values(self, *fields):
         return self.values_iterable_class(self, fields=fields)
 
-    def get_dataframe(self, *fields):
+    def get_dataframe(self, *fields: str):
         import pandas
         return pandas.DataFrame(self.values(*fields))
 
     def order_by(self, *fields: str):
-        orderby_node = OrderByNode(self.query.table, *fields)
-        if not self.query.is_evaluated:
-            self.query.add_sql_node(orderby_node)
-        return self.__class__(self.query)
+        manager = self.get_master_manager()
+
+        if self.query.select_map.order_by is None:
+            return manager.order_by(*fields)
+        else:
+            other_qs = manager.order_by(*fields)
+            order_by_node = other_qs.query.select_map.order_by
+            self.query.select_map.add_ordering(order_by_node)
+            self.force_reload_cache = True
+        return self
 
     def aggregate(self, *args, **kwargs):
         for func in args:
@@ -564,8 +573,13 @@ class QuerySet:
 
         >>> queryset = db.objects.filter(firstname='Kendall')
         ... queryset.update(age=26)
-        ... 1
+        ... [Row(firstname='Kendall', age=26), ...]
         """
+        # We are obliged to resolve the query first
+        # in order to get the list of items to update
+        self.force_reload_cache = True
+        self.load_cache()
+
         backend = self.query.backend
         columns, values = backend.dict_to_sql(kwargs)
 
@@ -584,13 +598,15 @@ class QuerySet:
 
         update_set_clause = backend.UPDATE_SET.format(params=joined_conditions)
 
-        resultset = self.all()
         where_clause_sql = []
-        for item in resultset:
-            where_clause_sql.append(backend.EQUALITY.format_map({
-                'field': 'id',
-                'value': item['id']
-            }))
+
+        for item in self.result_cache:
+            where_clause_sql.append(
+                backend.EQUALITY.format_map({
+                    'field': 'id',
+                    'value': item['id']
+                })
+            )
 
         where_clause = backend.WHERE_CLAUSE.format_map({
             'params': backend.operator_join(where_clause_sql, operator='or')

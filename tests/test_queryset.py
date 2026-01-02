@@ -1,4 +1,6 @@
 from unittest.mock import MagicMock
+
+import pandas
 from lorelie.backends import SQLiteBackend
 from lorelie.database.base import Database
 from lorelie.database.functions.text import Lower
@@ -123,22 +125,30 @@ class TestQuerySet(LorelieTestCase):
 
     def test_values(self):
         values = self.qs.values('name')
-        print(values)
+
+        for item in values:
+            with self.subTest(item=item):
+                self.assertIn('name', item)
+                self.assertEqual(len(item), 1)
 
     def test_get_dataframe(self):
-        pass
+        df = self.qs.get_dataframe('name')
+        self.assertIsInstance(df, pandas.DataFrame)  # pandas.DataFrame
 
-    def test_aggegate(self):
+    def test_aggregate(self):
         pass
 
     def test_count(self):
-        pass
+        value = self.qs.count()
+        self.assertEqual(value, 3)
 
     def test_exclude(self):
         pass
 
     def test_update(self):
-        pass
+        qs = self.qs.update(name='Updated Name')
+        for row in qs:
+            self.assertEqual(row['name'], 'Updated Name')
 
     def test_exists(self):
         pass

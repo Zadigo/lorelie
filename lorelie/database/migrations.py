@@ -321,7 +321,11 @@ class Migrations:
                 "Recreating all tables..."
             )
             self.tables_for_creation = incoming_table_names
-            self.existing_tables.remove('migrations')
+
+            try:
+                self.existing_tables.remove('migrations')
+            except KeyError:
+                pass
         else:
             # Compare the incoming tables with the
             # existing ones from from the migration file

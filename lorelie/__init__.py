@@ -2,9 +2,11 @@ import logging
 import logging.config
 import pathlib
 from collections import defaultdict, deque
+from typing import Optional
+
+from lorelie.lorelie_typings import TypeSQLiteBackend, TypeTable
 
 PROJECT_PATH = pathlib.Path(__file__).parent.parent.absolute()
-
 
 
 # __all__ = [
@@ -19,8 +21,9 @@ class LogQueries:
     made by the database. This is generally for
     debugging or monitoring purposes
     """
-    container = deque()
-    by_table = defaultdict(deque)
+    container: deque[str] = deque()
+    by_table: defaultdict[str, deque[str]] = defaultdict(deque)
+    mask_values: bool = False
 
     def __init__(self, maxsize=100):
         self.maxsize = maxsize
@@ -29,12 +32,12 @@ class LogQueries:
         return f'<{self.__class__.__name__}: {len(self.container)}>'
 
     def __iter__(self):
-        return iter(self.container)
+        yield self.container[-1]
 
     def __len__(self):
         return len(self.container)
 
-    def append(self, statement, table=None, backend=None):
+    def append(self, statement: str, table: Optional[TypeTable] = None, backend: Optional[TypeSQLiteBackend] = None):
         self.container.append(statement)
 
         if backend is not None:
@@ -47,6 +50,9 @@ class LogQueries:
                 pass
             else:
                 container.append(statement)
+
+                if len(container) > self.maxsize:
+                    self.container = container[-self.maxsize - 1:]
 
         if len(self.container) > self.maxsize:
             self.container.clear()

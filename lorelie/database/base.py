@@ -173,7 +173,6 @@ class Database:
     backend_class = SQLiteBackend
 
     def __init__(self, *tables: Table, name: Optional[str] = None, path: Optional[TypeStrOrPathLibPath] = None, log_queries: bool = False, mask_values: bool = False):
-    def __init__(self, *tables: Table, name: Optional[str] = None, path: Optional[TypeStrOrPathLibPath] = None, log_queries: bool = False):
         self.database_name: str = name
         # Use the immediate parent path if not
         # path is provided by the user
@@ -217,6 +216,7 @@ class Database:
 
         self.table_instances = list(tables)
         self.relationships = OrderedDict()
+
         self.log_queries = log_queries
         self.mask_values = mask_values
 

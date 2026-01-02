@@ -173,7 +173,7 @@ class Query:
 
         if not is_valid:
             pass
-        
+
         self.sql = finalized_sql
 
     def run(self, commit=False):
@@ -212,6 +212,7 @@ class Query:
 
             self.is_evaluated = True
         finally:
+            log_queries.mask_values = self.backend.mask_values
             log_queries.append(
                 self.sql,
                 table=self.table,

@@ -15,6 +15,8 @@ from lorelie.lorelie_typings import TypeConstraint, TypeDatabase, TypeDeconstruc
 from lorelie.queries import Query
 from lorelie import lorelie_logger
 
+TypeFieldsToCheck = defaultdict[str, dict[str, TypeField]]
+
 
 @dataclass
 class JsonMigrationsSchema:
@@ -208,6 +210,10 @@ class Migrations:
         for name, fields, _ in old_indexes:
             if name not in table.indexes:
                 old_index_instance = Index(name, fields)
+                lorelie_logger.info(
+                    f"❌ Dropping index '{name}' "
+                    f"from table '{table.name}'..."
+                )
                 remove_sql_statements.extend(
                     table.drop_index_sql(old_index_instance)
                 )
@@ -216,6 +222,22 @@ class Migrations:
 
     def _check_table_constraints(self, constraints: list[TypeConstraint]):
         return []
+
+    def _check_existing_tables(self, table_instances: TypeTableMap, current_user_tables: set[str], sql_statements: list[str] = []):
+        """"Helper method for checking the state of existing tables
+        that might need to be altered"""
+        fields_to_check: TypeFieldsToCheck = defaultdict(dict)
+        # Now here we check for existing tables
+        # that might need to be altered. We start from
+        # a macro level: indexes, constraints, fields
+        for name in current_user_tables:
+            table = table_instances[name]
+            sql_statements.extend(self._check_table_indexes(table))
+            sql_statements.extend(self._check_table_constraints(table))
+
+            # Now check changes at the field level
+            for field_name in table.fields_map.keys():
+                pass
 
     def migrate(self, table_instances: TypeTableMap, dry_run: bool = False):
         lorelie_logger.info("🔄 Starting migration process...")
@@ -266,6 +288,26 @@ class Migrations:
                 "✅ No tables were found to migrate. "
                 "Aborting migration process."
             )
+
+            statements = []
+
+            # We need to reload the migration table
+            self.database._add_table(self._build_migration_table())
+
+            self._check_existing_tables(
+                table_instances,
+                self.existing_tables,
+                statements
+            )
+
+            if statements:
+                self.JSON_MIGRATIONS_SCHEMA.schema = self.database.deconstruct()
+
+                self.write_to_json_file(
+                    dry_run=dry_run,
+                    sql_statements=statements
+                )
+
             return True
 
         # Compare the incoming tables with the
@@ -299,7 +341,7 @@ class Migrations:
                 table.backend = connections.get_last_connection()
                 sql_statements.extend(table.drop_table_sql())
                 _current_user_tables.remove(name)
-                lorelie_logger.info(f"❎ Dropping table '{name}'...")
+                lorelie_logger.info(f"❌ Dropping table '{name}'...")
 
         if 'migrations' not in self.existing_tables:
             self.tables_for_creation.add('migrations')
@@ -360,43 +402,45 @@ class Migrations:
                     [e]
                 )
 
-        buffer = StringIO()
+        self.write_to_json_file(dry_run=dry_run, sql_statements=sql_statements)
 
-        self.JSON_MIGRATIONS_SCHEMA.migrated = True
-        self.JSON_MIGRATIONS_SCHEMA.id = secrets.token_hex(5)
-        self.JSON_MIGRATIONS_SCHEMA.date = datetime.datetime.now().isoformat()
-        self.JSON_MIGRATIONS_SCHEMA.number += 1
+        # buffer = StringIO()
 
-        final_migration = dict(self.JSON_MIGRATIONS_SCHEMA)
+        # self.JSON_MIGRATIONS_SCHEMA.migrated = True
+        # self.JSON_MIGRATIONS_SCHEMA.id = secrets.token_hex(5)
+        # self.JSON_MIGRATIONS_SCHEMA.date = datetime.datetime.now().isoformat()
+        # self.JSON_MIGRATIONS_SCHEMA.number += 1
 
-        json.dump(final_migration, buffer, indent=4, ensure_ascii=False)
+        # final_migration = dict(self.JSON_MIGRATIONS_SCHEMA)
 
-        if not dry_run:
-            self.write_to_sql_file(sql_statements)
+        # json.dump(final_migration, buffer, indent=4, ensure_ascii=False)
 
-            with open(self.migrations_json_path, mode='w', encoding='utf-8') as f:
-                value = buffer.getvalue()
-                f.write(value)
+        # if not dry_run:
+        #     self.write_to_sql_file(sql_statements)
 
-                lorelie_logger.info(
-                    f"✅ Migration {self.JSON_MIGRATIONS_SCHEMA.number} "
-                    "applied successfully."
-                )
+        #     with open(self.migrations_json_path, mode='w', encoding='utf-8') as f:
+        #         value = buffer.getvalue()
+        #         f.write(value)
 
-                try:
-                    # Save the migrations state in the
-                    # migrations table
-                    table = self.database.get_table('migrations')
-                    table.objects.create(
-                        name=f'Migration {self.JSON_MIGRATIONS_SCHEMA.number}',
-                        database=self.database.database_name,
-                        migration=final_migration
-                    )
-                except Exception as e:
-                    raise TypeError(
-                        "Could not log migration "
-                        "in the migrations table."
-                    )
+        #         lorelie_logger.info(
+        #             f"✅ Migration {self.JSON_MIGRATIONS_SCHEMA.number} "
+        #             "applied successfully."
+        #         )
+
+        #         try:
+        #             # Save the migrations state in the
+        #             # migrations table
+        #             table = self.database.get_table('migrations')
+        #             table.objects.create(
+        #                 name=f'Migration {self.JSON_MIGRATIONS_SCHEMA.number}',
+        #                 database=self.database.database_name,
+        #                 migration=final_migration
+        #             )
+        #         except Exception as e:
+        #             raise TypeError(
+        #                 "Could not log migration "
+        #                 "in the migrations table."
+        #             )
 
         return True
 

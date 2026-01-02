@@ -633,9 +633,8 @@ class SQL(ExpressionFiltersMixin):
 
 
 class SQLiteBackend(SQL):
-    """Class that initiates and encapsulates a
-    new connection to an sqlite database. The connection
-    can be in memory or to a physical database
+    """A class that wraps the sqlite3 backend and adds additional
+    functionalities to it.
 
     Args:
         database_or_name: Either the database instance or the name of the database to connect to.
@@ -651,7 +650,7 @@ class SQLiteBackend(SQL):
         >>> connection = SQLiteBackend(database_instance, log_queries=True)
     """
 
-    def __init__(self, database_or_name: Optional[TypeDatabase | TypeStrOrPathLibPath] = None, log_queries: bool = False):
+    def __init__(self, database_or_name: Optional[TypeDatabase | TypeStrOrPathLibPath] = None, log_queries: bool = False, mask_values: bool = False):
         self.database_name: Optional[str] = None
         self.database_path: Optional[pathlib.Path] = None
         self.database_instance: Optional[TypeDatabase] = None

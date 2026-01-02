@@ -1,6 +1,9 @@
 import hashlib
+from sqlite3 import Connection
+from typing import ClassVar
 
 from lorelie.database.functions.base import Functions
+from lorelie.lorelie_typings import TypeSQLiteBackend
 
 # Chr,
 # ConcatPair,
@@ -20,12 +23,12 @@ class Lower(Functions):
     """Returns each values of the given
     column in lowercase
 
-    >>> db.objects.annotate('celebrities', lowered_name=Lower('name'))
+    >>> db.objects.annotate(lowered_name=Lower('name'))
     """
 
-    template_sql = 'lower({field})'
+    template_sql: ClassVar[str] = 'lower({field})'
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         return self.template_sql.format_map({
             'field': self.field_name
         })
@@ -35,12 +38,12 @@ class Upper(Lower):
     """Returns each values of the given
     column in uppercase
 
-    >>> db.objects.annotate('celebrities', uppered_name=Upper('name'))
+    >>> db.objects.annotate(uppered_name=Upper('name'))
     """
 
-    template_sql = 'upper({field})'
+    template_sql: ClassVar[str] = 'upper({field})'
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         return self.template_sql.format_map({
             'field': self.field_name
         })
@@ -51,37 +54,50 @@ class Length(Functions):
     of a string expression in the selected 
     database items
 
-    >>> db.objects.annotate('celebrities', name_length=Length('url'))
+    >>> db.objects.annotate(name_length=Length('url'))
     """
 
-    template_sql = 'length({field})'
+    template_sql: ClassVar[str] = 'length({field})'
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         return self.template_sql.format_map({
             'field': self.field_name
         })
 
 
 class MD5Hash(Functions):
-    template_sql = 'hash({field})'
+    """Function used to generate an MD5 hash of a given string
+
+    A MD5 hash is a one-way cryptographic function that produces
+    a fixed-size 128-bit (16-byte) hash value from input data of any size
+
+    >>> db.objects.annotate(md5_hashed=MD5Hash('name'))
+    """
+    template_sql: ClassVar[str] = 'hash({field})'
 
     @staticmethod
-    def create_function(connection):
-        def callback(text):
+    def create_function(connection: Connection):
+        def callback(text: str):
             text = str(text).encode('utf-8')
             return hashlib.md5(text).hexdigest()
         connection.create_function('hash', 1, callback)
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         return self.template_sql.format_map({
             'field': self.field_name
         })
 
 
 class SHA1Hash(MD5Hash):
-    template_sql = 'sha1({field})'
+    """Function used to generate a SHA1 hash of a given string.
 
-    def create_function(self, connection):
+    A SHA1 hash is a one-way cryptographic function that produces
+    a fixed-size 160-bit (20-byte) hash value from input data of any size.
+    """
+    template_sql: ClassVar[str] = 'sha1({field})'
+
+    @staticmethod
+    def create_function(connection: Connection):
         def callback(text):
             text = str(text).encode('utf-8')
             return hashlib.sha1(text).hexdigest()
@@ -89,9 +105,18 @@ class SHA1Hash(MD5Hash):
 
 
 class SHA224Hash(MD5Hash):
-    template_sql = 'sha224({field})'
+    """Function used to generate a SHA224 hash of a given string.
 
-    def create_function(self, connection):
+    A SHA224 hash is a one-way cryptographic function that produces
+    a fixed-size 224-bit (28-byte) hash value from input data of any size.
+
+    >>> db.objects.annotate(sha224_hashed=SHA224Hash('name'))
+    """
+
+    template_sql: ClassVar[str] = 'sha224({field})'
+
+    @staticmethod
+    def create_function(connection: Connection):
         def callback(text):
             text = str(text).encode('utf-8')
             return hashlib.sha224(text).hexdigest()
@@ -99,10 +124,16 @@ class SHA224Hash(MD5Hash):
 
 
 class SHA256Hash(MD5Hash):
-    template_sql = 'sha256({field})'
+    """Function used to generate a SHA256 hash of a given string.
+
+    A SHA256 hash is a one-way cryptographic function that produces
+    a fixed-size 256-bit (32-byte) hash value from input data of any size.
+    """
+
+    template_sql: ClassVar[str] = 'sha256({field})'
 
     @staticmethod
-    def create_function(connection):
+    def create_function(connection: Connection):
         def callback(text):
             text = str(text).encode('utf-8')
             return hashlib.sha256(text).hexdigest()
@@ -110,10 +141,10 @@ class SHA256Hash(MD5Hash):
 
 
 class SHA384Hash(MD5Hash):
-    template_sql = 'sha384({field})'
+    template_sql: ClassVar[str] = 'sha384({field})'
 
     @staticmethod
-    def create_function(connection):
+    def create_function(connection: Connection):
         def callback(text):
             text = str(text).encode('utf-8')
             return hashlib.sha384(text).hexdigest()
@@ -121,10 +152,10 @@ class SHA384Hash(MD5Hash):
 
 
 class SHA512Hash(MD5Hash):
-    template_sql = 'sha512({field})'
+    template_sql: ClassVar[str] = 'sha512({field})'
 
     @staticmethod
-    def create_function(connection):
+    def create_function(connection: Connection):
         def callback(text):
             text = str(text).encode('utf-8')
             return hashlib.sha512(text).hexdigest()
@@ -132,29 +163,53 @@ class SHA512Hash(MD5Hash):
 
 
 class Trim(Functions):
-    template_sql = 'trim({field})'
+    """Function used to remove leading and trailing
+    spaces from a given string
 
-    def as_sql(self, backend):
+    >>> db.objects.annotate(trimmed_name=Trim('name'))
+    """
+
+    template_sql: ClassVar[str] = 'trim({field})'
+
+    def as_sql(self, backend: TypeSQLiteBackend):
         return self.template_sql.format(field=self.field_name)
 
 
 class LTrim(Trim):
-    template_sql = 'ltrim({field})'
+    """Function used to remove leading
+    spaces from a given string
+
+    >>> db.objects.annotate(ltrimmed_name=LTrim('name'))
+    """
+
+    template_sql: ClassVar[str] = 'ltrim({field})'
 
 
 class RTrim(Trim):
-    template_sql = 'rtrim({field})'
+    """Function used to remove trailing
+    spaces from a given string
+
+    >>> db.objects.annotate(rtrimmed_name=RTrim('name'))
+    """
+
+    template_sql: ClassVar[str] = 'rtrim({field})'
 
 
 class SubStr(Functions):
-    template_sql = 'substr({field}, {start}, {end})'
+    """Function used to return a substring
+    from a given string based on the
+    specified starting position and length
+    >>> db.objects.annotate(substring_name=SubStr('name', 1, 3))
+    """
+
+    template_sql: ClassVar[str] = 'substr({field}, {start}, {end})'
 
     def __init__(self, field_name, start, end):
         self.start = start
         self.end = end
         super().__init__(field_name)
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         return self.template_sql.format_map({
             'field': self.field_name,
             'start': self.start,
@@ -163,9 +218,14 @@ class SubStr(Functions):
 
 
 class Concat(Functions):
-    template_sql = 'concat({fields})'
+    """Function used to concatenate multiple
+    string fields into a single string.
+    >>> db.objects.annotate(full_name=Concat('first_name', 'last_name'))
+    """
 
-    def __init__(self, *fields):
+    template_sql: ClassVar[str] = 'concat({fields})'
+
+    def __init__(self, *fields: str):
         self.fields = list(fields)
         # TODO: Will raise an error
         super().__init__()
@@ -174,7 +234,7 @@ class Concat(Functions):
     def alias_field_name(self):
         return None
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend):
         return backend.comma_join(self.fields)
 
 

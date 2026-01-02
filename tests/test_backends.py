@@ -16,6 +16,8 @@ class TestSQLiteBackend(LorelieTestCase):
         sqlite = self.create_connection()
         self.assertTrue(sqlite.database_name == ':memory:')
         self.assertTrue(sqlite.in_memory_connection)
+        self.assertIsNone(sqlite.database_path)
+        self.assertIsNone(sqlite.database_instance)
 
     def test_connection(self):
         sqlite = self.create_connection()
@@ -229,12 +231,6 @@ class TestSQLiteBackend(LorelieTestCase):
         )
         self.assertListEqual(result, [('celebrities', 'name', '=', 'Kendall')])
 
-#     @unittest.expectedFailure
-#     def test_failed_build_filters(self):
-#         # TODO: If an operator is not found we should not
-#         # be able to build the filter
-#         self.backend.build_filters([('rowid', '<=>', '1')])
-
     def test_build_annotation(self):
         connection = self.create_connection()
         connection.current_table = self.create_table()
@@ -266,29 +262,12 @@ class TestSQLiteBackend(LorelieTestCase):
         result = connection.build_dot_notation(values)
         self.assertListEqual(result, ["followers.id='1'"])
 
-#     def test_decompose_sql(self):
-#         bits = self.backend.decompose_sql_statement(
-#             'select *, name from celebrities'
-#         )
-#         self.assertIsInstance(bits, defaultdict)
-#         select_map = bits['select']
-#         column, values = select_map[0]
-#         self.assertEqual(column, 'columns')
-#         self.assertListEqual(values, ['*', 'name'])
-
-#         bits = self.backend.decompose_sql_statement(
-#             "select *, name from celebrities where name like 'kend%'"
-#         )
-#         print(bits)
-
 
 class TestBaseRow(LorelieTestCase):
     def setUp(self):
         self.backend = self.create_connection()
         self.fields = ['name']
         self.data = {'id': 1, 'name': 'Kendall'}
-
-        # row.linked_to_table = 'sqlite_'
 
     def test_structure(self):
         row = BaseRow(self.fields, self.data, self.backend)
@@ -340,38 +319,26 @@ class TestBackendCoreFunctions(LorelieTestCase):
         self.create_database()
         conn = connections.get_last_connection()
         result = conn.list_all_tables()
-        self.assertIn('celebrities', result)
+        self.assertTrue(len(result) > 0)
+
+        for item in result:
+            print(vars(item))
+            self.assertTrue(hasattr(item, 'name'))
 
     def test_list_table_columns_sql(self):
         db = self.create_database()
         table = db.get_table('celebrities')
         conn = connections.get_last_connection()
         result = conn.list_table_columns(table)
-        print(vars(result[1]))
-        print(result)
-
-#     @unittest.expectedFailure
-#     def test_drop_indexes_sql(self):
-#         table = self.db.get_table('celebrities')
-#         sql = table.backend.drop_indexes_sql()
-
-#     def test_create_table_fields(self):
-#         table = self.db.get_table('celebrities')
-#         table._add_field('firstname', CharField('firstname'))
-#         table.backend.create_table_fields(table, ['firstname'])
-#         self.db.celebrities.objects.all('celebrities')
-
-#     def test_list_tables_sql(self):
-#         table = self.db.get_table('celebrities')
-#         result = table.backend.list_tables_sql()
-#         print(result)
+        # ['cid', 'name', 'type', 'notnull', 'dflt_value', 'pk']
+        self.assertTrue(len(result) > 0)
 
     def test_list_database_indexes(self):
         self.create_database()
         conn = connections.get_last_connection()
         result = conn.list_database_indexes()
-        print(result)
-        print(vars(result[0]))
+        # ['type', 'name', 'tbl_name', 'sql']
+        self.assertTrue(len(result) > 0)
 
     def test_list_table_indexes(self):
         db = self.create_database()

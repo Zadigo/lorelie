@@ -1,12 +1,14 @@
 import math
-
+from typing import Any, ClassVar, Sequence, Union
+from sqlite3 import Connection
 from lorelie.database.functions.base import Functions
+from lorelie.lorelie_typings import TypeField, TypeQuerySet, TypeSQLiteBackend
 
 # TODO: Simplify this section
 
 
 class MathMixin:
-    allow_aggregation = True
+    allow_aggregation: bool = True
 
     @property
     def aggregate_name(self):
@@ -19,9 +21,9 @@ class MathMixin:
         aggregated for locally create functions. 
         Subclasses should implement their own 
         aggregating logic for the data"""
-        return NotImplemented
+        raise NotImplementedError()
 
-    def use_queryset(self, field, queryset):
+    def use_queryset(self, field: TypeField, queryset: TypeQuerySet):
         """Method to aggregate values locally
         using a queryset as opposed to data
         returned directly from the database"""
@@ -30,8 +32,9 @@ class MathMixin:
                 yield item[self.field_name]
         return self.python_aggregation(list(iterator()))
 
-    def as_sql(self, backend):
+    def as_sql(self, backend: TypeSQLiteBackend) -> str:
         name_or_function = None
+
         if isinstance(self.field_name, Functions):
             name_or_function = self.field_name.as_sql(backend)
 
@@ -45,13 +48,13 @@ class Count(MathMixin, Functions):
     that match a specified condition or all rows in 
     a table if no condition is specified
 
-    >>> database.objects.aggregate('celebrities', Count('name'))
-    ... database.objects.aggregate('celebrities', alias_count=Count('name'))
+    >>> database.objects.aggregate(Count('name'))
+    ... database.objects.aggregate(alias_count=Count('name'))
     """
 
-    template_sql = 'count({field})'
+    template_sql: ClassVar[str] = 'count({field})'
 
-    def python_aggregation(self, values):
+    def python_aggregation(self, values: Any):
         return len(values)
 
 
@@ -60,12 +63,12 @@ class Avg(MathMixin, Functions):
     that match a specified condition or all rows in 
     a table if no condition is specified
 
-    >>> database.objects.aggregate('celebrities', avg_of_names=Avg('name'))
+    >>> database.objects.aggregate(avg_of_names=Avg('name'))
     """
 
-    template_sql = 'avg({field})'
+    template_sql: ClassVar[str] = 'avg({field})'
 
-    def python_aggregation(self, values):
+    def python_aggregation(self, values: Any):
         return sum(values) / len(values)
 
 
@@ -76,11 +79,11 @@ class MathVariance:
     by SQLite for """
 
     def __init__(self):
-        self.total = 0
-        self.count = 0
+        self.total: Union[int, float] = 0
+        self.count: Union[int, float] = 0
         self.values = []
 
-    def step(self, value):
+    def step(self, value: Union[int, float]):
         self.total += value
         self.count += 1
         self.values.append(value)
@@ -92,31 +95,57 @@ class MathVariance:
 
 
 class MathStDev(MathVariance):
-    def finalize(self):
+    """Math function that calculates
+    the standard deviation for a given set of 
+    values
+
+    >>> db.objects.aggregate(StDev('id'))
+    ... db.objects.annotate(StDev('id'))
+    """
+
+    def finalize(self) -> float:
         result = super().finalize()
         return math.sqrt(result)
 
 
 class Variance(MathMixin, Functions):
-    template_sql = 'variance({field})'
+    """Function used to calculate the variance of a set of values
+
+    >>> db.objects.aggregate(Variance('id'))
+    ... db.objects.annotate(Variance('id'))
+    """
+
+    template_sql: ClassVar[str] = 'variance({field})'
 
     @staticmethod
-    def create_function(connection):
+    def create_function(connection: Connection):
         connection.create_aggregate('variance', 1, MathVariance)
 
 
 class StDev(MathMixin, Functions):
-    template_sql = 'stdev({field})'
+    """Function used to calculate the standard deviation of a set of values
+
+    >>> db.objects.aggregate(StDev('id'))
+    ... db.objects.annotate(StDev('id'))
+    """
+
+    template_sql: ClassVar[str] = 'stdev({field})'
 
     @staticmethod
-    def create_function(connection):
+    def create_function(connection: Connection):
         connection.create_aggregate('stdev', 1, MathStDev)
 
 
 class Sum(MathMixin, Functions):
-    template_sql = 'sum({field})'
+    """Returns the sum of a given columns Values
 
-    def python_aggregation(self, values):
+    >>> db.objects.aggregate(Sum('id'))
+    ... db.objects.annotate(Sum('id'))
+    """
+
+    template_sql: ClassVar[str] = 'sum({field})'
+
+    def python_aggregation(self, values: Sequence[int | float]):
         return sum(values)
 
 
@@ -142,10 +171,10 @@ class MathMeanAbsoluteDifference:
 
 
 class MeanAbsoluteDifference(MathMixin, Functions):
-    template_sql = 'meanabsdifference({field})'
+    template_sql: ClassVar[str] = 'meanabsdifference({field})'
 
     @staticmethod
-    def create_function(connection):
+    def create_function(connection: Connection):
         connection.create_aggregate(
             'meanabsdifference', 1, MathMeanAbsoluteDifference)
 
@@ -157,10 +186,10 @@ class MathCoefficientOfVariation(MathMeanAbsoluteDifference):
 
 
 class CoefficientOfVariation(MathMixin, Functions):
-    template_sql = 'coeffofvariation({field})'
+    template_sql: ClassVar[str] = 'coeffofvariation({field})'
 
     @staticmethod
-    def create_function(connection):
+    def create_function(connection: Connection):
         connection.create_aggregate(
             'coeffofvariation', 1, MathCoefficientOfVariation
         )
@@ -169,24 +198,24 @@ class CoefficientOfVariation(MathMixin, Functions):
 class Max(MathMixin, Functions):
     """Returns the max value of a given column
 
-    >>> db.objects.aggregate('celebrities',  Max('id'))
-    ... db.objects.annotate('celebrities',  Max('id'))
+    >>> db.objects.aggregate(Max('id'))
+    ... db.objects.annotate(Max('id'))
     """
 
-    template_sql = 'max({field})'
+    template_sql: ClassVar[str] = 'max({field})'
 
-    def python_aggregation(self, values):
+    def python_aggregation(self, values: Sequence[int | float]):
         return min(values)
 
 
 class Min(MathMixin, Functions):
     """Returns the min value of a given column
 
-    >>> db.objects.aggregate('celebrities', Min('id'))
-    ... db.objects.annotate('celebrities',  Min('id'))
+    >>> db.objects.aggregate(Min('id'))
+    ... db.objects.annotate(Min('id'))
     """
 
-    template_sql = 'min({field})'
+    template_sql: ClassVar[str] = 'min({field})'
 
-    def python_aggregation(self, values):
+    def python_aggregation(self, values: Sequence[int | float]):
         return max(values)

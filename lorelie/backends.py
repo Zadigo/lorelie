@@ -14,7 +14,7 @@ from lorelie.database.expression_filters import ExpressionFiltersMixin
 from lorelie.database.functions.aggregation import (CoefficientOfVariation,
                                                     MeanAbsoluteDifference,
                                                     StDev, Variance)
-from lorelie.database.functions.text import MD5Hash, SHA256Hash
+from lorelie.database.functions.text import MD5Hash, SHA1Hash, SHA224Hash, SHA256Hash, SHA384Hash, SHA512Hash
 from lorelie.database.manager import ForeignTablesManager
 from lorelie.database.nodes import (DeleteNode, SelectNode, UpdateNode,
                                     WhereNode, AnnotationMap)
@@ -700,7 +700,12 @@ class SQLiteBackend(SQL):
             connection = sqlite3.connect(':memory:', **params)
 
         MD5Hash.create_function(connection)
+        SHA1Hash.create_function(connection)
+        SHA224Hash.create_function(connection)
         SHA256Hash.create_function(connection)
+        SHA384Hash.create_function(connection)
+        SHA512Hash.create_function(connection)
+
         MeanAbsoluteDifference.create_function(connection)
         Variance.create_function(connection)
         StDev.create_function(connection)

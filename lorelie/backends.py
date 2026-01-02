@@ -87,6 +87,14 @@ class BaseRow:
 
     >>> row.firstname = 'Julie'
     ... row.save()
+
+    Args:
+        fields: The list of fields that are part of the row
+        data: The actual data that is part of the row
+        cursor: The sqlite3 cursor that generated the row
+
+    Returns:
+        BaseRow: An instance of the BaseRow class
     """
 
     def __init__(self, fields: list[str], data: dict, cursor: Optional[sqlite3.Cursor] = None):
@@ -172,18 +180,22 @@ class BaseRow:
     def __contains__(self, value):
         return value in self._cached_data.values()
 
-    def __getattr__(self, key):
-        # TODO: Improve foreign key relations handling
-        if key.endswith('_rel'):
-            backend = self.__dict__['_backend']
-            right_table_name, _ = key.split('_')
-            manager = ForeignTablesManager(
-                right_table_name,
-                backend.current_table
-            )
-            setattr(manager, 'current_row', self)
-            return manager
-        return key
+    # def __getattr__(self, key: str) -> Union[Any, ForeignTablesManager]:
+    #     # TODO: Improve foreign key relations handling
+    #     if key.endswith('_rel'):
+    #         backend = self.__dict__['_backend']
+    #         right_table_name, _ = key.split('_')
+    #         manager = ForeignTablesManager(
+    #             right_table_name,
+    #             backend.current_table
+    #         )
+    #         setattr(manager, 'current_row', self)
+    #         return manager
+    #     return key
+
+    def foreign_key(self, table_name: str) -> ForeignTablesManager:
+        """Returns the foreign key manager for a given
+        table name"""
 
     def save(self):
         """Changes the data on the actual row

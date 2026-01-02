@@ -133,6 +133,19 @@ class TestSelectNode(LorelieTestCase):
             ['select * from view_name']
         )
 
+    def test_deconstruct(self, mock_connect):
+        node = SelectNode(self.create_table(), limit=10, offset=5)
+        result = node.deconstruct()
+        self.assertListEqual(
+            result,
+            [
+                'SelectNode',
+                'celebrities',
+                ['*'],
+                {'distinct': False, 'limit': 10, 'offset': 5, 'view_name': None}
+            ]
+        )
+
 
 @patch.object(sqlite3, 'connect')
 class TestWhereNode(LorelieTestCase):
@@ -205,6 +218,24 @@ class TestWhereNode(LorelieTestCase):
             self.create_connection()
         )
 
+    def test_addition(self, mock_connect):
+        w1 = WhereNode(firstname='Kendall')
+        w2 = WhereNode(lastname='Jenner', age=25)
+
+        combined = w1 + w2
+        result = combined.as_sql(self.create_connection())
+        print(result)
+
+        self.assertListEqual(
+            list(result),
+            ["where firstname='Kendall' and lastname='Jenner' and age=25"],
+            f'Failed to combine WhereNodes using + operator: {type(result)}'
+        )
+
+        self.assertIsInstance(combined, ComplexNode)
+        self.assertIn(w1, combined)
+        self.assertIn(w2, combined)
+
 
 @patch.object(sqlite3, 'connect')
 class TestOrderByNode(LorelieTestCase):
@@ -250,6 +281,14 @@ class TestOrderByNode(LorelieTestCase):
         self.assertListEqual(
             c.as_sql(self.create_connection()),
             ['order by name asc, age desc']
+        )
+
+    def test_deconstruct(self, mock_connect):
+        node = OrderByNode(self.create_table(), 'id', '-name')
+        result = node.deconstruct()
+        self.assertTupleEqual(
+            result,
+            ('OrderByNode', 'celebrities', ('id', '-name'))
         )
 
 

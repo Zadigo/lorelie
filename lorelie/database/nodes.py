@@ -18,7 +18,7 @@ multiple nodes together
 import dataclasses
 import re
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Generic, Optional, override
+from typing import Any, ClassVar, Generic, Optional, Union, override
 
 from lorelie.expressions import CombinedExpression, Q
 from lorelie.lorelie_typings import (NodeEnums, TypeJoinTypes, TypeNode,
@@ -75,20 +75,45 @@ class SelectMap:
             nodes.extend(self.order_by.as_sql(backend))
 
         if self.limit is not None:
-            setattr(self, 'limit', self.select.limit)
-            nodes.extend([f'limit {self.limit}'])
+            limit = self.limit or getattr(self, 'limit', self.select.limit)
+            nodes.extend([backend.LIMIT.format_map({'value': limit})])
 
             if self.select.offset is not None:
-                setattr(self, 'offset', self.select.offset)
-                nodes.extend([f'offset {self.offset}'])
+                offset = (
+                    self.offset or
+                    getattr(self, 'offset', self.select.offset)
+                )
+                nodes.extend([
+                    backend.OFFSET.format_map({
+                        'value': offset
+                    })
+                ])
 
         return nodes
 
-    def add_ordering(self, other):
+    def add_where(self, other: 'WhereNode'):
+        """Add a where node to the select map. If a where node
+        already exists, we combine them using the `+` operator
+        which represents an AND operation.
+        """
+        if not isinstance(other, WhereNode):
+            raise ValueError()
+
+        if self.where is None:
+            self.where = other
+        else:
+            self.where = self.where + other
+
+    def add_ordering(self, other: 'OrderByNode'):
+        """Add an order by node to the select map. If an order by node
+        already exists, we combine them using the `&` operator
+        which represents a merging of the ordering fields."""
         if not isinstance(other, OrderByNode):
             raise ValueError()
 
-        if self.order_by is not None:
+        if self.order_by is None:
+            self.order_by = other
+        else:
             self.order_by = self.order_by & other
 
 
@@ -118,7 +143,7 @@ class RawSQL:
         return self.backend.simple_join(self.as_sql())
 
     def __iter__(self):
-        return list(self.as_sql())
+        return iter(self.as_sql())
 
     def __eq__(self, value):
         if isinstance(value, RawSQL):
@@ -147,6 +172,19 @@ class RawSQL:
 
 
 class ComplexNode(Generic[TypeNode]):
+    """A node that aggregates multiple nodes together
+
+    Args:
+        *nodes (TypeNode): The nodes to aggregate
+
+    Example:
+    >>> node1 = SelectNode(table, 'name')
+    >>> node2 = WhereNode(name='Kendall')
+    >>> complex_node = ComplexNode(node1, node2)
+    ... complex_node.as_sql(connection)
+    ... ["select name from table", "where name='Kendall'"]
+    """
+
     def __init__(self, *nodes: TypeNode):
         self.nodes = list(nodes)
 
@@ -165,7 +203,23 @@ class ComplexNode(Generic[TypeNode]):
         return node in self.nodes
 
     def as_sql(self, backend: TypeSQLiteBackend):
-        return RawSQL(backend, *self.nodes)
+        clean_nodes: list[TypeNode] = []
+
+        # Merge all where nodes into a single one
+        _where_nodes = filter(
+            lambda node: node.node_name == NodeEnums.WHERE,
+            self.nodes
+        )
+        base_node: TypeNode = None
+        for i, node in enumerate(_where_nodes):
+            if i == 0:
+                base_node = node
+                continue
+            _, _, _, args, kwargs = node.deconstruct()
+            base_node(*args, **kwargs)
+
+        clean_nodes.append(base_node)
+        return RawSQL(backend, *clean_nodes)
 
 
 class BaseNode(ABC):
@@ -187,10 +241,18 @@ class BaseNode(ABC):
         name = node
         if isinstance(node, BaseNode):
             name = node.node_name
+
+        if isinstance(name, NodeEnums):
+            name = name.value
+
         return name == self.node_name
 
     def __contains__(self, value):
-        return value in self.node_name
+        name = self.node_name
+        if isinstance(name, NodeEnums):
+            name = name.value
+
+        return value in name
 
     def __and__(self, node):
         return NotImplemented
@@ -199,12 +261,19 @@ class BaseNode(ABC):
         return NotImplemented
 
     @property
-    def node_name(self) -> str:
-        return None
+    def node_name(self) -> Union[str, NodeEnums]:
+        return ''
 
     @abstractmethod
     def as_sql(self, backend: TypeSQLiteBackend) -> list[str]:
         raise NotImplemented
+
+    def deconstruct(self) -> list[str]:
+        return [
+            self.__class__.__name__,
+            None if self.table is None else self.table.name,
+            self.fields
+        ]
 
 
 class SelectNode(BaseNode):
@@ -245,6 +314,17 @@ class SelectNode(BaseNode):
         # before final sql generation
         return [select_sql]
 
+    @override
+    def deconstruct(self) -> tuple[str, str, tuple[str, ...], dict[str, Any]]:
+        values = super().deconstruct()
+        other_params = ({
+            'distinct': self.distinct,
+            'limit': self.limit,
+            'offset': self.offset,
+            'view_name': self.view_name
+        })
+        return values + [other_params]
+
 
 class WhereNode(BaseNode):
     """
@@ -278,7 +358,7 @@ class WhereNode(BaseNode):
 
     @property
     def node_name(self):
-        return NodeEnums.WHERE.value
+        return NodeEnums.WHERE
 
     @override
     def as_sql(self, backend: TypeSQLiteBackend):
@@ -310,6 +390,10 @@ class WhereNode(BaseNode):
 
         where_clause = self.template_sql.format(params=joined_resolved)
         return [where_clause]
+
+    def deconstruct(self) -> tuple[str, str, list[str], tuple[Q | CombinedExpression], dict[str, Any]]:
+        values = super().deconstruct()
+        return tuple(values + [self.func_expressions, self.expressions])
 
 
 class OrderByNode(BaseNode):
@@ -344,10 +428,6 @@ class OrderByNode(BaseNode):
 
         self.cached_fields = list(self.ascending.union(self.descending))
 
-    @property
-    def node_name(self):
-        return NodeEnums.ORDER_BY.value
-
     def __hash__(self):
         return hash((self.node_name, *self.fields))
 
@@ -358,6 +438,10 @@ class OrderByNode(BaseNode):
         other_fields = set(node.fields)
         other_fields.update(self.fields)
         return node.__class__(self.table, *list(other_fields))
+
+    @property
+    def node_name(self):
+        return NodeEnums.ORDER_BY.value
 
     @staticmethod
     def construct_sql(backend: TypeSQLiteBackend, field: str, ascending: bool = True):
@@ -382,6 +466,9 @@ class OrderByNode(BaseNode):
         fields = backend.comma_join(conditions)
         ordering_sql = backend.ORDER_BY.format_map({'conditions': fields})
         return [ordering_sql]
+
+    def deconstruct(self) -> tuple[str, str, tuple[str, ...]]:
+        return tuple(super().deconstruct())
 
 
 class UpdateNode(BaseNode):

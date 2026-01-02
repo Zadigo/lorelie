@@ -3,7 +3,7 @@ import pathlib
 from collections import OrderedDict
 from functools import wraps
 from typing import Callable, Optional
-from warnings import deprecated, warn
+from warnings import deprecated
 
 from asgiref.sync import sync_to_async
 
@@ -21,9 +21,14 @@ from lorelie.lorelie_typings import TypeDatabase, TypeOnDeleteTypes, TypeStrOrPa
 
 @dataclasses.dataclass
 class RelationshipMap:
-    left_table: Table
-    right_table: Table
-    junction_table: Table = None
+    """Dataclasss that holds the relationship
+    information between two tables such as
+    the left and right table as well as
+    the type of relationship being created"""
+
+    left_table: TypeTable
+    right_table: TypeTable
+    junction_table: Optional[TypeTable] = None
     relationship_type: str = dataclasses.field(default='foreign')
     can_be_validated: bool = False
     error_message: str = None
@@ -100,7 +105,7 @@ class RelationshipMap:
         name = getattr(self.left_table, 'name')
         return f'{name}_id'
 
-    def get_relationship_condition(self, table):
+    def get_relationship_condition(self, table: TypeTable):
         tables = (self.right_table, self.left_table)
         if table not in tables:
             raise ValueError(
@@ -117,7 +122,7 @@ class RelationshipMap:
 
         return lhv, rhv
 
-    def creates_relationship(self, table):
+    def creates_relationship(self, table: TypeTable):
         """The relationship is created from left
         to right. This function allows us to determine
         if a table can create a relationship if it matches
@@ -292,7 +297,7 @@ class Database:
         self.table_instances.append(table)
 
     @deprecated("Relationships are not yet fully supported")
-    def _prepare_relationship_map(self, right_table, left_table):
+    def _prepare_relationship_map(self, right_table: TypeTable, left_table: TypeTable):
         if (not isinstance(left_table, Table) and
                 not isinstance(right_table, Table)):
             raise ValueError(

@@ -2,11 +2,11 @@ import sqlite3
 import datetime
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
-from typing import Any, Generic, Optional, Type
+from typing import Any, Generic, Iterator, Optional, Type
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
                                     SelectNode, WhereNode)
-from lorelie.lorelie_typings import TypeExpression, TypeNode, TypeQuerySet, TypeRow, TypeSQLiteBackend, TypeTable, TypeQuery
+from lorelie.lorelie_typings import TypeDatabaseManager, TypeExpression, TypeNode, TypeQuerySet, TypeRow, TypeSQLiteBackend, TypeTable, TypeQuery
 
 
 class Query:
@@ -44,13 +44,13 @@ class Query:
         self.alias_fields: list[str] = []
         self.is_evaluated: bool = False
         self.statements: list[str] = []
-        self.select_map = SelectMap()
+        self.select_map: SelectMap = SelectMap()
         # Since this is a special table that was not created
         # locally, we need to indicate to the __repr__ of the
         # rows that they will not be able to use the current_table
         # property to get the table name
-        self.map_to_sqlite_table = False
-        self.is_transactional = False
+        self.map_to_sqlite_table: bool = False
+        self.is_transactional: bool = False
 
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self.sql}]>'
@@ -310,7 +310,7 @@ class EmptyQuerySet:
         return False
 
 
-class QuerySet(Generic[TypeRow]):
+class QuerySet:
     """Represents a set of results obtained from executing an SQL query. 
     It provides methods for manipulating and retrieving data from the database
 
@@ -368,7 +368,7 @@ class QuerySet(Generic[TypeRow]):
         except (KeyError, IndexError):
             return None
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[TypeRow]:
         self.load_cache()
         for item in self.result_cache:
             yield item
@@ -436,34 +436,62 @@ class QuerySet(Generic[TypeRow]):
                 self.query.transform_to_python()
             self.result_cache = self.query.result_cache
 
-    def first(self):
-        self.query.select_map.limit = 1
-        self.query.select_map.order_by = OrderByNode(self.query.table, 'id')
-        return self[-0]
+    def get_master_queryset(self) -> TypeQuerySet:
+        # This technique allows us to get the main master queryset
+        # without evaluaing it. It populates the SelectMap. This allows then 
+        # allows us to apply modificatons on the undeerlying query before it is evaluated
+        master_objects: TypeDatabaseManager = getattr(self.query.table, 'objects')
+        return master_objects.all()
 
-    def last(self):
-        self.query.select_map.limit = 1
-        self.query.select_map.order_by = OrderByNode(self.query.table, '-id')
-        return self[-1]
+    def first(self) -> TypeRow | None:
+        master_qs = self.get_master_queryset()
 
-    def all(self) -> "QuerySet[TypeRow]":
-        self.check_alias_view_name()
+        self.query.select_map.limit = 1
+
+        other_by_node = OrderByNode(self.query.table, 'id')
+        self.query.select_map.add_ordering(other_by_node)
+        return self[0]
+
+    def last(self) -> TypeRow | None:
+        master_qs = self.get_master_queryset()
+
+        self.query.select_map.limit = 1
+
+        other_by_node = OrderByNode(self.query.table, '-id')
+        self.query.select_map.add_ordering(other_by_node)
+        return self[0]
+
+    def all(self):
+        # self.check_alias_view_name()
+        # return self
+        return self.get_master_queryset()
+
+    def filter(self, *args: TypeExpression, **kwargs: TypeExpression):
+        master_objects: TypeDatabaseManager = getattr(self.query.table, 'objects')
+        if self.query.select_map.where is not None:
+            self.query.select_map.where.table = self.query.table
+            _, _, _, old_args, old_kwargs = self.query.select_map.where.deconstruct()
+            master_qs = master_objects.filter(*old_args, **old_kwargs)
+        else:
+            master_qs = master_objects.all()
+
+        where_node = WhereNode(*args, **kwargs)
+        self.query.select_map.add_where(where_node)
         return self
+    
+        # backend = self.query.backend
+        # filters = backend.decompose_filters(**kwargs)
+        # build_filters = backend.build_filters(filters, space_characters=False)
 
-    def filter(self, *args: TypeExpression, **kwargs: TypeExpression) -> "QuerySet[TypeRow]":
-        backend = self.query.backend
-        filters = backend.decompose_filters(**kwargs)
-        build_filters = backend.build_filters(filters, space_characters=False)
-
-        self.check_alias_view_name()
-        if self.query.select_map.should_resolve_map:
-            try:
-                # Try to update and existing where
-                # clause otherwise create a new one
-                self.query.select_map.where(*args, **kwargs)
-            except TypeError:
-                self.query.select_map.where = WhereNode(*args, **kwargs)
-        return QuerySet(self.query)
+        # self.check_alias_view_name()
+        # if self.query.select_map.should_resolve_map:
+        #     try:
+        #         # Try to update and existing where
+        #         # clause otherwise create a new one
+        #         self.query.select_map.where(*args, **kwargs)
+        #     except TypeError:
+        #         self.query.select_map.where = WhereNode(*args, **kwargs)
+        # return QuerySet(self.query)
 
     def get(self, *args, **kwargs) -> TypeRow | None:
         if not args and not kwargs:

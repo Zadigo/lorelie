@@ -1,24 +1,49 @@
 from lorelie.database.base import RelationshipMap
-from lorelie.database.manager import ForeignTablesManager
+from lorelie.database.tables.base import Table
+from lorelie.fields.base import CharField
 from lorelie.fields.relationships import ForeignKeyField
 from lorelie.test.testcases import LorelieTestCase
 
 
 class TestRelationship(LorelieTestCase):
     def test_structure(self):
-        db = self.create_foreign_key_database()
-        self.assertTrue(db.has_relationships)
-        self.assertIsInstance(
-            list(db.relationships.values())[0],
-            ForeignTablesManager
+        fields = [CharField(name='name')]
+        t1 = Table(name='table1', fields=fields)
+        t2 = Table(name='table2', fields=fields)
+
+        relationship_map = RelationshipMap(t1, t2)
+        self.assertEqual(relationship_map.relationship_name, 'table1_table2')
+        self.assertEqual(relationship_map.forward_field_name, t1.name)
+        self.assertEqual(
+            relationship_map.backward_field_name,
+            f'{t2.name}_set'
         )
-        self.assertIn(
-            'celebrities_followers',
-            db.relationships.keys()
+        self.assertEqual(
+            relationship_map.foreign_backward_related_field_name,
+            f'{t2.name}_id'
+        )
+        self.assertEqual(
+            relationship_map.foreign_forward_related_field_name,
+            f'{t1.name}_id'
         )
 
-        table = db.get_table('celebrities')
-        self.assertTrue(table.is_foreign_key_table)
+        print(relationship_map.get_relationship_condition(t1))
+
+        # pass
+        # db = self.create_foreign_key_database()
+        # self.assertTrue(db.has_relationships)
+
+        # self.assertIsInstance(
+        #     list(db.relationships.values())[0],
+        #     ForeignTablesManager
+        # )
+        # self.assertIn(
+        #     'celebrities_followers',
+        #     db.relationships.keys()
+        # )
+
+        # table = db.get_table('celebrities')
+        # self.assertTrue(table.is_foreign_key_table)
 
 
 class TestForeignKeyField(LorelieTestCase):

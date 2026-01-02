@@ -146,3 +146,5 @@ lorelie_docs/node_modules
 
 *.sql
 *migrations.json
+
+.DS_Store

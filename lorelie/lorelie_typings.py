@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from lorelie.expressions import Q, CombinedExpression
     from lorelie.constraints import BaseConstraint
     from lorelie.database.indexes import Index
+    from lorelie.database.manager import DatabaseManager
 
 TypeSQLiteBackend = TypeVar('TypeSQLiteBackend', bound='SQLiteBackend')
 
@@ -47,6 +48,8 @@ TypeQ = TypeVar('TypeQ', bound='Q')
 TypeExpression = TypeVar('TypeExpression', 'Q', 'CombinedExpression')
 
 TypeConstraint = TypeVar('TypeConstraint', bound='BaseConstraint')
+
+TypeDatabaseManager = TypeVar('TypeDatabaseManager', bound='DatabaseManager')
 
 
 class TypeNewValue(Protocol):

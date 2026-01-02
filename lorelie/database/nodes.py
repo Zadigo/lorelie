@@ -130,6 +130,38 @@ class AnnotationMap:
     field_names: list = field(default_factory=list)
     annotation_type_map: dict = field(default_factory=dict)
 
+    def __and__(self, other: 'AnnotationMap'):
+        if not isinstance(other, AnnotationMap):
+            return NotImplemented
+
+        combined = AnnotationMap()
+
+        combined.sql_statements_dict = {
+            **self.sql_statements_dict,
+            **other.sql_statements_dict
+        }
+
+        combined.alias_fields = list(
+            itertools.chain(
+                self.alias_fields, 
+                other.alias_fields
+            )
+        )
+
+        combined.field_names = list(
+            itertools.chain(
+                self.field_names, 
+                other.field_names
+            )
+        )
+
+        combined.annotation_type_map = {
+            **self.annotation_type_map,
+            **other.annotation_type_map
+        }
+
+        return combined
+
     @property
     def joined_final_sql_fields(self):
         statements = []

@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 from lorelie.backends import SQLiteBackend
 from lorelie.database.base import Database
+from lorelie.database.functions.text import Lower
 from lorelie.database.nodes import SelectNode
 from lorelie.queries import QuerySet
 from lorelie.queries import Query
@@ -106,7 +107,13 @@ class TestQuerySet(LorelieTestCase):
         self.assertIsNotNone(row)
 
     def test_annotate(self):
-        pass
+        qs2 = self.qs.annotate(lowered_name=Lower('name'))  # Annote in manager
+        qs3 = qs2.annotate(lowered_name_two=Lower('name')
+                           )  # Annote in queryset
+
+        for obj in qs3:
+            self.assertEqual(obj.lowered_name, obj.name.lower())
+            self.assertEqual(obj.lowered_name_two, obj.name.lower())
 
     def test_all(self):
         qs = self.qs.all()

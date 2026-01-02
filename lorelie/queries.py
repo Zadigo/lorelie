@@ -5,7 +5,7 @@ from typing import Any, Iterator, Optional, Type
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.nodes import (AnnotationMap, BaseNode, OrderByNode, SelectMap,
                                     SelectNode, WhereNode)
-from lorelie.lorelie_typings import TypeDatabaseManager, TypeExpression, TypeNode, TypeQuerySet, TypeRow, TypeSQLiteBackend, TypeTable, TypeQuery
+from lorelie.lorelie_typings import TypeDatabaseManager, TypeExpression, TypeFunction, TypeNode, TypeQuerySet, TypeRow, TypeSQLiteBackend, TypeTable, TypeQuery
 
 
 class Query:
@@ -252,7 +252,7 @@ class Query:
 
             for name in row._fields:
                 value = row[name]
-                
+
                 if self.annotation_map is not None and name in self.annotation_map.alias_fields:
                     instance = AliasField(name)
                     field = instance.get_data_field(value)
@@ -451,7 +451,9 @@ class QuerySet:
         # without evaluaing it. It populates the SelectMap. This allows then
         # allows us to apply modificatons on the undeerlying query before it is evaluated
         master_objects: TypeDatabaseManager = getattr(
-            self.query.table, 'objects')
+            self.query.table,
+            'objects'
+        )
         return master_objects.all()
 
     def first(self) -> TypeRow | None:
@@ -479,7 +481,10 @@ class QuerySet:
 
     def filter(self, *args: TypeExpression, **kwargs: TypeExpression):
         master_objects: TypeDatabaseManager = getattr(
-            self.query.table, 'objects')
+            self.query.table,
+            'objects'
+        )
+
         if self.query.select_map.where is not None:
             # Triggered by qs.filter(...).filter(...)
             self.query.select_map.where(*args, **kwargs)
@@ -497,8 +502,31 @@ class QuerySet:
             raise ValueError("get() returned more than one row")
         return _self[0]
 
-    def annotate(self, **kwargs):
-        pass
+    def annotate(self, *args: TypeFunction, **kwargs: TypeFunction):
+        # Triggered by qs.all().annotate(...) or
+        # qs.filter(...).annotate(...) or qs.all().annotate(...)
+        master_objects: TypeDatabaseManager = getattr(
+            self.query.table,
+            'objects'
+        )
+        if self.query.annotation_map is None:
+            return master_objects.annotate(*args, **kwargs)
+        else:
+            other_qs = master_objects.annotate(*args, **kwargs)
+            _, _, fields, _ = other_qs.query.select_map.select.deconstruct()
+            # We need to recreate a new SelectNode alltohether
+            # by combining the fields a fake non-evaluated
+            # quereset (other_qs) and the current one (self.query)
+            new_fields = set(fields + self.query.select_map.select.fields)
+
+            new_select = SelectNode(
+                self.query.table,
+                *new_fields,
+            )
+            new_annotation_map = other_qs.query.annotation_map & self.query.annotation_map
+            self.query.annotation_map = new_annotation_map
+            self.query.select_map.select = new_select
+        return self
 
     def values(self, *fields):
         return self.values_iterable_class(self, fields=fields)

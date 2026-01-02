@@ -111,15 +111,8 @@ class Query:
             # could be sensitive data passed in the queries
             # to the log. Warn the user about this
             if instance.backend.log_queries:
-                lorelie_logger.warning(
-                    "Logging queries in a production environment is high risk "
-                    "and should be disabled. Logging sensitive data into a log "
-                    "file can cause severe security issues for your data"
-                )
-                lorelie_logger.info(
-                    f"-- Queries on {datetime.datetime.now()}:")
                 for query in log_queries:
-                    lorelie_logger.info(f"\"{query}\"")
+                    lorelie_logger.info(f"▶️ \"{query}\"")
 
             return instance
 

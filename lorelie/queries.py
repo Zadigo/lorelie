@@ -1,8 +1,7 @@
 import sqlite3
-import datetime
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
-from typing import Any, Generic, Iterator, Optional, Type
+from typing import Any, Iterator, Optional, Type
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
                                     SelectNode, WhereNode)
@@ -469,48 +468,21 @@ class QuerySet:
     def filter(self, *args: TypeExpression, **kwargs: TypeExpression):
         master_objects: TypeDatabaseManager = getattr(self.query.table, 'objects')
         if self.query.select_map.where is not None:
-            self.query.select_map.where.table = self.query.table
-            _, _, _, old_args, old_kwargs = self.query.select_map.where.deconstruct()
-            master_qs = master_objects.filter(*old_args, **old_kwargs)
+            # Triggered by qs.filter(...).filter(...)
+            self.query.select_map.where(*args, **kwargs)
         else:
+            # Triggered by qs.all().filter(...)
             master_qs = master_objects.all()
-
-        where_node = WhereNode(*args, **kwargs)
-        self.query.select_map.add_where(where_node)
+            where_node = WhereNode(*args, **kwargs)
+            self.query.select_map.add_where(where_node)
+        self.force_reload_cache = True
         return self
-    
-        # backend = self.query.backend
-        # filters = backend.decompose_filters(**kwargs)
-        # build_filters = backend.build_filters(filters, space_characters=False)
-
-        # self.check_alias_view_name()
-        # if self.query.select_map.should_resolve_map:
-        #     try:
-        #         # Try to update and existing where
-        #         # clause otherwise create a new one
-        #         self.query.select_map.where(*args, **kwargs)
-        #     except TypeError:
-        #         self.query.select_map.where = WhereNode(*args, **kwargs)
-        # return QuerySet(self.query)
 
     def get(self, *args, **kwargs) -> TypeRow | None:
-        if not args and not kwargs:
-            queryset = QuerySet(self.query)
-        else:
-            try:
-                self.query.select_map.where(*args, **kwargs)
-            except:
-                self.query.select_map.where = WhereNode(*args, **kwargs)
-            else:
-                queryset = QuerySet(self.query)
-
-        if len(queryset) > 1:
-            raise ValueError("Queryset returned multiple values")
-
-        if not queryset:
-            return None
-
-        return queryset[-0]
+        _self = self.filter(*args, **kwargs)
+        if _self.count() > 1:
+            raise ValueError("get() returned more than one row")
+        return _self[0]
 
     def annotate(self, **kwargs):
         pass

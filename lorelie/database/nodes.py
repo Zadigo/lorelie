@@ -18,7 +18,7 @@ multiple nodes together
 import dataclasses
 import re
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Generic, Optional, Union, override
+from typing import Any, ClassVar, Generic, Optional, override
 
 from lorelie.expressions import CombinedExpression, Q
 from lorelie.lorelie_typings import (NodeEnums, TypeJoinTypes, TypeNode,
@@ -48,7 +48,7 @@ class SelectMap:
     groupby: Optional[str] = None
     having: Optional[str] = None
 
-    def __setitem__(self, name,  value):
+    def __setitem__(self, name: str,  value: str):
         setattr(self, name, value)
 
     @property
@@ -207,7 +207,7 @@ class ComplexNode(Generic[TypeNode]):
 
         # Merge all where nodes into a single one
         _where_nodes = filter(
-            lambda node: node.node_name == NodeEnums.WHERE,
+            lambda node: node.node_name != NodeEnums.WHERE.value,
             self.nodes
         )
         base_node: TypeNode = None
@@ -261,7 +261,7 @@ class BaseNode(ABC):
         return NotImplemented
 
     @property
-    def node_name(self) -> Union[str, NodeEnums]:
+    def node_name(self) -> str:
         return ''
 
     @abstractmethod
@@ -358,7 +358,7 @@ class WhereNode(BaseNode):
 
     @property
     def node_name(self):
-        return NodeEnums.WHERE
+        return NodeEnums.WHERE.value
 
     @override
     def as_sql(self, backend: TypeSQLiteBackend):

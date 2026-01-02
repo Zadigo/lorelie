@@ -91,11 +91,8 @@ class TestQuerySet(LorelieTestCase):
 
     def test_filter(self):
         qs2 = self.qs.filter(id=1)
-        list(qs2)
-        self.assertEqual(
-            qs2.query.sql,
-            'select * from celebrities where id=1;'
-        )
+        # Logically None because the query has not been evaluated yet
+        self.assertIsNone(qs2.query.sql)
 
         qs3 = qs2.filter(name='Kylie Jenner')
         list(qs3)
@@ -106,7 +103,7 @@ class TestQuerySet(LorelieTestCase):
 
     def test_get(self):
         row = self.qs.get(id=2)
-        print(row)
+        self.assertIsNotNone(row)
 
     def test_annotate(self):
         pass

@@ -171,6 +171,7 @@ class Database:
     query_class = Query
     migrations_class = Migrations
     backend_class = SQLiteBackend
+
     def __init__(self, *tables: Table, name: Optional[str] = None, path: Optional[TypeStrOrPathLibPath] = None, log_queries: bool = False, mask_values: bool = False):
     def __init__(self, *tables: Table, name: Optional[str] = None, path: Optional[TypeStrOrPathLibPath] = None, log_queries: bool = False):
         self.database_name: str = name

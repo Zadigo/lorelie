@@ -11,7 +11,7 @@ from lorelie.database.functions.dates import Extract
 from lorelie.database.nodes import (InsertNode, IntersectNode, OrderByNode,
                                     SelectNode, UpdateNode, WhereNode)
 from lorelie.exceptions import FieldExistsError, MigrationsExistsError
-from lorelie.lorelie_typings import TypeAny, TypeDatabase, TypeNewValue, TypeQuerySet, TypeTable
+from lorelie.lorelie_typings import TypeAny, TypeDatabase, TypeFunction, TypeNewValue, TypeQuerySet, TypeTable
 from lorelie.queries import QuerySet, ValuesIterable
 
 
@@ -205,7 +205,7 @@ class DatabaseManager(Generic[TypeQuerySet]):
 
         return list(queryset)[-0]
 
-    def annotate(self, *args, **kwargs):
+    def annotate(self, *args: TypeFunction, **kwargs: TypeFunction):
         """The annotate method allows the usage of advanced functions or expressions in 
         a query by adding additional fields to your querysets based on the values 
         of existing fields
@@ -240,13 +240,14 @@ class DatabaseManager(Generic[TypeQuerySet]):
         >>> db.objects.annotate(new_price=Value(1))
 
         Finally, `Q` objects are used to encapsulate a collection 
-        of keyword arguments and can be used to evaluate conditions. 
+        of keyword arguments and can be used to evaluate conditions.
+
         For instance, to annotate a result indicating whether the price 
         is greater than 1:
 
         >>> db.objects.annotate(result=Q(price__gt=1))
 
-        Using expressions without an alias field name will raise an error.
+        NOTE: Using expressions without an alias field name will raise an error.
 
         Aggregate functions can also be used in annotations, but they will return 
         the result for each element grouped by a specified field. For example, to 
@@ -277,18 +278,12 @@ class DatabaseManager(Generic[TypeQuerySet]):
         if not kwargs:
             return self.all(self.table)
 
-        alias_fields = list(kwargs.keys())
-
         for alias, func in kwargs.items():
             if self.table.has_field(alias):
                 raise ValueError(
                     "Alias field names cannot override table "
                     f"columns: {alias} -> {self.table.field_names}"
                 )
-
-            internal_type = getattr(func, 'internal_type')
-            if internal_type == 'expression':
-                func.alias_field_name = alias
 
         annotation_map = self.table.backend.build_annotation(kwargs)
         annotated_sql_fields = self.table.backend.comma_join(
@@ -299,7 +294,7 @@ class DatabaseManager(Generic[TypeQuerySet]):
         select_node = SelectNode(self.table, *return_fields)
 
         query = self.database.query_class(table=self.table)
-        query.alias_fields = list(alias_fields)
+        query.annotation_map = annotation_map
         query.add_sql_node(select_node)
 
         if annotation_map.requires_grouping:

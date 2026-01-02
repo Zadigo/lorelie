@@ -231,7 +231,7 @@ class Migrations:
         that might need to be altered"""
         if self.JSON_MIGRATIONS_SCHEMA.in_memory:
             return
-        
+
         fields_to_check: TypeFieldsToCheck = defaultdict(dict)
         # Now here we check for existing tables
         # that might need to be altered. We start from

@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from lorelie.constraints import BaseConstraint
     from lorelie.database.indexes import Index
     from lorelie.database.manager import DatabaseManager
+    from lorelie.database.functions.base import Functions
 
 TypeSQLiteBackend = TypeVar('TypeSQLiteBackend', bound='SQLiteBackend')
 
@@ -196,3 +197,6 @@ class TriggerEnum(Enum):
 TypeDeconstructedIndex = Tuple[str, list[str], dict[str, Any]]
 
 TypeDeconstructedField = Tuple[str, str, dict[str, bool]]
+
+
+TypeFunction = TypeVar('TypeFunction', bound='Functions')

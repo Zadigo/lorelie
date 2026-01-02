@@ -1,11 +1,9 @@
 import dataclasses
 import datetime
-import itertools
 import pathlib
 import re
 import sqlite3
 from collections import defaultdict
-from dataclasses import field
 from typing import Any, Optional, Sequence, Set
 
 import pytz
@@ -19,10 +17,10 @@ from lorelie.database.functions.aggregation import (CoefficientOfVariation,
 from lorelie.database.functions.text import MD5Hash, SHA256Hash
 from lorelie.database.manager import ForeignTablesManager
 from lorelie.database.nodes import (DeleteNode, SelectNode, UpdateNode,
-                                    WhereNode)
+                                    WhereNode, AnnotationMap)
 from lorelie.exceptions import ConnectionExistsError
 from lorelie.expressions import Q
-from lorelie.lorelie_typings import (TypeDatabase, TypeLogicalOperators,
+from lorelie.lorelie_typings import (TypeDatabase, TypeFunction, TypeLogicalOperators,
                                      TypeRow, TypeSQLiteBackend,
                                      TypeStrOrPathLibPath, TypeTable)
 from lorelie.queries import Query, QuerySet
@@ -271,32 +269,6 @@ def row_factory(backend: TypeSQLiteBackend):
         data = {key: value for key, value in zip(fields, row)}
         return BaseRow(fields, data, cursor=cursor)
     return inner_factory
-
-
-@dataclasses.dataclass
-class AnnotationMap:
-    sql_statements_dict: dict = field(default_factory=dict)
-    alias_fields: list = field(default_factory=list)
-    field_names: list = field(default_factory=list)
-    annotation_type_map: dict = field(default_factory=dict)
-
-    @property
-    def joined_final_sql_fields(self):
-        statements = []
-        for alias, sql in self.sql_statements_dict.items():
-            if self.annotation_type_map[alias] == 'Case':
-                statements.append(f'{sql}')
-                continue
-            statements.append(f'{sql} as {alias}')
-        return list(itertools.chain(statements))
-
-    @property
-    def requires_grouping(self):
-        values = list(self.annotation_type_map.values())
-        return any([
-            'Count' in values,
-            'Length' in values
-        ])
 
 
 class SQL(ExpressionFiltersMixin):
@@ -568,7 +540,7 @@ class SQL(ExpressionFiltersMixin):
     def build_script(self, *sqls: str):
         return '\n'.join(map(lambda x: self.finalize_sql(x), sqls))
 
-    def build_annotation(self, conditions):
+    def build_annotation(self, conditions: dict[str, TypeFunction]):
         """For each database function, creates a special
         statement as in `count(column_name) as my_special_name`.
         If we have Count function in our conditions, we have to
@@ -578,6 +550,11 @@ class SQL(ExpressionFiltersMixin):
         for alias, func in conditions.items():
             annotation_map.alias_fields.append(alias)
             annotation_map.annotation_type_map[alias] = func.__class__.__name__
+
+            internal_type = getattr(func, 'internal_type')
+            if internal_type == 'expression':
+                func.alias_field_name = alias
+
             sql_resolution = func.as_sql(self.current_table.backend)
 
             # Expressions return an array. Maybe in

@@ -16,6 +16,8 @@ multiple nodes together
 
 
 import dataclasses
+import itertools
+from dataclasses import field
 import re
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Generic, Optional, override
@@ -115,6 +117,36 @@ class SelectMap:
             self.order_by = other
         else:
             self.order_by = self.order_by & other
+
+
+@dataclasses.dataclass
+class AnnotationMap:
+    """Annotation map that tracks the different
+    sql statements and their alias fields just like
+    SelectMap does for select statements"""
+
+    sql_statements_dict: dict = field(default_factory=dict)
+    alias_fields: list = field(default_factory=list)
+    field_names: list = field(default_factory=list)
+    annotation_type_map: dict = field(default_factory=dict)
+
+    @property
+    def joined_final_sql_fields(self):
+        statements = []
+        for alias, sql in self.sql_statements_dict.items():
+            if self.annotation_type_map[alias] == 'Case':
+                statements.append(f'{sql}')
+                continue
+            statements.append(f'{sql} as {alias}')
+        return list(itertools.chain(statements))
+
+    @property
+    def requires_grouping(self):
+        values = list(self.annotation_type_map.values())
+        return any([
+            'Count' in values,
+            'Length' in values
+        ])
 
 
 class RawSQL:

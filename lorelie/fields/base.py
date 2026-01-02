@@ -572,11 +572,13 @@ class AliasField(Field):
     field. This class is determined for fields in
     the queryset that uses an alias"""
 
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, name: str):
         super().__init__(name)
 
-    def get_data_field(self, data):
+    def to_database(self, data):
+        return None
+
+    def get_data_field(self, data: TypeAny) -> Field:
         # Infer the data type and return
         # the correct database field
         if isinstance(data, str):
@@ -591,4 +593,5 @@ class AliasField(Field):
             return DateTimeField(self.name)
         elif isinstance(data, (list, dict)):
             return JSONField(self.name)
-        return CharField(self.name)
+        else:
+            return CharField(self.name)

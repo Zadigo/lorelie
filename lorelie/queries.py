@@ -3,7 +3,7 @@ from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
 from typing import Any, Iterator, Optional, Type
 from lorelie import log_queries, lorelie_logger
-from lorelie.database.nodes import (BaseNode, OrderByNode, SelectMap,
+from lorelie.database.nodes import (AnnotationMap, BaseNode, OrderByNode, SelectMap,
                                     SelectNode, WhereNode)
 from lorelie.lorelie_typings import TypeDatabaseManager, TypeExpression, TypeNode, TypeQuerySet, TypeRow, TypeSQLiteBackend, TypeTable, TypeQuery
 
@@ -40,7 +40,11 @@ class Query:
         self.backend.set_current_table(table)
         self.sql: Optional[str] = None
         self.result_cache: list[TypeRow] = []
-        self.alias_fields: list[str] = []
+        # Alias fields are fields that do not exist
+        # in the table and are created virtually. They need
+        # to be tracked so that during the transform_to_python
+        # method we can transform them properly
+        self.annotation_map: Optional[AnnotationMap] = None
         self.is_evaluated: bool = False
         self.statements: list[str] = []
         self.select_map: SelectMap = SelectMap()
@@ -248,7 +252,8 @@ class Query:
 
             for name in row._fields:
                 value = row[name]
-                if name in self.alias_fields:
+                
+                if self.annotation_map is not None and name in self.annotation_map.alias_fields:
                     instance = AliasField(name)
                     field = instance.get_data_field(value)
                 elif name.endswith('_id'):
@@ -270,16 +275,22 @@ class ValuesIterable:
         self.queryset = queryset
         self.fields = fields
 
+    def __repr__(self):
+        return f'<ValuesIterable {list(self.__iter__())}>'
+
     def __iter__(self):
         if not self.fields:
             self.fields = list(self.queryset.query.table.field_names)
 
-        if self.queryset.query.alias_fields:
-            self.fields = list(self.fields) + \
-                list(self.queryset.query.alias_fields)
+        if self.queryset.query.annotation_map.alias_fields:
+            self.fields = (
+                list(self.fields) +
+                list(self.queryset.query.annotation_map.alias_fields)
+            )
 
         for row in self.queryset:
             result: dict[str, Any] = {}
+
             for field in self.fields:
                 result[field] = row[field]
             yield result
@@ -437,9 +448,10 @@ class QuerySet:
 
     def get_master_queryset(self) -> TypeQuerySet:
         # This technique allows us to get the main master queryset
-        # without evaluaing it. It populates the SelectMap. This allows then 
+        # without evaluaing it. It populates the SelectMap. This allows then
         # allows us to apply modificatons on the undeerlying query before it is evaluated
-        master_objects: TypeDatabaseManager = getattr(self.query.table, 'objects')
+        master_objects: TypeDatabaseManager = getattr(
+            self.query.table, 'objects')
         return master_objects.all()
 
     def first(self) -> TypeRow | None:
@@ -466,7 +478,8 @@ class QuerySet:
         return self.get_master_queryset()
 
     def filter(self, *args: TypeExpression, **kwargs: TypeExpression):
-        master_objects: TypeDatabaseManager = getattr(self.query.table, 'objects')
+        master_objects: TypeDatabaseManager = getattr(
+            self.query.table, 'objects')
         if self.query.select_map.where is not None:
             # Triggered by qs.filter(...).filter(...)
             self.query.select_map.where(*args, **kwargs)

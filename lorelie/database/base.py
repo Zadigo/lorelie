@@ -2,7 +2,7 @@ import dataclasses
 import pathlib
 from collections import OrderedDict
 from functools import wraps
-from typing import Callable, Optional
+from typing import Callable, Final, Optional, Type
 from warnings import deprecated
 
 from asgiref.sync import sync_to_async
@@ -172,10 +172,10 @@ class Database:
         Database: An instance of the Database class
     """
 
-    migrations = None
-    query_class = Query
-    migrations_class = Migrations
-    backend_class = SQLiteBackend
+    migrations: Optional[Migrations] = None
+    query_class: Final[Type[Query]] = Query
+    migrations_class: Final[Type[Migrations]] = Migrations
+    backend_class: Final[Type[SQLiteBackend]] = SQLiteBackend
 
     def __init__(self, *tables: Table, name: Optional[str] = None, path: Optional[TypeStrOrPathLibPath] = None, log_queries: bool = False, mask_values: bool = False):
         self.database_name: str = name

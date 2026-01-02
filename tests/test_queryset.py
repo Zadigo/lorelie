@@ -17,7 +17,7 @@ class TestQuerySet(LorelieTestCase):
         backend = SQLiteBackend()
 
         table = cls.create_table(cls)
-        Database(table)
+        cls.db = Database(table)
 
         mfield = MagicMock(name='Field', spec=['name', 'to_python'])
         mfield.to_python.side_effect = lambda x: x

@@ -104,6 +104,7 @@ class Query:
             instance.is_evaluated = True
         finally:
             instance.is_transactional = True
+            log_queries.mask_values = instance.backend.mask_values
             log_queries.append(script, table=table, backend=backend)
 
             # Logging should not be set to True

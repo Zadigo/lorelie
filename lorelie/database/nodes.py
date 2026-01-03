@@ -20,6 +20,7 @@ import itertools
 from dataclasses import field
 import re
 from abc import ABC, abstractmethod
+from turtle import back
 from typing import Any, ClassVar, Generic, Optional, override
 
 from lorelie.expressions import CombinedExpression, Q
@@ -747,12 +748,24 @@ class IntersectNode(BaseNode):
 
 
 class ViewNode(Generic[TypeQuerySet], BaseNode):
+    """Node used to create and SQL statement
+    that allows the creation of a view in the database
+    based on a stored query.
+    
+    Args:
+        name (str): The name of the view.
+        queryset (TypeQuerySet): The queryset that defines the view.
+        temporary (bool, optional): Whether the view is temporary. Defaults to False.
+        fields (list[str], optional): Column names to display in the view. Defaults to [].
+    """
+
     template_sql: ClassVar[str] = 'create view if not exists {name} as {select_node}'
 
-    def __init__(self, name: str, queryset: TypeQuerySet, temporary: bool = False):
+    def __init__(self, name: str, queryset: TypeQuerySet, *, fields: list[str] = [], temporary: bool = False):
         self.name = name
         self.temporary = temporary
         self.queryset = queryset
+        self.fields = fields
 
     @property
     def node_name(self):
@@ -769,10 +782,15 @@ class ViewNode(Generic[TypeQuerySet], BaseNode):
         if self.temporary:
             template_sql = self.template_sql.replace('view', 'temp view')
 
+        if self.fields:
+            columns = backend.comma_join(self.fields)
+            template_sql = template_sql.replace('view', f"view ({columns})")
+
         # We need to evaluate the queryset first
         # in order to get underlying sql query
         # that will be used to create the view
-        self.queryset.load_cache()
+        self.queryset.load_cache()            
+
         sql = template_sql.format_map({
             'name': self.name,
             'select_node': self.queryset.query.sql

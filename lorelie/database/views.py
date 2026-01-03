@@ -19,7 +19,7 @@ class View:
         name (str): The name of the view.
         queryset (TypeQuerySet): The queryset that defines the view.
         temporary (bool, optional): Whether the view is temporary. Defaults to False.
-        fields (list[str], optional): The fields of the view. Defaults to [].
+        fields (list[str], optional): Column names to display in the view. Defaults to [].
 
     Example:
 
@@ -49,6 +49,9 @@ class View:
         # the following queries
         node = ViewNode(self.name, self.queryset, temporary=self.temporary)
         sql = node.as_sql(table.backend)
+
+        if self.fields:
+            pass
 
         query = Query(table=table)
         query.add_sql_nodes(sql)

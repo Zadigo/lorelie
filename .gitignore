@@ -145,6 +145,8 @@ migrations.json
 lorelie_docs/node_modules
 
 *.sql
+*.db
+*.sqbpro
 *migrations.json
 
 .DS_Store

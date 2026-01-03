@@ -293,7 +293,6 @@ class SQLiteBackend(SQL):
         self.in_memory_connection: bool = False
         self.mask_values = mask_values
 
-        # sqlite3.register_adapter(datetime.datetime.now, str)
         sqlite3.register_converter('date', converters.convert_date)
         sqlite3.register_converter('datetime', converters.convert_datetime)
         sqlite3.register_converter('timestamp', converters.convert_timestamp)

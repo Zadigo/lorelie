@@ -470,6 +470,15 @@ class DateTimeField(DateFieldMixin, Field):
 
     * `auto_update` will update the field with the
       current date every time a value is updated
+
+    Args:
+        name (str): The name of the field.
+        auto_update (bool, optional): If set to True, the field will be
+            automatically updated with the current date and time whenever
+            the record is updated. Defaults to False.
+        auto_add (bool, optional): If set to True, the field will be
+            automatically set to the current date and time when the record
+            is created. Defaults to False.
     """
 
     date_format = '%Y-%m-%d %H:%M:%S.%f%z'

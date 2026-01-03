@@ -1,5 +1,6 @@
 import datetime
 from typing import Any
+import uuid
 
 
 def convert_date(data: Any) -> datetime.date:
@@ -43,3 +44,12 @@ def convert_boolean(data: Any) -> bool:
     that boolean values are properly interpreted as Python bool objects"""
     decoded_data = data.decode('utf-8')
     return True if decoded_data == '1' else False
+
+
+def convert_uuid(data: Any) -> uuid.UUID:
+    """This function provides a base conversion mechanism 
+    for transforming UUID values stored in the database into Python
+    `str` objects. It is registered via `sqlite3.register_converter`, 
+    to convert UUID fields when data is fetched from the database, ensuring 
+    that UUID values are properly interpreted as Python str objects"""
+    return uuid.UUID(data.decode('utf-8'))

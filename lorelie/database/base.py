@@ -31,7 +31,7 @@ class RelationshipMap:
     junction_table: Optional[TypeTable] = None
     relationship_type: str = dataclasses.field(default='foreign')
     can_be_validated: bool = False
-    error_message: str = None
+    error_message: Optional[str] = None
 
     def __post_init__(self):
         accepted_types = ['foreign', 'one', 'many']

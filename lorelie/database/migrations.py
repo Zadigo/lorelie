@@ -11,7 +11,7 @@ from lorelie.backends import SQLiteBackend, connections
 from lorelie.database.indexes import Index
 from lorelie.database.tables.base import Table
 from lorelie.fields.base import CharField, DateTimeField, JSONField
-from lorelie.lorelie_typings import TypeConstraint, TypeDatabase, TypeDeconstructedField, TypeDeconstructedIndex, TypeField, TypeTable, TypeTableMap
+from lorelie.lorelie_typings import NullableType, TypeConstraint, TypeDatabase, TypeDeconstructedField, TypeDeconstructedIndex, TypeField, TypeTable, TypeTableMap
 from lorelie.queries import Query
 from lorelie import lorelie_logger
 
@@ -53,7 +53,7 @@ class JsonMigrationsSchema:
     def get_table_indexes(self, table_name: str) -> list[TypeDeconstructedIndex]:
         table = self.get_table(table_name)
         if table is None:
-            return set()
+            return []
 
         return table.get('indexes', [])
 
@@ -66,7 +66,7 @@ class JsonMigrationsSchema:
                 return item
         return None
 
-    def get_table_fields(self, table_name: str) -> list[TypeDeconstructedField]:
+    def get_table_fields(self, table_name: str) -> NullableType[list[TypeDeconstructedField]]:
         """Returns the fields map for a given table
         in the current migration schema"""
         json_table = self.get_table(table_name)
@@ -74,7 +74,7 @@ class JsonMigrationsSchema:
             return json_table.get('fields', [])
         return None
 
-    def get_table_field(self, table_name: str, field_name: str) -> TypeDeconstructedField:
+    def get_table_field(self, table_name: str, field_name: str) -> NullableType[TypeDeconstructedField]:
         """Returns the field parameters for a given field
         in a given table from the current migration schema"""
         json_fields = self.get_table_fields(table_name)
@@ -223,7 +223,7 @@ class Migrations:
 
         return create_sql_statements + remove_sql_statements
 
-    def _check_table_constraints(self, constraints: list[TypeConstraint]):
+    def _check_table_constraints(self, table: TypeTable):
         return []
 
     def _check_existing_tables(self, table_instances: TypeTableMap, current_user_tables: set[str], sql_statements: list[str] = []):

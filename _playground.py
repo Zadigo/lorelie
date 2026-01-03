@@ -77,4 +77,3 @@ qs4 = tb.objects.exclude(name='Google')
 
 view = View('active_companies', tb.objects.filter(is_active=True))
 qs = view(tb)
-qs.all()

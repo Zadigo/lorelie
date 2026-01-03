@@ -62,8 +62,8 @@ class CheckConstraint(BaseConstraint):
         ValueError: If the condition is not an instance of Q or CombinedExpression.
     """
 
-    template_sql: ClassVar[str] = 'check({condition})'
-    prefix: ClassVar[str] = 'chk'
+    template_sql: Optional[str] = 'check({condition})'
+    prefix: Optional[str] = 'chk'
 
     def __init__(self, name: str, condition: Q | CombinedExpression):
         super().__init__(name)
@@ -102,8 +102,8 @@ class UniqueConstraint(BaseConstraint):
         fields (list[str]): The list of fields to be included in the unique constraint.
     """
 
-    template_sql: ClassVar[str] = 'unique({fields})'
-    prefix: ClassVar[str] = 'unq'
+    template_sql: Optional[str] = 'unique({fields})'
+    prefix: Optional[str] = 'unq'
 
     def __init__(self, name: str, *, fields: list[str] = []):
         super().__init__(name)
@@ -147,7 +147,7 @@ class MaxLengthConstraint(MinMaxMixin, BaseConstraint):
         field (TypeField): The field to which the constraint is applied.
     """
 
-    template_sql: ClassVar[str] = 'check({condition})'
+    template_sql: Optional[str] = 'check({condition})'
     length_sql: ClassVar[str] = 'length({column})'
 
     @override
@@ -179,8 +179,8 @@ class MinValueConstraint(MinMaxMixin, BaseConstraint):
         field (TypeField): The field to which the constraint is applied.
     """
 
-    template_sql: ClassVar[str] = 'check({condition})'
-    operator: ClassVar[str] = '>'
+    template_sql: Optional[str] = 'check({condition})'
+    operator: Optional[str] = '>'
 
     @override
     def as_sql(self, backend: TypeSQLiteBackend):
@@ -211,4 +211,4 @@ class MaxValueConstraint(MinValueConstraint):
         field (TypeField): The field to which the constraint is applied.
     """
 
-    operator: ClassVar[str] = '<'
+    operator: Optional[str] = '<'

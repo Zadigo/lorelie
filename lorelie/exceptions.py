@@ -51,6 +51,18 @@ class ConnectionExistsError(Exception):
         super().__init__(message)
 
 
+class NoBackendError(Exception):
+    def __init__(self):
+        message = (
+            "No backend was provided for this operation. "
+            "Please make sure to provide a valid backend "
+            "instance before performing any operations "
+            "that require a database connection."
+        )
+        super().__init__(message)
+
+
+
 class NoTableBackendError(Exception):
     def __init__(self, table_name: str):
         message = (

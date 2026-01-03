@@ -368,7 +368,7 @@ class SQLiteBackend(SQL):
     def __hash__(self):
         return hash((self.database_name))
 
-    def set_current_table(self, table: TypeTable):
+    def set_current_table(self, table: TypeTable | None):
         """Track the current table that is being updated
         or queried at the connection level for other parts
         of the project that require this knowledge"""

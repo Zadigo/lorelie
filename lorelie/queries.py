@@ -5,7 +5,8 @@ from typing import Any, Iterator, Optional, Sequence, Type
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.nodes import (AnnotationMap, BaseNode, OrderByNode, SelectMap,
                                     SelectNode, WhereNode)
-from lorelie.lorelie_typings import TypeDatabaseManager, TypeExpression, TypeFunction, TypeNode, TypeQuerySet, TypeRow, TypeSQLiteBackend, TypeTable
+from lorelie.exceptions import NoBackendError
+from lorelie.lorelie_typings import TypeDatabaseManager, TypeFunction, TypeNode, TypeOrCombinedExpression, TypeQ, TypeQuerySet, TypeRow, TypeSQLiteBackend, TypeTable
 
 
 class Query:
@@ -23,6 +24,12 @@ class Query:
     """
 
     def __init__(self, table: Optional[TypeTable] = None, backend: Optional[TypeSQLiteBackend] = None):
+        if table is None and backend is None:
+            raise ValueError(
+                "Either 'table' or 'backend' "
+                "must be provided to create a Query"
+            )
+
         self.table = table
         self.backend = table.backend if table is not None else backend
 
@@ -64,7 +71,7 @@ class Query:
         return cls(table=table, backend=backend)
 
     @classmethod
-    def run_transaction(cls, backend: Optional[TypeSQLiteBackend] = None, table: Optional[TypeTable] = None, sql_tokens: list[TypeNode | str] = []):
+    def run_transaction(cls, backend: Optional[TypeSQLiteBackend] = None, table: Optional[TypeTable] = None, sql_tokens: list[str] = []):
         """Runs a script made of multiple sql statements
 
         Args:
@@ -75,6 +82,10 @@ class Query:
         """
         template = 'begin; {statements} commit;'
         instance = cls(table=table, backend=backend)
+
+        if instance.backend is None:
+            raise NoBackendError()
+
         # Ensure that all the statements terminate with a `;`
         # since we are going to use a transaction script
         instance.statements = [
@@ -179,11 +190,17 @@ class Query:
 
         self.sql = finalized_sql
 
-    def run(self, commit=False):
+    def run(self, commit: bool = False):
         """Runs an sql statement and stores the
         return data in the `result_cache`"""
         self.pre_sql_setup()
-        # print(self.sql)
+
+        if self.backend is None:
+            raise NoBackendError()
+
+        if self.sql is None:
+            raise ValueError("SQL statement is not set")
+
         try:
             result = self.backend.connection.execute(self.sql)
         except OperationalError as e:
@@ -497,7 +514,7 @@ class QuerySet[R: TypeRow]:
         #     self.query.annotation_map = other_qs.query.annotation_map
         return self
 
-    def filter(self, *args: TypeExpression, **kwargs: TypeExpression):
+    def filter(self, *args: TypeOrCombinedExpression[TypeQ], **kwargs: TypeOrCombinedExpression[TypeQ]):
         master_objects: TypeDatabaseManager = getattr(
             self.query.table,
             'objects'
@@ -583,7 +600,7 @@ class QuerySet[R: TypeRow]:
     def exclude(self, **kwargs):
         pass
 
-    def update(self, **kwargs):
+    def update(self, **kwargs: Any):
         """Update a set a columns from the queryset
 
         >>> queryset = db.objects.filter(firstname='Kendall')
@@ -596,6 +613,9 @@ class QuerySet[R: TypeRow]:
         self.load_cache()
 
         backend = self.query.backend
+        if backend is None or self.query.table is None:
+            raise ValueError("Backend connection is not set")
+
         columns, values = backend.dict_to_sql(kwargs)
 
         conditions = []

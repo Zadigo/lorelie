@@ -50,7 +50,14 @@ type TypeOrCombinedExpression[T] = 'T | CombinedExpression'
 
 type TypeDecomposedFilterTuple = tuple[str, TypeOperatorType, Any]
 
-type TypeListAny[T: str | int | float | bool | dict | list | None] = Sequence[T]
+type TypeListAny[T: str | int | float |
+                 bool | dict | list | None] = Sequence[T]
+
+type TypeExpressionOrFunction = TypeFunction | TypeOrCombinedExpression['Q']
+
+type TypeConstraint = 'BaseConstraint'
+
+type TypeStrOrPathLibPath = str | pathlib.Path
 
 
 TranslatedOperatorType = Literal[
@@ -78,8 +85,8 @@ TypeAny = TypeVar('TypeAny')
 
 TypePathlibPath = TypeVar('TypePathlibPath', bound='pathlib.Path')
 
-TypeStrOrPathLibPath = TypeVar(
-    'TypeStrOrPathLibPath', bound='str | pathlib.Path')
+# TypeStrOrPathLibPath = TypeVar(
+#     'TypeStrOrPathLibPath', bound='str | pathlib.Path')
 
 
 TypeAnyNormalTypes = TypeVar(
@@ -99,9 +106,9 @@ TypeQuery = TypeVar('TypeQuery', bound='Query')
 
 # TypeQ = TypeVar('TypeQ', bound='Q')
 
-TypeExpression = TypeVar('TypeExpression', 'Q', 'CombinedExpression')
+# TypeExpression = TypeVar('TypeExpression', 'Q', 'CombinedExpression')
 
-TypeConstraint = TypeVar('TypeConstraint', bound='BaseConstraint')
+# TypeConstraint = TypeVar('TypeConstraint', bound='BaseConstraint')
 
 # TypeDatabaseManager = TypeVar('TypeDatabaseManager', bound='DatabaseManager')
 
@@ -156,7 +163,6 @@ TypeJoinTypes = Literal[
     'right',
     'cross'
 ]
-
 
 
 # class ExpressionFiltersDict(TypedDict, total=False):

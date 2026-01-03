@@ -11,26 +11,26 @@ from urllib.parse import unquote
 from lorelie.constraints import (MaxLengthConstraint, MaxValueConstraint,
                                  MinValueConstraint)
 from lorelie.exceptions import ValidationError
-from lorelie.lorelie_typings import TypeAny, TypeAnyNormalTypes, TypeConstraint, TypeDeconstructedField, TypeTable
+from lorelie.lorelie_typings import TypeConstraint, TypeDeconstructedField, TypeTable
 from lorelie.validators import url_validator
 
 
-class Field:
+class Field[T]:
     python_type = str
     base_validators: list[Callable[[Any], None]] = []
     default_field_errors: dict[str, str] = {}
 
-    def __init__(self, name: str, *, max_length: int = None, null: bool = False, primary_key: bool = False, default=None, unique: bool = False, validators: list[Callable[[Any], None]] = [], verbose_name: str = None, editable: bool = False):
+    def __init__(self, name: str, *, max_length: Optional[int] = None, null: bool = False, primary_key: bool = False, default: Optional[T] = None, unique: bool = False, validators: list[Callable[[Any], None]] = [], verbose_name: Optional[str] = None, editable: bool = False):
         self.constraints: list[TypeConstraint] = []
         self.name: str = self.validate_field_name(name)
-        self.verbose_name: str = verbose_name
+        self.verbose_name: Optional[str] = verbose_name
         self.editable: bool = editable
         self.null: bool = null
         self.primary_key: bool = primary_key
         self.default = default
         self.unique: bool = unique
-        self.table: TypeTable = None
-        self.max_length: int = max_length
+        self.table: Optional[TypeTable] = None
+        self.max_length: Optional[int] = max_length
         self.base_validators = self.base_validators + validators
         self.standard_field_types = ['text', 'integer', 'blob', 'real', 'null']
         self.is_relationship_field = False
@@ -41,7 +41,7 @@ class Field:
             'unique': False
         }
 
-        if max_length is not None:
+        if self.max_length is not None:
             instance = MaxLengthConstraint(self.max_length, self)
             self.constraints.append(instance)
 
@@ -111,10 +111,10 @@ class Field:
                 raise ValueError('Validator should be a callable')
             validator(value)
 
-    def to_python(self, data: Any) -> TypeAny:
+    def to_python(self, data: Any) -> T:
         return data
 
-    def to_database(self, data: TypeAnyNormalTypes) -> TypeAnyNormalTypes:
+    def to_database(self, data: Any) -> str | int | float | None:
         """The `to_database` adapts certain types of values
         e.g. dict to the sqlite database. Each subclass should
         define their specific logic for normalizing the data
@@ -144,7 +144,7 @@ class Field:
         ... field.field_parameters()
         ... ['visited', 'integer', 'not null', 'default', 0]
         """
-        field_type: str = None
+        field_type: str = ''
         if self.max_length is not None:
             # varchar does not raise constraint. It only
             # says that the field should be of x length
@@ -249,8 +249,8 @@ class Field:
         return (self.__class__.__name__, self.name, params)
 
 
-class CharField(Field):
-    def to_database(self, data: Any) -> TypeAny:
+class CharField(Field[str]):
+    def to_database(self, data: Any):
         if callable(data):
             data = data()
         return super().to_database(str(data))
@@ -272,14 +272,14 @@ class NumericFieldMixin:
             self.constraints.append(instance)
 
 
-class IntegerField(NumericFieldMixin, Field):
+class IntegerField(NumericFieldMixin, Field[int]):
     python_type = int
 
     @property
     def field_type(self):
         return 'integer'
 
-    def to_database(self, data: Any) -> TypeAny:
+    def to_database(self, data: Any):
         if isinstance(data, str):
             if data.isnumeric() or data.isdigit():
                 return super().to_database(self.python_type(data))
@@ -288,12 +288,12 @@ class IntegerField(NumericFieldMixin, Field):
         return super().to_database(data)
 
 
-class FloatField(NumericFieldMixin, Field):
+class FloatField(NumericFieldMixin, Field[float | None]):
     python_type = float
 
-    def to_python(self, data: Any) -> TypeAny:
+    def to_python(self, data: Any):
         if data is None or data == '':
-            return data
+            return None
 
         if isinstance(data, int):
             return self.python_type(data)
@@ -310,7 +310,7 @@ class FloatField(NumericFieldMixin, Field):
             )
 
 
-class DecimalField(NumericFieldMixin, Field):
+class DecimalField(NumericFieldMixin, Field[Decimal]):
     def __init__(self, name: str, digits: Optional[int] = None, **kwargs: str):
         super().__init__(name, **kwargs)
         if digits is None:
@@ -321,7 +321,7 @@ class DecimalField(NumericFieldMixin, Field):
     def build_context(self):
         return decimal.Context(prec=self.digits)
 
-    def to_python(self, data):
+    def to_python(self, data: Any):
         try:
             if isinstance(data, float):
                 return self.build_context.create_decimal_from_float(data)
@@ -329,21 +329,21 @@ class DecimalField(NumericFieldMixin, Field):
         except Exception as e:
             raise ValidationError(e.args)
 
-    def to_database(self, data):
+    def to_database(self, data: Any):
         decimal_value = self.build_context.create_decimal(data)
         return str(decimal_value)
 
 
-class JSONField(Field):
+class JSONField(Field[dict | list]):
     python_type = (dict, list)
 
     # @property
     # def field_type(self):
     #     return 'dict'
 
-    def to_python(self, data: str) -> TypeAny:
+    def to_python(self, data: str):
         if data is None or data == '':
-            return data
+            return {}
 
         try:
             return json.loads(data)
@@ -353,12 +353,12 @@ class JSONField(Field):
                 name=self.name
             )
 
-    def to_database(self, data: Any) -> TypeAny:
+    def to_database(self, data: Any):
         clean_data = super().to_database(data)
         return json.dumps(clean_data, ensure_ascii=False, sort_keys=True)
 
 
-class BooleanField(Field):
+class BooleanField(Field[bool]):
     python_type = (bool, int)
     truth_types = ['true', 't', 1, '1']
     false_types = ['false', 'f', 0, '0']
@@ -367,7 +367,7 @@ class BooleanField(Field):
     def field_type(self):
         return 'boolean'
 
-    def to_database(self, data: Any) -> TypeAny:
+    def to_database(self, data: Any):
         if data in self.truth_types:
             return super().to_database(1)
 
@@ -429,7 +429,7 @@ class DateField(DateFieldMixin, Field):
     #     self.base_field_parameters.update(current_date=self.auto_add)
     #     return super().field_parameters()
 
-    def to_database(self, data: Any) -> TypeAny:
+    def to_database(self, data: Any):
         if data == '' or data is None:
             return data
 
@@ -491,7 +491,7 @@ class DateTimeField(DateFieldMixin, Field):
     #     self.base_field_parameters.update(current_timestamp=self.auto_add)
     #     return super().field_parameters()
 
-    def to_database(self, data: Any) -> TypeAny:
+    def to_database(self, data: Any):
         if data == '' or data is None:
             return data
 
@@ -525,7 +525,7 @@ class TimeField(DateTimeField):
     #     self.base_field_parameters.update(current_time=self.auto_add)
     #     return super().field_parameters()
 
-    def to_database(self, data: Any) -> TypeAny:
+    def to_database(self, data: Any):
         clean_data = super().to_database(data)
         return datetime.datetime.fromisoformat(clean_data)
 
@@ -559,7 +559,7 @@ class UUIDField(Field):
 
         return data.hex
 
-    def to_python(self, data: Any) -> TypeAny:
+    def to_python(self, data: Any):
         if not isinstance(data, uuid.UUID):
             try:
                 param = 'hex' if isinstance(data, int) else 'hex'
@@ -572,7 +572,7 @@ class UUIDField(Field):
 class URLField(CharField):
     base_validators = [url_validator]
 
-    def to_database(self, data: Any) -> TypeAny:
+    def to_database(self, data: Any):
         if data is None or data == '':
             return data
         return super().to_database(unquote(data))
@@ -582,22 +582,22 @@ class BinaryField(Field):
     pass
 
 
-class CommaSeparatedField(CharField):
+class CommaSeparatedField(Field[list[str]]):
     base_validators = []
 
     def to_python(self, data: Any) -> list[str]:
         if data is None or data == '':
             return []
-        
+
         return data.split(',')
 
-    def to_database(self, data: Any) -> TypeAny:
+    def to_database(self, data: Any):
         if isinstance(data, (list, set, tuple)):
             data = ','.join(data)
         return super().to_database(data)
 
 
-class AliasField(Field):
+class AliasField(Field[Any]):
     """A special field that guesses the type
     of the data and returns the correct database
     field. This class is determined for fields in
@@ -606,10 +606,10 @@ class AliasField(Field):
     def __init__(self, name: str):
         super().__init__(name)
 
-    def to_database(self, data):
+    def to_database(self, data: Any):
         return None
 
-    def get_data_field(self, data: TypeAny) -> Field:
+    def get_data_field(self, data: Any):
         # Infer the data type and return
         # the correct database field
         if isinstance(data, str):

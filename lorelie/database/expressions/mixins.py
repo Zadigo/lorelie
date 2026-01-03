@@ -574,7 +574,7 @@ class SQL(ExpressionFiltersMixin):
                 )
             )
             return fields, quoted_value
-        return fields, data.values()
+        return fields, list(data.values())
 
     def build_script(self, *sqls: str):
         return '\n'.join(map(lambda x: self.finalize_sql(x), sqls))

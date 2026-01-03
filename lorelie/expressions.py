@@ -84,6 +84,8 @@ class Value(BaseExpression):
         return None
 
     def to_database(self):
+        if self.output_field is None:
+            return self.value
         return self.output_field.to_database(self.value)
 
     @override

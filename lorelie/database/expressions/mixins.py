@@ -1,5 +1,5 @@
 import re
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 from functools import cached_property
 import dataclasses
 import re
@@ -8,12 +8,13 @@ from typing import Any, Sequence
 
 
 from lorelie.database.nodes import (AnnotationMap)
-from lorelie.lorelie_typings import (TypeFunction, TypeLogicalOperators)
+from lorelie.lorelie_typings import (
+    TypeFunction, TypeListTranslatedOperatorType, TypeLogicalOperators)
 
-from lorelie.lorelie_typings import OperatorType, TranslatedOperatorType, TypeDecomposedFilterTuple
+from lorelie.lorelie_typings import TypeOperatorType, TranslatedOperatorType, TypeDecomposedFilterTuple
 
 
-BASE_FILTERS = {
+BASE_FILTERS: dict[TypeOperatorType, TranslatedOperatorType | str] = {
     'eq': '=',
     'lt': '<',
     'gt': '>',
@@ -82,12 +83,12 @@ class ExpressionFiltersMixin(QuoteValueMixin):
     base_filters = BASE_FILTERS
 
     @cached_property
-    def list_of_operators(self) -> list[TranslatedOperatorType]:
+    def list_of_operators(self) -> TypeListTranslatedOperatorType:
         operators = list(self.base_filters.values())
         operators.append('<>')
         return operators
 
-    def is_query_filter(self, value_or_values: OperatorType | list[OperatorType | Any]) -> bool:
+    def is_query_filter(self, value_or_values: TypeOperatorType | list[TypeOperatorType | Any]) -> bool:
         """Checks that the last value or that a single
         value is a query filtering element. 
 
@@ -103,7 +104,7 @@ class ExpressionFiltersMixin(QuoteValueMixin):
             value_or_values = value_or_values[-1]
         return value_or_values in list(self.base_filters.keys())
 
-    def translate_operator_from_tokens(self, tokens: list[OperatorType | Any]):
+    def translate_operator_from_tokens(self, tokens: list[TypeOperatorType | Any]):
         """Translates a string filter in a list of tokens
         to a valid mathematical operator
 
@@ -120,7 +121,7 @@ class ExpressionFiltersMixin(QuoteValueMixin):
             translated.append(item)
         return translated
 
-    def translate_operators_from_tokens(self, tokens: Sequence[list[str | OperatorType | Any]]):
+    def translate_operators_from_tokens(self, tokens: Sequence[list[str | TypeOperatorType | Any]]):
         """Translates a string filter in a list of tokens
         to a valid mathematical operator
 
@@ -226,7 +227,7 @@ class ExpressionFiltersMixin(QuoteValueMixin):
                 filters_map.append(tuple(rebuilt_tokens))
         return filters_map
 
-    def build_filters(self, items: list[tuple[str | TranslatedOperatorType]], space_characters: bool = True) -> list[str]:
+    def build_filters(self, items: Sequence[TypeDecomposedFilterTuple], space_characters: bool = True) -> list[str]:
         """Tranform a list of decomposed filters to
         a usable sql-condition for an sql statement
 
@@ -410,23 +411,26 @@ class SQL(ExpressionFiltersMixin):
         return f' {operator} '.join(values)
 
     @staticmethod
-    def simple_join(values: list[str | Any], space_characters: bool = True):
+    def simple_join(values: list[Any], space_characters: bool = True) -> str:
         """Joins a set of tokens with a simple space
 
         >>> self.simple_join(["select * from table", "where name = 'Kendall'"])
         ... "select * from table where name = 'Kendall'"
         """
-        def check_integers(value):
+        def check_integers(value: Any) -> str:
             if isinstance(value, (int, float)):
                 return str(value)
 
             if getattr(value, 'to_python', None) is not None:
                 return value.to_python()
-            return value
+
+            return str(value)
+
         values = map(check_integers, values)
 
         if space_characters:
             return ' '.join(values)
+
         return ''.join(values)
 
     @staticmethod
@@ -623,11 +627,11 @@ class SQL(ExpressionFiltersMixin):
         @dataclasses.dataclass
         class StatementMap:
             columns: list = dataclasses.field(default_factory=list)
-            table: str = None
+            table: Optional[str] = None
             where: list = dataclasses.field(default_factory=list)
             group_by: list = dataclasses.field(default_factory=list)
             order_by: list = dataclasses.field(default_factory=list)
-            limit: int = None
+            limit: Optional[int] = None
 
             def __setitem__(self, key, value):
                 setattr(self, key, value)

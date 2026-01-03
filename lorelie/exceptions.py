@@ -49,3 +49,14 @@ class ConnectionExistsError(Exception):
             "in the connections pool"
         )
         super().__init__(message)
+
+
+class NoTableBackendError(Exception):
+    def __init__(self, table_name: str):
+        message = (
+            f'Table "{table_name}" does not have a backend '
+            'associated with it. Please make sure the table '
+            'is attached to a database before performing '
+            'any operations on it.'
+        )
+        super().__init__(message)

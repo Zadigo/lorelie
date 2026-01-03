@@ -2,7 +2,8 @@ import collections
 import dataclasses
 import datetime
 from dataclasses import is_dataclass
-from typing import Any, Generator, Generic, Iterator, Optional, Sequence, Type
+from typing import Any, Generator, Iterator, Optional, Sequence, Type
+from warnings import deprecated
 
 from asgiref.sync import sync_to_async
 import inspect
@@ -11,17 +12,17 @@ from lorelie.database.functions.dates import Extract
 from lorelie.database.nodes import (InsertNode, IntersectNode, OrderByNode,
                                     SelectNode, UpdateNode, WhereNode)
 from lorelie.exceptions import FieldExistsError, MigrationsExistsError
-from lorelie.lorelie_typings import TypeAny, TypeDatabase, TypeFunction, TypeNewValue, TypeQuerySet, TypeTable
+from lorelie.lorelie_typings import TypeDatabase, TypeFunction, TypeNewValue, TypeOrCombinedExpression, TypeQ, TypeQuerySet, TypeTable, TypeTableMap
 from lorelie.queries import QuerySet, ValuesIterable
 
 
-class DatabaseManager(Generic[TypeQuerySet]):
+class DatabaseManager:
     """A manager is a class that implements query
     functionnalities for inserting, updating, deleting
     or retrieving data from the underlying database tables"""
 
     def __init__(self):
-        self.table_map: dict[str, TypeTable] = {}
+        self.table_map: TypeTableMap = {}
         self.database: Optional[TypeDatabase] = None
         self.table: Optional[TypeTable] = None
         # Tells if the manager was
@@ -36,16 +37,20 @@ class DatabaseManager(Generic[TypeQuerySet]):
         if not self.table_map:
             self.table = instance
 
-            try:
-                self.database = instance.attached_to_database
-                self.table_map = instance.attached_to_database.table_map
-            except Exception as e:
-                raise ExceptionGroup(
-                    e.args[0],
-                    [
-                        MigrationsExistsError()
-                    ]
-                )
+            if instance.attached_to_database is None:
+                raise MigrationsExistsError()
+
+            self.database = instance.attached_to_database
+            self.table_map = instance.attached_to_database.table_map
+
+            # try:
+            # except Exception as e:
+            #     raise ExceptionGroup(
+            #         e.args[0],
+            #         [
+            #             MigrationsExistsError()
+            #         ]
+            #     )
 
         # We need to match the current the
         # table on the manager to the
@@ -63,6 +68,7 @@ class DatabaseManager(Generic[TypeQuerySet]):
         instance.auto_created = False
         return instance
 
+    @deprecated('Use database current_timestamp, dataetim and data database functions directly')
     def _validate_auto_fields(self, table: TypeTable, params: dict[str, Any], update_only: bool = False):
         # There might be cases where the
         # user does not pass any values
@@ -131,7 +137,7 @@ class DatabaseManager(Generic[TypeQuerySet]):
         query.add_sql_node(select_node)
         return QuerySet(query)
 
-    def create(self, **kwargs: TypeAny):
+    def create(self, **kwargs: Any):
         """The create function facilitates the creation 
         of a new row in the specified table within the 
         current database
@@ -187,6 +193,8 @@ class DatabaseManager(Generic[TypeQuerySet]):
         >>> instance.objects.get(id__eq=1)
         ... instance.objects.get(id=1)
         """
+        self._pre_query()
+
         select_node = SelectNode(self.table)
         where_node = WhereNode(*args, **kwargs)
 
@@ -531,7 +539,7 @@ class DatabaseManager(Generic[TypeQuerySet]):
         # return QuerySet(query)[0]
         return NotImplemented
 
-    def exclude(self, *args, **kwargs):
+    def exclude(self, *args: TypeOrCombinedExpression[TypeQ], **kwargs):
         """Selects all the values from the database
         that match the filters
 

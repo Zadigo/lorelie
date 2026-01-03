@@ -20,11 +20,10 @@ import itertools
 from dataclasses import field
 import re
 from abc import ABC, abstractmethod
-from turtle import back
 from typing import Any, ClassVar, Generic, Optional, override
 
 from lorelie.expressions import CombinedExpression, Q
-from lorelie.lorelie_typings import (NodeEnums, TypeJoinTypes, TypeNode,
+from lorelie.lorelie_typings import (NodeEnums, TypeJoinTypes, TypeNode, TypeOrCombinedExpression, TypeQ,
                                      TypeQuerySet, TypeSQLiteBackend,
                                      TypeTable)
 
@@ -144,14 +143,14 @@ class AnnotationMap:
 
         combined.alias_fields = list(
             itertools.chain(
-                self.alias_fields, 
+                self.alias_fields,
                 other.alias_fields
             )
         )
 
         combined.field_names = list(
             itertools.chain(
-                self.field_names, 
+                self.field_names,
                 other.field_names
             )
         )
@@ -333,7 +332,7 @@ class BaseNode(ABC):
     def as_sql(self, backend: TypeSQLiteBackend) -> list[str]:
         raise NotImplemented
 
-    def deconstruct(self) -> list[str]:
+    def deconstruct(self) -> list[str | Optional[str] | tuple[str, ...] | list[str]]:
         return [
             self.__class__.__name__,
             None if self.table is None else self.table.name,
@@ -342,7 +341,7 @@ class BaseNode(ABC):
 
 
 class SelectNode(BaseNode):
-    template_sql: ClassVar[str] = 'select {fields} from {table}'
+    template_sql: Optional[str] = 'select {fields} from {table}'
 
     def __init__(self, table: TypeTable, *fields: str, distinct: bool = False, limit: Optional[int] = None, offset: Optional[int] = None, view_name: Optional[str] = None):
         super().__init__(table=table, fields=fields)
@@ -353,7 +352,7 @@ class SelectNode(BaseNode):
         self.offset = offset
         self.view_name = view_name
 
-    def __call__(self, *fields: str, **kwargs):
+    def __call__(self, *fields: str, **kwargs: Any):
         new_fields = self.fields.extend(fields)
         return self.__class__(self.table, *new_fields, **kwargs)
 
@@ -404,15 +403,15 @@ class WhereNode(BaseNode):
     ... "where name='Kendall'"
     """
 
-    template_sql: ClassVar[str] = 'where {params}'
+    template_sql: Optional[str] = 'where {params}'
 
-    def __init__(self, *args: Q | CombinedExpression, **expressions: Any):
+    def __init__(self, *args: TypeOrCombinedExpression[TypeQ], **expressions: Any):
         self.expressions = expressions
         self.func_expressions = list(args)
         self.invert: bool = False
         super().__init__()
 
-    def __call__(self, *args, **expressions: Any):
+    def __call__(self, *args: TypeOrCombinedExpression[TypeQ], **expressions: Any):
         self.expressions.update(expressions)
         self.func_expressions.extend(args)
         return self
@@ -462,7 +461,7 @@ class WhereNode(BaseNode):
 
 
 class OrderByNode(BaseNode):
-    template_sql: ClassVar[str] = 'order by {fields}'
+    template_sql: Optional[str] = 'order by {fields}'
 
     def __init__(self, table: TypeTable, *fields: str):
         self.ascending: set[str] = set()
@@ -532,6 +531,7 @@ class OrderByNode(BaseNode):
         ordering_sql = backend.ORDER_BY.format_map({'conditions': fields})
         return [ordering_sql]
 
+    @override
     def deconstruct(self) -> tuple[str, str, tuple[str, ...]]:
         return tuple(super().deconstruct())
 
@@ -633,7 +633,7 @@ class InsertNode(BaseNode):
     Note: https://www.sqlitetutorial.net/sqlite-insert/
     """
 
-    template_sql: ClassVar[str] = 'insert into {table} ({columns}) values({values})'
+    template_sql: Optional[str] = 'insert into {table} ({columns}) values({values})'
     batch_insert_sql: ClassVar[str] = 'insert into {table} ({columns}) values {values}'
 
     def __init__(self, table: TypeTable, batch_values: list[dict] = [], insert_values: dict = {}, returning: list[str] = []):
@@ -688,10 +688,10 @@ class JoinNode(BaseNode):
     """Node used to create the SQL statement
     that allows foreign key joins"""
 
-    template_sql: ClassVar[str] = '{join_type} join {table} on {condition}'
+    template_sql: Optional[str] = '{join_type} join {table} on {condition}'
 
-    cross_join: ClassVar[str] = 'cross join {field}'
-    full_outer_join: ClassVar[str] = 'full outer join {table} using({field})'
+    cross_join: Optional[str] = 'cross join {field}'
+    full_outer_join: Optional[str] = 'full outer join {table} using({field})'
 
     def __init__(self, table: TypeTable, relationship_map, join_type: TypeJoinTypes = 'inner'):
         super().__init__()
@@ -730,7 +730,7 @@ class JoinNode(BaseNode):
 
 
 class IntersectNode(BaseNode):
-    template_sql: ClassVar[str] = '{0} intersect {1}'
+    template_sql: Optional[str] = '{0} intersect {1}'
 
     def __init__(self, left_select: 'SelectNode', right_select: 'SelectNode'):
         self.left_select = left_select
@@ -747,11 +747,11 @@ class IntersectNode(BaseNode):
         return [sql]
 
 
-class ViewNode(Generic[TypeQuerySet], BaseNode):
+class ViewNode(BaseNode):
     """Node used to create and SQL statement
     that allows the creation of a view in the database
     based on a stored query.
-    
+
     Args:
         name (str): The name of the view.
         queryset (TypeQuerySet): The queryset that defines the view.
@@ -759,7 +759,7 @@ class ViewNode(Generic[TypeQuerySet], BaseNode):
         fields (list[str], optional): Column names to display in the view. Defaults to [].
     """
 
-    template_sql: ClassVar[str] = 'create view if not exists {name} as {select_node}'
+    template_sql: Optional[str] = 'create view if not exists {name} as {select_node}'
 
     def __init__(self, name: str, queryset: TypeQuerySet, *, fields: list[str] = [], temporary: bool = False):
         self.name = name
@@ -789,14 +789,13 @@ class ViewNode(Generic[TypeQuerySet], BaseNode):
         # We need to evaluate the queryset first
         # in order to get underlying sql query
         # that will be used to create the view
-        self.queryset.load_cache()            
+        self.queryset.load_cache()
 
         sql = template_sql.format_map({
             'name': self.name,
             'select_node': self.queryset.query.sql
         })
         return [sql]
-
 
 
 class WhenNode:

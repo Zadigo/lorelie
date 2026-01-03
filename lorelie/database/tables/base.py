@@ -7,7 +7,7 @@ from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.database.indexes import Index
 from lorelie.database.manager import DatabaseManager
 from lorelie.database.tables.columns import Column
-from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError
+from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError, NoTableBackendError
 from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
 from lorelie.lorelie_typings import TypeConstraint, TypeDatabase, TypeField, TypeIndex, TypeSQLiteBackend
 from lorelie.queries import Query
@@ -113,7 +113,7 @@ class AbstractTable(metaclass=BaseTable):
         self.backend = connections.get_last_connection()
 
 
-class Table(Generic[TypeField], AbstractTable):
+class Table(AbstractTable):
     """You can use the Table class to define a table
     in your database. This class is used to represent
     the table structure including its fields, indexes
@@ -314,6 +314,9 @@ class Table(Generic[TypeField], AbstractTable):
         self.fields_map[field_name] = field
         self.field_names = list(self.fields_map.keys())
 
+        if self.backend is None:
+            raise NoTableBackendError(self.name)
+
         field_params = self.build_all_field_parameters()
         field_params = [
             self.backend.simple_join(params)
@@ -348,6 +351,9 @@ class Table(Generic[TypeField], AbstractTable):
     def create_table_sql(self, joined_fields_str: str):
         """Generates the SQL statement required to create
         the current table in the database"""
+        if self.backend is None:
+            raise NoTableBackendError(self.name)
+
         unique_constraints = []
         check_constraints = []
 

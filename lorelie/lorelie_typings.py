@@ -1,5 +1,5 @@
 import pathlib
-from typing import TYPE_CHECKING, Any, Literal, Protocol, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, Protocol, Sequence, Tuple, TypeVar
 from enum import Enum
 
 if TYPE_CHECKING:
@@ -17,13 +17,64 @@ if TYPE_CHECKING:
     from lorelie.database.functions.base import Functions
     from lorelie.database.functions.window import Rank, PercentRank, CumeDist, Lead, Lag, DenseRank, LastValue, FirstValue, NthValue, NTile, RowNumber
 
+
+type TypeRow = 'BaseRow'
+
+type TypeRowList = list[TypeRow]
+
+type TypeDatabaseManager = 'DatabaseManager'
+
+type TypeTable = 'Table'
+
+type TypeSQLiteBackend = 'SQLiteBackend'
+
+type NullableType[T] = T | None
+
+type TypeFunction = 'Functions'
+
+type TypeDatabase = 'Database'
+
+type TypeField = 'Field'
+
+type TypeListStr = list[str]
+
+type TypeNode = 'BaseNode'
+
+type TypeTableMap = dict[str, TypeTable]
+
+type TypeQuerySet = 'QuerySet'
+
+type TypeQ = 'Q'
+
+type TypeOrCombinedExpression[T] = 'T | CombinedExpression'
+
+type TypeDecomposedFilterTuple = tuple[str, TypeOperatorType, Any]
+
+type TypeListAny[T: str | int | float | bool | dict | list | None] = Sequence[T]
+
+
+TranslatedOperatorType = Literal[
+    '=', '<', '>', '<=', '>=', '<>', 'like', 'startwith',
+    'endwith', 'between', '!=', 'in', 'isnull', 'regexp'
+]
+
+TypeOperatorType = Literal[
+    'eq', 'lt', 'gt', 'lte', 'gte', 'contains',
+    'startswith', 'endswith', 'range', 'ne', 'in', 'isnull',
+    'regex', 'day', 'month', 'iso_year', 'year',
+    'minute', 'second', 'hour', 'time', '<>'
+]
+
+type TypeListTranslatedOperatorType = list[TranslatedOperatorType | str]
+
+
 TypeAny = TypeVar('TypeAny')
 
-TypeSQLiteBackend = TypeVar('TypeSQLiteBackend', bound='SQLiteBackend')
+# TypeSQLiteBackend = TypeVar('TypeSQLiteBackend', bound='SQLiteBackend')
 
-TypeTable = TypeVar('TypeTable', bound='Table')
+# TypeTable = TypeVar('TypeTable', bound='Table')
 
-TypeTableMap = TypeVar('TypeTableMap', bound='dict[str, Table]')
+# TypeTableMap = TypeVar('TypeTableMap', bound='dict[str, Table]')
 
 TypePathlibPath = TypeVar('TypePathlibPath', bound='pathlib.Path')
 
@@ -32,39 +83,31 @@ TypeStrOrPathLibPath = TypeVar(
 
 
 TypeAnyNormalTypes = TypeVar(
-    'TypeAny', bound='str | int | float | bool | dict | list | None')
+    'TypeAnyNormalTypes', bound='str | int | float | bool | dict | list | None')
 
-TypeField = TypeVar('TypeField', bound='Field')
+# TypeField = TypeVar('TypeField', bound='Field')
 
-TypeDatabase = TypeVar('TypeDatabase', bound='Database')
+# TypeDatabase = TypeVar('TypeDatabase', bound='Database')
 
 TypeIndex = TypeVar('TypeIndex', bound='Index')
 
-TypeNode = TypeVar('TypeNode', bound='BaseNode')
+# TypeNode = TypeVar('TypeNode', bound='BaseNode')
 
-TypeQuerySet = TypeVar('TypeQuerySet', bound='QuerySet')
+# TypeQuerySet = TypeVar('TypeQuerySet', bound='QuerySet')
 
 TypeQuery = TypeVar('TypeQuery', bound='Query')
 
-TypeQ = TypeVar('TypeQ', bound='Q')
+# TypeQ = TypeVar('TypeQ', bound='Q')
 
 TypeExpression = TypeVar('TypeExpression', 'Q', 'CombinedExpression')
 
 TypeConstraint = TypeVar('TypeConstraint', bound='BaseConstraint')
 
-TypeDatabaseManager = TypeVar('TypeDatabaseManager', bound='DatabaseManager')
+# TypeDatabaseManager = TypeVar('TypeDatabaseManager', bound='DatabaseManager')
 
 
 class TypeNewValue(Protocol):
     __dataclass_fields__: dict
-
-
-class FieldTypeEnum(Enum):
-    TEXT = 'text'
-    INTEGER = 'integer'
-    REAL = 'real'
-    BLOB = 'blob'
-    NULL = 'null'
 
 
 class ConstraintTypeEnum(Enum):
@@ -115,17 +158,6 @@ TypeJoinTypes = Literal[
 ]
 
 
-OperatorType = Literal[
-    'eq', 'lt', 'gt', 'lte', 'gte', 'contains',
-    'startswith', 'endswith', 'range', 'ne', 'in', 'isnull',
-    'regex', 'day', 'month', 'iso_year', 'year',
-    'minute', 'second', 'hour', 'time', '<>'
-]
-
-TranslatedOperatorType = Literal[
-    '=', '<', '>', '<=', '>=', '<>', 'like', 'startwith',
-    'endwith', 'between', '!=', 'in', 'isnull', 'regexp'
-]
 
 # class ExpressionFiltersDict(TypedDict, total=False):
 #     eq: str
@@ -164,12 +196,9 @@ TranslatedOperatorType = Literal[
 # TypeListOperatorType = list[str, TranslatedOperatorType, Any]
 
 
-TypeRow = TypeVar('TypeRow', bound='BaseRow')
+# TypeRow = TypeVar('TypeRow', bound='BaseRow')
 
 TypeLogicalOperators = Literal['and', 'or']
-
-
-TypeDecomposedFilterTuple = tuple[str, OperatorType, TypeAny]
 
 
 class OnDeleteEnum(Enum):
@@ -201,7 +230,7 @@ TypeDeconstructedIndex = Tuple[str, list[str], dict[str, Any]]
 TypeDeconstructedField = Tuple[str, str, dict[str, bool]]
 
 
-TypeFunction = TypeVar('TypeFunction', bound='Functions')
+# TypeFunction = TypeVar('TypeFunction', bound='Functions')
 
 TypeWindowFunction = TypeVar(
     'TypeWindowFunction', 'Rank', 'PercentRank', 'CumeDist', 'Lead', 'Lag')

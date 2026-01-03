@@ -24,3 +24,16 @@ class PythonEvent(enum.Enum):
     POST_INIT = 'post_init'
     BEFORE_CREATE = 'before_create'
     AFTER_CREATE = 'after_create'
+
+
+class DataTypes(enum.Enum):
+    TEXT = 'text'
+    INTEGER = 'integer'
+    REAL = 'real'
+    BLOB = 'blob'
+    NULL = 'null'
+    BOOLEAN = 'boolean'
+    DATE = 'date'
+    DATETIME = 'datetime'
+    # TIME = 'time'
+    TIMESTAMP = 'timestamp'

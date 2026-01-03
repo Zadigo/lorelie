@@ -1,5 +1,6 @@
 {
     "python.analysis.autoFormatStrings": true,
+    "python.analysis.typeCheckingMode": "standard",
     "[python]": {
         "editor.defaultFormatter": "ms-python.autopep8",
         "editor.codeActionsOnSave": {

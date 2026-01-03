@@ -1,11 +1,11 @@
 import sqlite3
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
-from typing import Any, Iterator, Optional, Type
+from typing import Any, Iterator, Optional, Sequence, Type
 from lorelie import log_queries, lorelie_logger
 from lorelie.database.nodes import (AnnotationMap, BaseNode, OrderByNode, SelectMap,
                                     SelectNode, WhereNode)
-from lorelie.lorelie_typings import TypeDatabaseManager, TypeExpression, TypeFunction, TypeNode, TypeQuerySet, TypeRow, TypeSQLiteBackend, TypeTable, TypeQuery
+from lorelie.lorelie_typings import TypeDatabaseManager, TypeExpression, TypeFunction, TypeNode, TypeQuerySet, TypeRow, TypeSQLiteBackend, TypeTable
 
 
 class Query:
@@ -59,7 +59,7 @@ class Query:
         return f'<{self.__class__.__name__} [{self.sql}]>'
 
     @classmethod
-    def create(cls, table: TypeTable = None, backend: TypeSQLiteBackend = None):
+    def create(cls, table: Optional[TypeTable] = None, backend: Optional[TypeSQLiteBackend] = None):
         """Creates a new `Query` class to be executed"""
         return cls(table=table, backend=backend)
 
@@ -271,7 +271,7 @@ class ValuesIterable:
     """An iterator that generates a dictionnary
     key value pair from queryset"""
 
-    def __init__(self, queryset: TypeQuerySet, fields: list[str] = []):
+    def __init__(self, queryset: TypeQuerySet, fields: Sequence[str] = []):
         self.queryset = queryset
         self.fields = fields
 
@@ -321,7 +321,7 @@ class EmptyQuerySet:
         return False
 
 
-class QuerySet:
+class QuerySet[R: TypeRow]:
     """Represents a set of results obtained from executing an SQL query. 
     It provides methods for manipulating and retrieving data from the database
 
@@ -330,12 +330,12 @@ class QuerySet:
         skip_transform (bool, optional): Whether to skip transforming the data to Python objects. Defaults
     """
 
-    def __init__(self, query: TypeQuery, skip_transform: bool = False):
+    def __init__(self, query: 'Query', skip_transform: bool = False):
         if not isinstance(query, Query):
             raise ValueError(f"'{query}' should be an instance of Query")
 
         self.query = query
-        self.result_cache: list[TypeRow] = []
+        self.result_cache: list[R] = []
         self.values_iterable_class: Type[ValuesIterable] = ValuesIterable
         # There are certain cases where we want
         # to use QuerySet but it's not affiliated
@@ -372,7 +372,7 @@ class QuerySet:
         self.load_cache()
         return str(self.result_cache)
 
-    def __getitem__(self, index: int) -> TypeRow | None:
+    def __getitem__(self, index: int) -> R | None:
         self.load_cache()
         try:
             return self.result_cache[index]
@@ -464,7 +464,7 @@ class QuerySet:
     def get_master_manager(self) -> TypeDatabaseManager:
         return getattr(self.query.table, 'objects')
 
-    def get_master_queryset(self) -> TypeQuerySet:
+    def get_master_queryset(self) -> 'QuerySet[TypeRow]':
         # This technique allows us to get the main master queryset
         # without evaluaing it. It populates the SelectMap. This allows then
         # allows us to apply modificatons on the undeerlying query before it is evaluated
@@ -474,14 +474,14 @@ class QuerySet:
         )
         return master_objects.all()
 
-    def first(self) -> TypeRow | None:
+    def first(self) -> R | None:
         self.query.select_map.limit = 1
 
         other_by_node = OrderByNode(self.query.table, 'id')
         self.query.select_map.add_ordering(other_by_node)
         return self[0]
 
-    def last(self) -> TypeRow | None:
+    def last(self) -> R | None:
         self.query.select_map.limit = 1
 
         other_by_node = OrderByNode(self.query.table, '-id')
@@ -546,7 +546,7 @@ class QuerySet:
             self.query.select_map.select = new_select
         return self
 
-    def values(self, *fields):
+    def values(self, *fields: str):
         return self.values_iterable_class(self, fields=fields)
 
     def get_dataframe(self, *fields: str):

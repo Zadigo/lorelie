@@ -3,6 +3,7 @@ import hashlib
 from sqlite3 import Connection
 from typing import ClassVar
 
+from lorelie.constants import DataTypes
 from lorelie.database.functions.base import Functions
 from lorelie.lorelie_typings import TypeSQLiteBackend
 
@@ -205,7 +206,7 @@ class SubStr(Functions):
 
     template_sql: ClassVar[str] = 'substr({field}, {start}, {end})'
 
-    def __init__(self, field_name, start, end):
+    def __init__(self, field_name: str, start: int, end: int):
         self.start = start
         self.end = end
         super().__init__(field_name)
@@ -248,10 +249,55 @@ class RegexSearch(Functions):
             return 1 if re.search(pattern, text) else 0
         connection.create_function('regexp', 2, callback)
 
-# Cast,
-# Coalesce,
+
+class Cast(Functions):
+    """Function used to cast a value to a specified data type.
+
+    >>> db.objects.annotate(casted_value=Cast('age', DataTypes.TEXT))
+    """
+
+    template_sql: ClassVar[str] = 'cast({field} as {datatype})'
+
+    def __init__(self, field_name: str, data_type: DataTypes):
+        self.data_type = data_type
+        super().__init__(field_name)
+
+    def as_sql(self, backend: TypeSQLiteBackend):
+        return self.template_sql.format_map({
+            'field': self.field_name,
+            'data_type': self.data_type.value
+        })
+
+
+class Coalesce(Functions):
+    """Function used to return the first non-null
+    value from a list of expressions. You would use the SQL COALESCE 
+    function when you want to deal with NULL values in a query by substituting them 
+    with a default value or selecting the first non-NULL value from a list of options. 
+    This is especially useful when you want to ensure that the result set contains 
+    meaningful data, or when NULL values might disrupt calculations, 
+    comparisons, or presentation.
+
+    >>> db.objects.annotate(firstnames=Coalesce('firstname', 'N/A'))
+    """
+
+    template_sql: ClassVar[str] = 'coalesce({fields})'
+
+    def __init__(self, *fields: str):
+        self.fields = list(fields)
+        super().__init__()
+
+    @property
+    def alias_field_name(self):
+        return None
+
+    def as_sql(self, backend: TypeSQLiteBackend):
+        return self.template_sql.format_map({
+            'fields': backend.comma_join(self.fields)
+        })
+
+
 # Collate,
-# Greatest,
 # JSONObject,
-# Least,
 # NullIf
+

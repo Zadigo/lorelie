@@ -7,6 +7,7 @@ from lorelie.expressions import F, Q
 from lorelie.fields.base import CharField, IntegerField, BooleanField, DateField, DateTimeField, URLField, SlugField
 from lorelie.database.views import View
 
+
 def name_validator(value: str):
     if value == 'Facebook':
         raise ValueError("Name must contain only alphabetic characters.")
@@ -68,6 +69,8 @@ tb.objects.create(
 )
 
 qs = tb.objects.all()
+company = tb.objects.get(id=1)
+company = qs.get(name='OpenAI')
 qs2 = tb.objects.filter(revenue__gte=50000).order_by('-score')
 qs3 = qs2.annotate(profit_margin=F('revenue') * 0.2)
 qs4 = tb.objects.exclude(name='Google')

@@ -1,3 +1,4 @@
+import re
 import hashlib
 from sqlite3 import Connection
 from typing import ClassVar
@@ -237,6 +238,15 @@ class Concat(Functions):
     def as_sql(self, backend: TypeSQLiteBackend):
         return backend.comma_join(self.fields)
 
+
+class RegexSearch(Functions):
+    template_sql: ClassVar[str] = 'regexp({field})'
+
+    @staticmethod
+    def create_function(connection: Connection):
+        def callback(pattern, text):
+            return 1 if re.search(pattern, text) else 0
+        connection.create_function('regexp', 2, callback)
 
 # Cast,
 # Coalesce,

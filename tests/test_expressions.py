@@ -129,7 +129,7 @@ class TestCombinedExpression(LorelieTestCase):
 
         self.assertListEqual(
             instance.as_sql(self.create_connection()),
-            ["(firstname='Kylie' and firstname='Kendall')"]
+            ["(firstname='Kendall' and firstname='Kylie')"]
         )
 
     def test_inner_outer_parentheses(self):
@@ -153,7 +153,7 @@ class TestCombinedExpression(LorelieTestCase):
         instance = CombinedExpression(a, b)
         self.assertListEqual(
             instance.as_sql(self.create_connection()),
-            ["(age and name='Kendall')"]
+            ["(name='Kendall' and age)"]
         )
 
     def test_F_expressions(self):
@@ -302,6 +302,7 @@ class TestValue(LorelieTestCase):
         sql = instance.as_sql(self.create_connection())
         self.assertIsInstance(sql[0], str)
 
+        # Q, F are transformed to strings
         instance = Value(Q(age__gt=25))
         sql = instance.as_sql(self.create_connection())
         self.assertIsInstance(sql[0], str)

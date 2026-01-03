@@ -1,12 +1,12 @@
 import secrets
 from abc import ABC, abstractmethod
-from typing import ClassVar, Generic, Optional, override
+from typing import ClassVar, Optional, override
 
 from lorelie.expressions import CombinedExpression, Q
 from lorelie.lorelie_typings import TypeField, TypeSQLiteBackend
 
 
-class BaseConstraint(Generic[TypeSQLiteBackend], ABC):
+class BaseConstraint(ABC):
     template_sql: Optional[str] = None
     prefix: Optional[str] = None
     base_errors = {
@@ -34,7 +34,7 @@ class BaseConstraint(Generic[TypeSQLiteBackend], ABC):
     def as_sql(self, backend: TypeSQLiteBackend) -> str:
         raise NotImplemented
 
-    def deconstruct(self) -> tuple[str, list]:
+    def deconstruct(self) -> tuple[str, list[str]]:
         params = [self.name]
         return self.__class__.__name__, params
 
@@ -48,10 +48,20 @@ class CheckConstraint(BaseConstraint):
     >>> name_constraint = CheckConstraint('my_name', Q(name__ne='Kendall'))
     ... table = Table('celebrities', constraints=[name_constraint])
 
+    This is equivalent to the SQL statement:
+
+    ```sql
+    CHECK(name!='Kendall')
+    ```
+
     Args:
         name (str): The name of the constraint.
         condition (Q | CombinedExpression): The condition to be enforced by the constraint.
+
+    Raises:
+        ValueError: If the condition is not an instance of Q or CombinedExpression.
     """
+
     template_sql: ClassVar[str] = 'check({condition})'
     prefix: ClassVar[str] = 'chk'
 
@@ -80,7 +90,18 @@ class UniqueConstraint(BaseConstraint):
 
     >>> unique_name = UniqueConstraint(fields=['name'])
     ... table = Table('celebrities', constraints=[unique_name])
+
+    Thi is equivalent to the SQL statement:
+
+    ```sql
+    UNIQUE(name)
+    ```
+
+    Args:
+        name (str): The name of the constraint.
+        fields (list[str]): The list of fields to be included in the unique constraint.
     """
+
     template_sql: ClassVar[str] = 'unique({fields})'
     prefix: ClassVar[str] = 'unq'
 
@@ -113,7 +134,18 @@ class MaxLengthConstraint(MinMaxMixin, BaseConstraint):
     This constraint ensures that the length of the field's value does not 
     exceed a defined limit. If the value's length surpasses this limit, 
     the constraint will be violated, thus maintaining data integrity by 
-    restricting the length of the input data"""
+    restricting the length of the input data
+
+    This is equivalent to the SQL statement:
+
+    ```sql
+    CHECK(length(column_name) <= limit)
+    ```
+
+    Args:
+        limit (int): The maximum allowed length for the field.
+        field (TypeField): The field to which the constraint is applied.
+    """
 
     template_sql: ClassVar[str] = 'check({condition})'
     length_sql: ClassVar[str] = 'length({column})'
@@ -129,6 +161,24 @@ class MaxLengthConstraint(MinMaxMixin, BaseConstraint):
 
 
 class MinValueConstraint(MinMaxMixin, BaseConstraint):
+    """The `MinValueConstraint` class is a custom database constraint 
+    used to enforce a minimum value on a specified field within a table. 
+    This constraint ensures that the value of the field is not less than 
+    a defined limit. If the value falls below this limit, the constraint
+    will be violated, thus maintaining data integrity by restricting
+    the range of acceptable input data.
+
+    This is equivalent to the SQL statement:
+
+    ```sql
+    CHECK(column_name > limit)
+    ```
+
+    Args:
+        limit (int): The minimum allowed value for the field.
+        field (TypeField): The field to which the constraint is applied.
+    """
+
     template_sql: ClassVar[str] = 'check({condition})'
     operator: ClassVar[str] = '>'
 
@@ -143,4 +193,22 @@ class MinValueConstraint(MinMaxMixin, BaseConstraint):
 
 
 class MaxValueConstraint(MinValueConstraint):
+    """The `MaxValueConstraint` class is a custom database constraint
+    used to enforce a maximum value on a specified field within a table.
+    This constraint ensures that the value of the field does not exceed
+    a defined limit. If the value surpasses this limit, the constraint
+    will be violated, thus maintaining data integrity by restricting
+    the range of acceptable input data.
+
+    This is equivalent to the SQL statement:
+
+    ```sql
+    CHECK(column_name < limit)
+    ```
+
+    Args:
+        limit (int): The maximum allowed value for the field.
+        field (TypeField): The field to which the constraint is applied.
+    """
+
     operator: ClassVar[str] = '<'

@@ -260,6 +260,7 @@ class NumericFieldMixin:
     def __init__(self, name: str, *, min_value: Optional[int] = None, max_value: Optional[int] = None, **kwargs: str):
         self.min_value = min_value
         self.max_value = max_value
+        
         super().__init__(name, **kwargs)
 
         if min_value is not None:

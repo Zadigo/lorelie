@@ -285,11 +285,15 @@ class CombinedExpression:
     These are equivalent to SQL statements such as:
     * `(age=21 and age=34)`
     * `0 + age`
+
+    Args:
+        *funcs (F | Q): A variable number of expressions to be combined.
+        auto_build (bool): Whether to automatically build the children expressions upon initialization.
     """
 
     template_sql: ClassVar[str] = '({inner}) {outer}'
 
-    def __init__(self, *funcs: 'F | Q'):
+    def __init__(self, *funcs: 'F | Q', auto_build: bool = True):
         self.others = list(funcs)
         self.children: list['F | Q | str'] = []
         # Indicates that the expression
@@ -308,7 +312,8 @@ class CombinedExpression:
         # a = CombinedExpression(Q(firstname='Kendall'))
         # b = Q(age__gt=26)
         # c = a & b -> ['(and age>26)']
-        self.build_children()
+        if auto_build:
+            self.build_children()
 
     # def __repr__(self):
     #     return f'<{self.__class__.__name__} :: {self.children}>'
@@ -333,7 +338,7 @@ class CombinedExpression:
         self.children.append(Value(other))
         return self
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         self.children.append('/')
         self.children.append(Value(other))
         return self
@@ -359,6 +364,8 @@ class CombinedExpression:
                 self.children.insert(index, operator)
 
             index += 1
+
+        self.children = list(reversed(self.children))
 
     @override
     def as_sql(self, backend: TypeSQLiteBackend):
@@ -436,12 +443,12 @@ class Q(BaseExpression):
         return f'<{self.__class__.__name__}: {self.expressions}>'
 
     def __and__(self, other):
-        instance = CombinedExpression(self, other)
+        instance = CombinedExpression(self, other, auto_build=False)
         instance.build_children()
         return instance
 
     def __or__(self, other):
-        instance = CombinedExpression(self, other)
+        instance = CombinedExpression(self, other, auto_build=False)
         instance.build_children(operator='or')
         return instance
 
@@ -493,7 +500,7 @@ class F(BaseExpression):
         if isinstance(other, (int, str, float)):
             other = Value(other)
 
-        combined = CombinedExpression(self, other)
+        combined = CombinedExpression(self, other, auto_build=False)
         combined.build_children(operator=self.ADD)
         return combined
 
@@ -504,7 +511,7 @@ class F(BaseExpression):
         if isinstance(other, (int, str, float)):
             other = Value(other)
 
-        combined = CombinedExpression(self, other)
+        combined = CombinedExpression(self, other, auto_build=False)
         combined.build_children(operator=self.MULTIPLY)
         return combined
 
@@ -515,7 +522,7 @@ class F(BaseExpression):
         if isinstance(other, (int, str, float)):
             other = Value(other)
 
-        combined = CombinedExpression(self, other)
+        combined = CombinedExpression(self, other, auto_build=False)
         combined.build_children(operator=self.DIVIDE)
         return combined
 
@@ -526,7 +533,7 @@ class F(BaseExpression):
         if isinstance(other, (int, str, float)):
             other = Value(other)
 
-        combined = CombinedExpression(self, other)
+        combined = CombinedExpression(self, other, auto_build=False)
         combined.build_children(operator=self.SUBSRACT)
         return combined
 

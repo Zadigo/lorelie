@@ -5,7 +5,7 @@ from lorelie.constraints import (CheckConstraint, MaxValueConstraint,
                                  MinValueConstraint, UniqueConstraint)
 from lorelie.database.base import Database
 from lorelie.database.tables.base import Table
-from lorelie.expressions import Q
+from lorelie.expressions import F, Q
 from lorelie.fields.base import CharField
 from lorelie.test.testcases import LorelieTestCase
 
@@ -15,6 +15,19 @@ class TestCheckConstraint(LorelieTestCase):
         instance = CheckConstraint('some_name', Q(name='Kendall'))
         sql = instance.as_sql(self.create_connection())
         self.assertEqual(sql, "check(name='Kendall')")
+
+        instance = CheckConstraint('another_name', Q(age__gt=18))
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(sql, 'check(age>18)')
+
+    def test_constraint_with_F_expression(self):
+        instance = CheckConstraint('test_name', Q(age__gt=F('minimum_age')))
+        sql = instance.as_sql(self.create_connection())
+        self.assertEqual(sql, "check(age>'F(minimum_age)')")
+
+    def test_constraint_with_incorrect_expression(self):
+        with self.assertRaises(ValueError):
+            CheckConstraint('bad_constraint', 'this is not a Q expression')
 
     def test_table_level_constraints_creation(self):
         constraint = CheckConstraint('my_constraint', Q(name__eq='Kendall'))

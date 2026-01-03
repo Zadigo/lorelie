@@ -408,22 +408,36 @@ class QuerySet:
         return self.query.sql
 
     def check_alias_view_name(self):
+        """Checks if an alias view name is set and modifies
+        the SelectNode accordingly to use the view name instead
+        of the table name for subsequent queries"""
         if self.alias_view_name is not None:
             # Replace the previous SelectNode
             # with the new one by using the
             # previous parameters of the
             # previous SelectNode
-            old_select = self.query.select_map.select
+            _, _, fields, params = self.query.select_map.select.deconstruct()
             new_node = SelectNode(
                 self.query.table,
-                *old_select.fields,
-                distinct=old_select.distinct,
-                limit=old_select.limit,
+                *fields,
+                distinct=params.get('distinct', False),
+                limit=params.get('limit', None),
                 view_name=self.alias_view_name
             )
             self.query.select_map.select = new_node
             self.force_reload_cache = True
             return True
+
+            # old_select = self.query.select_map.select
+            # new_node = SelectNode(
+            #     self.query.table,
+            #     *old_select.fields,
+            #     distinct=old_select.distinct,
+            #     limit=old_select.limit,
+            #     view_name=self.alias_view_name
+            # )
+            # self.query.select_map.select = new_node
+            # self.force_reload_cache = True
         return False
 
     def load_cache(self):
@@ -475,6 +489,7 @@ class QuerySet:
         return self[0]
 
     def all(self):
+        self.check_alias_view_name()
         # if self.query.annotation_map is not None:
         #     other_qs = self.get_master_manager().all()
         #     _, _, fields, _ = other_qs.query.select_map.select.deconstruct()

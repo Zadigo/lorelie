@@ -535,7 +535,7 @@ class DatabaseManager(Generic[TypeQuerySet]):
         """Selects all the values from the database
         that match the filters
 
-        >>> db.objects.exclude(firstname='Kendall')"""
+        >>> table.objects.exclude(firstname='Kendall')"""
         select_node = SelectNode(self.table)
         where_node = ~WhereNode(*args, **kwargs)
 

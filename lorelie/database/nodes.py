@@ -769,7 +769,7 @@ class ViewNode(Generic[TypeQuerySet], BaseNode):
         if self.temporary:
             template_sql = self.template_sql.replace('view', 'temp view')
 
-        # We need to evaluate the queryset
+        # We need to evaluate the queryset first
         # in order to get underlying sql query
         # that will be used to create the view
         self.queryset.load_cache()

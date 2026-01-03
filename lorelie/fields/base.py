@@ -18,7 +18,7 @@ from lorelie.validators import url_validator
 class Field:
     python_type = str
     base_validators: list[Callable[[Any], None]] = []
-    default_field_errors = {}
+    default_field_errors: dict[str, str] = {}
 
     def __init__(self, name: str, *, max_length: int = None, null: bool = False, primary_key: bool = False, default=None, unique: bool = False, validators: list[Callable[[Any], None]] = [], verbose_name: str = None, editable: bool = False):
         self.constraints: list[TypeConstraint] = []
@@ -78,7 +78,7 @@ class Field:
         return self.field_type in self.standard_field_types
 
     @staticmethod
-    def validate_field_name(name):
+    def validate_field_name(name: str):
         result = re.match(r'^(\w+\_?)+$', name)
         if not result:
             raise ValueError(
@@ -94,7 +94,7 @@ class Field:
         return name.lower()
 
     @classmethod
-    def create(cls, name, params):
+    def create(cls, name: str, params: dict[str, bool]):
         instance = cls(name)
         instance.base_field_parameters = params
         if 'null' in params:
@@ -105,7 +105,7 @@ class Field:
         instance.field_parameters()
         return instance
 
-    def run_validators(self, value):
+    def run_validators(self, value: Any):
         for validator in self.base_validators:
             if not callable(validator):
                 raise ValueError('Validator should be a callable')
@@ -260,7 +260,7 @@ class NumericFieldMixin:
     def __init__(self, name: str, *, min_value: Optional[int] = None, max_value: Optional[int] = None, **kwargs: str):
         self.min_value = min_value
         self.max_value = max_value
-        
+
         super().__init__(name, **kwargs)
 
         if min_value is not None:
@@ -425,6 +425,10 @@ class DateField(DateFieldMixin, Field):
     def field_type(self):
         return 'date'
 
+    # def field_parameters(self):
+    #     self.base_field_parameters.update(current_date=self.auto_add)
+    #     return super().field_parameters()
+
     def to_database(self, data: Any) -> TypeAny:
         if data == '' or data is None:
             return data
@@ -474,6 +478,10 @@ class DateTimeField(DateFieldMixin, Field):
     def field_type(self):
         return 'datetime'
 
+    # def field_parameters(self):
+    #     self.base_field_parameters.update(current_timestamp=self.auto_add)
+    #     return super().field_parameters()
+
     def to_database(self, data: Any) -> TypeAny:
         if data == '' or data is None:
             return data
@@ -504,6 +512,10 @@ class DateTimeField(DateFieldMixin, Field):
 class TimeField(DateTimeField):
     date_format = '%H:%M:%S'
 
+    # def field_parameters(self):
+    #     self.base_field_parameters.update(current_time=self.auto_add)
+    #     return super().field_parameters()
+
     def to_database(self, data: Any) -> TypeAny:
         clean_data = super().to_database(data)
         return datetime.datetime.fromisoformat(clean_data)
@@ -532,10 +544,10 @@ class UUIDField(Field):
 
         if isinstance(data, uuid.UUID):
             return str(data)
-        
+
         if callable(data):
             return str(data())
-        
+
         return data.hex
 
     def to_python(self, data: Any) -> TypeAny:
@@ -564,14 +576,15 @@ class BinaryField(Field):
 class CommaSeparatedField(CharField):
     base_validators = []
 
-    def to_python(self, data: Any) -> TypeAny:
+    def to_python(self, data: Any) -> list[str]:
         if data is None or data == '':
-            return data
+            return []
+        
         return data.split(',')
 
     def to_database(self, data: Any) -> TypeAny:
         if isinstance(data, (list, set, tuple)):
-            data = ', '.join(data)
+            data = ','.join(data)
         return super().to_database(data)
 
 

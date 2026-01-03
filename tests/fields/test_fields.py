@@ -2,9 +2,10 @@ import datetime
 import uuid
 
 from lorelie.exceptions import ValidationError
-from lorelie.fields.base import (AutoField, BooleanField, CharField, DateField, DateTimeField, Field, FloatField,
+from lorelie.fields.base import (AutoField, BooleanField, CharField, CommaSeparatedField, DateField, DateTimeField, Field, FloatField,
                                  IntegerField, JSONField, UUIDField)
 from lorelie.test.testcases import LorelieTestCase
+from lorelie.validators import string_comma_separated_validator, number_comma_separated_validator
 
 
 class TestField(LorelieTestCase):
@@ -265,7 +266,23 @@ class TestEmailField(LorelieTestCase):
 
 
 class TestCommaSeparatedField(LorelieTestCase):
-    pass
+    def test_structure(self):
+        f = CommaSeparatedField('tags')
+        values = f.to_python('fashion,model,celebrity')
+        self.assertIsInstance(values, list)
+        self.assertListEqual(
+            values,
+            ['fashion', 'model', 'celebrity']
+        )
+
+        f2 = CommaSeparatedField('tags')
+        f2.base_validators.append(string_comma_separated_validator)
+        values = f2.to_database('fashion,model,celebrity')
+
+        f3 = CommaSeparatedField('tags')
+        f3.base_validators.append(number_comma_separated_validator)
+        values = f3.to_database(['1', '2', '3', '4', '5'])
+        self.assertEqual(values, '1,2,3,4,5')
 
 
 class TestTimeField(LorelieTestCase):
@@ -281,8 +298,13 @@ class TestUUIDField(LorelieTestCase):
         f = UUIDField('product_id')
         value = f.to_database(uuid.uuid4())
         self.assertIsInstance(value, str)
+
         revert_value = f.to_python(value)
         self.assertIsInstance(revert_value, uuid.UUID)
+
+        fdefault = UUIDField('product_id', default=uuid.uuid4)
+        value = fdefault.to_database(fdefault.default)
+        self.assertIsInstance(value, str)
 
 
 class TestAutoField(LorelieTestCase):

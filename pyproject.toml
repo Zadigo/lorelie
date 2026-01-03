@@ -1,8 +1,12 @@
 [project]
 name = "lorelie"
 version = "0.1.0"
-description = "A lightweight library for interating with SQLite databases."
+description = "Lorelie is a lightweight ORM for Python, designed to simplify database interactions with an intuitive and expressive API."
+keywords = ["ORM", "database", "Python", "SQLAlchemy", "SQLite"]
 authors = [
+    { name = "John Pendenque", email = "pendenquejohn@gmail.com" },
+]
+maintainers = [
     { name = "John Pendenque", email = "pendenquejohn@gmail.com" },
 ]
 readme = "README.md"
@@ -18,4 +22,9 @@ classifiers = [
     "Topic :: Database",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Development Status :: 3 - Alpha",
-]  
+]
+dependencies = [
+    "coverage>=7.13.1",
+    "pytest>=9.0.1",
+    "pandas>=2.3.3",
+]

@@ -1,6 +1,10 @@
 # Versions
 
-## Version 0.0.1
+## Version 1.0.0-alpha.3 - 2026-01-14
+
+## Version 1.0.0-alpha.2 - 2024-06-25
+
+## Version 1.0.0-alpha.1 - 2024-06-20
 
 **Features**
 

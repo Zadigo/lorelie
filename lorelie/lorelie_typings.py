@@ -17,6 +17,8 @@ if TYPE_CHECKING:
     from lorelie.database.functions.base import Functions
     from lorelie.database.functions.window import Rank, PercentRank, CumeDist, Lead, Lag, DenseRank, LastValue, FirstValue, NthValue, NTile, RowNumber
 
+TypeAny = TypeVar('TypeAny')
+
 TypeSQLiteBackend = TypeVar('TypeSQLiteBackend', bound='SQLiteBackend')
 
 TypeTable = TypeVar('TypeTable', bound='Table')
@@ -28,7 +30,6 @@ TypePathlibPath = TypeVar('TypePathlibPath', bound='pathlib.Path')
 TypeStrOrPathLibPath = TypeVar(
     'TypeStrOrPathLibPath', bound='str | pathlib.Path')
 
-TypeAny = TypeVar('TypeAny')
 
 TypeAnyNormalTypes = TypeVar(
     'TypeAny', bound='str | int | float | bool | dict | list | None')
@@ -202,4 +203,5 @@ TypeDeconstructedField = Tuple[str, str, dict[str, bool]]
 
 TypeFunction = TypeVar('TypeFunction', bound='Functions')
 
-TypeWindowFunction = TypeVar('TypeWindowFunction', 'Rank', 'PercentRank', 'CumeDist', 'Lead', 'Lag')
+TypeWindowFunction = TypeVar(
+    'TypeWindowFunction', 'Rank', 'PercentRank', 'CumeDist', 'Lead', 'Lag')

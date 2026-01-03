@@ -1,4 +1,3 @@
-import unittest
 from lorelie.expressions import (CombinedExpression, F, NegatedExpression, Q,
                                  Value, When, Case)
 from lorelie.test.testcases import LorelieTestCase
@@ -8,6 +7,7 @@ class TestQ(LorelieTestCase):
     def test_structure(self):
         instance = Q(firstname='Kendall')
         sql = instance.as_sql(self.create_connection())
+
         self.assertIsInstance(sql, list)
         self.assertListEqual(sql, ["firstname='Kendall'"])
 
@@ -15,15 +15,26 @@ class TestQ(LorelieTestCase):
         sql = instance.as_sql(self.create_connection())
         self.assertIsInstance(sql, list)
         self.assertListEqual(
-            sql, ["firstname='Kendall' and lastname='Jenner'"])
+            sql,
+            ["firstname='Kendall' and lastname='Jenner'"]
+        )
 
         instance = Q(is_valid=True)
         sql = instance.as_sql(self.create_connection())
-        print(sql)
+        self.assertListEqual(sql, ["is_valid=True"])
+
+        instance = Q(age__gt=25)
+        sql = instance.as_sql(self.create_connection())
+        self.assertListEqual(sql, ["age>25"])
+
+        instance = Q(age__lte=50)
+        sql = instance.as_sql(self.create_connection())
+        self.assertListEqual(sql, ["age<=50"])
 
     def test_and(self):
         a = Q(firstname='Kendall')
         b = Q(firstname='Kylie')
+
         c = a & b
 
         self.assertIsInstance(c, CombinedExpression)
@@ -31,23 +42,41 @@ class TestQ(LorelieTestCase):
 
         self.assertIsInstance(sql, list)
         self.assertListEqual(
-            sql, ["(firstname='Kendall' and firstname='Kylie')"])
+            sql,
+            ["(firstname='Kendall' and firstname='Kylie')"]
+        )
+
+        d = Q(firstname='Addison')
+        e = a & b & d
+        sql = e.as_sql(self.create_connection())
+        self.assertListEqual(
+            sql,
+            ["(firstname='Kendall' and firstname='Kylie' and firstname='Addison')"]
+        )
 
     def test_or(self):
         a = Q(firstname='Kendall')
         b = Q(firstname='Kylie')
+
         c = a | b
+
         self.assertIsInstance(c, CombinedExpression)
+
         sql = c.as_sql(self.create_connection())
         self.assertIsInstance(sql, list)
         self.assertListEqual(
-            sql, ["(firstname='Kendall' or firstname='Kylie')"])
+            sql,
+            ["(firstname='Kendall' or firstname='Kylie')"]
+        )
 
     def test_multiple_filters(self):
         logic = Q(firstname='Kendall', age__gt=20, age__lte=50)
         result = logic.as_sql(self.create_connection())
+
         self.assertListEqual(
-            result, ["firstname='Kendall' and age>20 and age<=50"])
+            result,
+            ["firstname='Kendall' and age>20 and age<=50"]
+        )
 
     def test_multioperators(self):
         multi = (
@@ -65,6 +94,7 @@ class TestQ(LorelieTestCase):
         # NegatedExpression
         instance = ~Q(firstname='Kendall')
         self.assertIsInstance(instance, NegatedExpression)
+
         sql = instance.as_sql(self.create_connection())
         self.assertEqual(sql, "not firstname='Kendall'")
 
@@ -78,9 +108,7 @@ class TestQ(LorelieTestCase):
         sql = instance.as_sql(self.create_connection())
         self.assertEqual(sql, "not firstname='Kendall' and lastname='Jenner'")
 
-    def test_mixed_expressions(self):
-        # TODO: We should not be able to mix
-        # different types of expressions
+    def test_mixed_expressions_raises_error(self):
         instance = ~Q(name='Kendall') & F('name')
         sql = instance.as_sql(self.create_connection())
         print(sql)
@@ -92,7 +120,6 @@ class TestCombinedExpression(LorelieTestCase):
         b = Q(firstname='Kylie')
 
         instance = CombinedExpression(a, b)
-        instance.build_children()
 
         self.assertTrue(len(instance.children) == 3)
         self.assertIsInstance(instance.children[0], Q)
@@ -102,18 +129,31 @@ class TestCombinedExpression(LorelieTestCase):
 
         self.assertListEqual(
             instance.as_sql(self.create_connection()),
-            ["(firstname='Kendall' and firstname='Kylie')"]
+            ["(firstname='Kylie' and firstname='Kendall')"]
         )
+
+    def test_inner_outer_parentheses(self):
+        a = Q(firstname='Kendall')
+        b = Q(firstname='Kylie')
+        c = Q(age__gt=25)
+        d = Q(age__lte=50)
+
+        instance = CombinedExpression(a, b) | CombinedExpression(c, d)
+        sql = instance.as_sql(self.create_connection())
+        print(sql)
+
+        instance = CombinedExpression(a, b) & CombinedExpression(c, d)
+        sql = instance.as_sql(self.create_connection())
+        print(sql)
 
     def test_mixed_expressions(self):
         a = Q(name='Kendall')
         b = F('age')
 
         instance = CombinedExpression(a, b)
-        instance.build_children()
         self.assertListEqual(
             instance.as_sql(self.create_connection()),
-            ["(name='Kendall' and age)"]
+            ["(age and name='Kendall')"]
         )
 
     def test_F_expressions(self):
@@ -128,6 +168,7 @@ class TestCombinedExpression(LorelieTestCase):
         )
 
     def test_joining_combined_expressions(self):
+        # Expected: (a and b), (a and b) or c
         a = CombinedExpression(F('name'))
         b = CombinedExpression(F('age'))
 
@@ -135,12 +176,25 @@ class TestCombinedExpression(LorelieTestCase):
         # TODO: This returns  ['(and ())']
         print(c.as_sql(self.create_connection()))
 
+        d = CombinedExpression(F('name'))
+        e = CombinedExpression(F('age'))
+
+        f = d | e
+        print(f.as_sql(self.create_connection()))
+
+        g = c | f
+        print(g.as_sql(self.create_connection()))
+
     def test_joining_combined_expression_with_simple(self):
         a = CombinedExpression(Q(firstname='Kendall'))
         b = Q(age__gt=26)
 
         c = a & b
-        print(c.as_sql(self.create_connection()))
+        sql = c.as_sql(self.create_connection())
+        self.assertListEqual(
+            sql,
+            ["(firstname='Kendall' and age>26)"]
+        )
 
 
 class TestWhen(LorelieTestCase):

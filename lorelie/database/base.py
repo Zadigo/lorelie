@@ -8,7 +8,7 @@ from warnings import deprecated
 from asgiref.sync import sync_to_async
 
 from lorelie.backends import SQLiteBackend
-from lorelie.database import registry
+from lorelie import registry
 from lorelie.database.manager import ForeignTablesManager
 from lorelie.database.migrations import Migrations
 from lorelie.database.tables.base import Table

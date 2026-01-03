@@ -1,3 +1,6 @@
+from lorelie.lorelie_typings import TypeDatabase, TypeTable
+from typing import Annotated
+from collections import OrderedDict
 import logging
 import logging.config
 import pathlib
@@ -92,34 +95,48 @@ log_config = {
 }
 
 
-# class LorelieLogger:
-#     def __init__(self):
-#         logger = logging.getLogger('lorelie')
-
-#         handler = logging.FileHandler('queries.log')
-#         logger.addHandler(handler)
-#         logger.setLevel(logging.DEBUG)
-
-#         log_format = logging.Formatter(
-#             '%(asctime)s - %(name)s - %(levelname)s: %(message)s',
-#             datefmt='%Y-%m-%d %H:%M'
-#         )
-#         handler.setFormatter(log_format)
-
-#         self.logger = logger
-
-#     def debug(self, message, *args, **kwargs):
-#         self.logger.debug(message, *args, **kwargs)
-
-#     def info(self, message, *args, **kwargs):
-#         self.logger.info(message, *args, **kwargs)
-
-#     def warning(self, message, *args, **kwargs):
-#         self.logger.warning(message, *args, **kwargs)
-
 def get_logger(name: str = 'lorelie') -> logging.Logger:
     logging.config.dictConfig(log_config)
     return logging.getLogger(name)
 
 
 lorelie_logger = get_logger()
+
+
+class MasterRegistry:
+    """A registry that memorizes all the objcts created
+    by the Lorelie ORM, such as databases, tables, triggers,
+    and so on.
+    """
+
+    known_tables: Annotated[
+        OrderedDict[str, TypeTable],
+        "A mapping of all known tables by their name regardless"
+        "of the database they belong to."
+    ] = OrderedDict()
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}>"
+
+    def register_database(self, database: TypeDatabase):
+        from lorelie.database.base import Database
+
+        if not isinstance(database, Database):
+            raise ValueError(f"'{database}' should be an instance of database")
+
+        for name, table in database.table_map.items():
+            self.known_tables[name] = table
+
+    def get_table(self, name: str) -> Optional[TypeTable]:
+        """Get a table by its name from the registry.
+
+        Args:
+            name (str): The name of the table to retrieve.
+
+        Returns:
+            Optional[TypeTable]: The table if found, else None.
+        """
+        return self.known_tables.get(name)
+
+
+registry = MasterRegistry()

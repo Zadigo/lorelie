@@ -778,3 +778,17 @@ class ViewNode(Generic[TypeQuerySet], BaseNode):
             'select_node': self.queryset.query.sql
         })
         return [sql]
+
+
+
+class WhenNode:
+    def __init__(self, **condition: Any):
+        self.condition = condition
+
+    def as_sql(self, backend: TypeSQLiteBackend):
+        filters = backend.decompose_filters(**self.condition)
+        joined_filters = backend.build_filters(filters, space_characters=False)
+        when_sql = backend.WHEN_TEMPLATE.format_map({
+            'condition': joined_filters
+        })
+        return when_sql

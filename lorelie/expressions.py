@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Optional, override
-
-from lorelie.lorelie_typings import TypeField, TypeSQLiteBackend
+import re
+from lorelie.lorelie_typings import TypeAny, TypeField, TypeSQLiteBackend
 
 
 class BaseExpression(ABC):
@@ -33,6 +33,28 @@ class BaseExpression(ABC):
 
 
 class Value(BaseExpression):
+    """This class is not an expressioon per se but can be used
+    to wrap values that will be used in expressions. The output
+    field is guessed based on the type of value passed and then
+    used to convert the value to a database-compatible format.
+
+    >>> Value(5) + F('age')
+    ... F('price') * Value(1.2)
+
+    In the first example above, the integer value `5` is wrapped
+    in a `Value` instance before being added to the field `age`.
+    This ensures that the ORM correctly interprets `5` as a value
+    to be used in the expression rather than as a field name.
+
+    In the second example, the float value `1.2` is wrapped
+    in a `Value` instance before being multiplied with the field
+    `price`.
+
+    Args:
+        value (Any): The value to be wrapped.
+        output_field (Optional[TypeField]): The field type of the value.
+    """
+
     def __init__(self, value: Any, output_field: Optional[TypeField] = None):
         self.value = value
         self.internal_name = 'value'
@@ -59,7 +81,7 @@ class Value(BaseExpression):
                 self.output_field = JSONField(self.internal_name)
 
     def to_python(self, value: Any):
-        pass
+        return None
 
     def to_database(self):
         return self.output_field.to_database(self.value)
@@ -76,6 +98,23 @@ class Value(BaseExpression):
 
 
 class NegatedExpression(BaseExpression):
+    """A negated expression is used to represent
+    the logical negation of another expression.
+
+    >>> NegatedExpression(Q(firstname="Kendall"))
+    ... ~Q(lastname="Jenner")
+    ... "not firstname='Kendall'"
+
+    Negated expressions can be combined with other expressions
+    using logical operators such as AND and OR.
+
+    >>> NegatedExpression(Q(age=21)) & Q(age=34)
+    ... NegatedExpression(F('age') + 1)
+
+    These are equivalent to SQL statements such as:
+    * `not (age=21 and age=34)`
+    * `not (age + 1)`
+    """
     template_sql = 'not {expression}'
 
     def __init__(self, expression: 'F | Q'):
@@ -129,7 +168,12 @@ class NegatedExpression(BaseExpression):
 class When(BaseExpression):
     """Represents a conditional expression in an SQL query. 
     It defines a condition and the corresponding value when 
-    the condition is met
+    the condition is met. When are typically used within
+    Case expressions to create complex conditional logic.
+
+    >>> logic = When('firstname=Kendall', 'Kylie')
+    ... case = Case(logic)
+    ... db.objects.annotate(case)
     """
 
     def __init__(self, condition: 'Q | CombinedExpression | str', then_case: Any, **kwargs):
@@ -172,14 +216,18 @@ class Case(BaseExpression):
 
     >>> logic = When('firstname=Kendall', 'Kylie')
     ... case = Case(condition1)
-    ... db.objects.annotate('celebrities', case)
+    ... db.objects.annotate(case)
+
+    Args:
+        *cases (When): A variable number of When instances representing the conditions and their corresponding values.
+        default (Optional[TypeAny]): The default value to return if none of the conditions are met.
     """
 
     CASE: ClassVar[str] = 'case {conditions}'
     CASE_ELSE: ClassVar[str] = 'else {value}'
     CASE_END: ClassVar[str] = 'end {alias}'
 
-    def __init__(self, *cases: 'When', default: Optional[str] = None):
+    def __init__(self, *cases: 'When', default: Optional[TypeAny] = None):
         self.field_name = None
         self.alias_field_name = None
         self.default = default
@@ -229,10 +277,14 @@ class Case(BaseExpression):
 class CombinedExpression:
     """A combined expression is a combination
     of multiple expressions in order to create
-    an combined expression sql statement
+    complex SQL statements.
 
     >>> CombinedExpression(Q(age=21), Q(age=34))
     ... CombinedExpression(F('age'))
+
+    These are equivalent to SQL statements such as:
+    * `(age=21 and age=34)`
+    * `0 + age`
     """
 
     template_sql: ClassVar[str] = '({inner}) {outer}'
@@ -256,10 +308,10 @@ class CombinedExpression:
         # a = CombinedExpression(Q(firstname='Kendall'))
         # b = Q(age__gt=26)
         # c = a & b -> ['(and age>26)']
-        # self.build_children()
+        self.build_children()
 
-    def __repr__(self):
-        return f'<{self.__class__.__name__}: {self.children}>'
+    # def __repr__(self):
+    #     return f'<{self.__class__.__name__} :: {self.children}>'
 
     def __or__(self, other):
         self.children.append('or')
@@ -296,26 +348,37 @@ class CombinedExpression:
         return 'expression'
 
     def build_children(self, operator='and'):
-        for i in range(len(self.others)):
-            other = self.others[i]
-            self.children.append(other)
+        """Transfers items from `others` to `children` inserting
+        the operator in between each item."""
+        index = 0
+        while self.others:
+            other = self.others.pop(0)
+            self.children.insert(0, other)
 
-            if i + 1 != len(self.others):
-                self.children.append(operator)
+            if self.others:
+                self.children.insert(index, operator)
+
+            index += 1
 
     @override
     def as_sql(self, backend: TypeSQLiteBackend):
-        # if self.is_math:
-        #     for child in self.children:
-        #         print(child)
-        # else:
-        sql_statement = []
+        sql_statement: list[Any] = []
+
         for child in self.children:
             if isinstance(child, (str, int, float)):
                 sql_statement.append(child)
                 continue
+
             child_sql = child.as_sql(backend)
-            sql_statement.append(child_sql)
+            sql_statement.extend(child_sql)
+
+        # Since items such as (age)
+        # should be simplified to "age"
+        # by removing the parentheses
+        for index, item in enumerate(sql_statement):
+            result = re.match(r'^\((\w+)\)$', str(item))
+            if result:
+                sql_statement[index] = result.group(1)
 
         inner_items = []
         outer_items = []
@@ -330,14 +393,13 @@ class CombinedExpression:
                     is_inner = False
                 seen_operator = item
 
+            if isinstance(item, (str, int, float)):
+                item = [item]
+
             if is_inner:
-                if isinstance(item, (str, int, float)):
-                    item = [item]
                 inner_items.extend(item)
                 continue
             else:
-                if isinstance(item, (str, int, float)):
-                    item = [item]
                 outer_items.extend(item)
                 continue
 
@@ -362,6 +424,9 @@ class Q(BaseExpression):
     >>> Q(firstname="Kendall") | Q(lastname="Jenner")
 
     The above expression results in a logical OR operation.
+
+    Args:
+        **expressions (Any): Keyword arguments representing field lookups and their corresponding values for filtering.
     """
 
     def __init__(self, **expressions: Any):
@@ -397,15 +462,16 @@ class Q(BaseExpression):
 
 class F(BaseExpression):
     """The F function allows us to make operations
-    directly on the value of the database
+    directly on the value of a field in the database.
 
     >>> F('age') + 1
     ... F('price') * 1.2
     ... F('price') + F('price')
 
     These operations will translate directly to database
-    operations in such as `price * 1.2` where the value
-    in the price column will be multiplied by `1.2`
+    operations. For example in the case of `F('price') * 1.2`,
+    the ORM will generate an SQL statement that multiplies
+    the value of the `price` field by `1.2` directly in the database.
     """
 
     ADD: ClassVar[str] = '+'

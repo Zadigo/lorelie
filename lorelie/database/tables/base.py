@@ -181,6 +181,8 @@ class Table(Generic[TypeField], AbstractTable):
         self.field_counter: int = 0
         self.ordering = set(ordering)
 
+        # trigger.python_events.run(PythonEvent.PRE_INIT, self)
+
         super().__init__()
         self.fields_map: OrderedDict[str, TypeField] = OrderedDict()
         self.auto_add_fields: set[str] = set()

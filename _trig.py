@@ -1,8 +1,9 @@
-from lorelie.database import registry, triggers
+from lorelie.database import registry
 from lorelie.database.base import Database
 from lorelie.database.manager import DatabaseManager
 from lorelie.fields.base import CharField
 from lorelie.database.tables.base import Table
+from lorelie import constants
 
 
 # TODO: The user should be able to register a custom manager
@@ -23,7 +24,7 @@ db = Database(table)
 db.migrate()
 
 
-@db.register_trigger(triggers.PRE_SAVE, table=table)
+@db.register_trigger(constants.PRE_SAVE, table=table)
 def test_trigger(table, **kwargs):
     print(table)
 

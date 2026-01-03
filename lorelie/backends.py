@@ -9,7 +9,7 @@ from typing import Any, Optional, Sequence, Set
 import pytz
 
 from lorelie import converters
-from lorelie.database import registry
+from lorelie import registry
 from lorelie.database.expression_filters import ExpressionFiltersMixin
 from lorelie.database.functions.aggregation import (CoefficientOfVariation,
                                                     MeanAbsoluteDifference,

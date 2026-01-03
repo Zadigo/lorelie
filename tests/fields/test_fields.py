@@ -99,14 +99,14 @@ class TestField(LorelieTestCase):
             field.base_field_parameters,
             {
                 'primary key': True,
-                'not null': True,
+                'not null': False,
                 'unique': True
             }
         )
 
         self.assertListEqual(
             result,
-            ['name', 'text', 'primary key', 'not null', 'unique']
+            ['name', 'text', 'primary key', 'unique']
         )
 
     def test_field_parameters_with_max_length(self):

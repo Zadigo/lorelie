@@ -522,12 +522,20 @@ class SlugField(CharField):
 
 
 class UUIDField(Field):
+    def __init__(self, name: str, **kwargs: Any):
+        super().__init__(name, **kwargs)
+        self.python_type = (str, uuid.UUID)
+
     def to_database(self, data):
         if data is None:
             return None
 
         if isinstance(data, uuid.UUID):
             return str(data)
+        
+        if callable(data):
+            return str(data())
+        
         return data.hex
 
     def to_python(self, data: Any) -> TypeAny:

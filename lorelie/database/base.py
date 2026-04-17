@@ -135,10 +135,10 @@ class Database:
     tables together for a unique database and allows 
     its management via a migration file.
 
-    Creating a new database can be done by doing the following steps:
+    Creating a new database can be done by doing the following steps::
 
-    >>> table = Table('my_table', fields=[CharField('firstname')])
-    ... db = Database(table, name='my_database')
+        table = Table('my_table', fields=[CharField('firstname')])
+        db = Database(table, name='my_database')
 
     Providing a name is optional. If present, an sqlite dabase is created
     in the local project's path otherwise it is created in memory and
@@ -146,9 +146,9 @@ class Database:
 
     Migrating the database is an optional step that helps tracking
     the tables and in the fields that were created in a `migrations.json`
-    local file:
+    local file::
 
-    >>> db.migrate()
+        db.migrate()
 
     `migrate` implements the changes from the migration
     file into the SQLite database. It syncs the changes from
@@ -156,10 +156,10 @@ class Database:
     existing tables
 
     Once the database is created, we can then run various operations
-    on the tables within it:
+    on the tables within it::
 
-    >>> db.objects.create(url='http://example.com')
-    ... db.objects.all()
+        db.objects.create(url='http://example.com')
+        db.objects.all()
 
     Args:
         *tables (Table): A variable number of Table instances to register into the database
@@ -170,6 +170,11 @@ class Database:
 
     Returns:
         Database: An instance of the Database class
+
+    Exceptions:
+        ValueError: If any of the provided tables are not instances of Table, or if the provided path is not a directory when creating a physical database.
+        ValueError: If the migrations instance is not initialized when trying to migrate the database.
+        TableExistsError: If a table with the same name already exists in the database when trying to access it.
     """
 
     migrations: Optional[Migrations] = None
@@ -178,7 +183,7 @@ class Database:
     backend_class: Final[Type[SQLiteBackend]] = SQLiteBackend
 
     def __init__(self, *tables: Table, name: Optional[str] = None, path: Optional[TypeStrOrPathLibPath] = None, log_queries: bool = False, mask_values: bool = False):
-        self.database_name: str = name
+        self.database_name: Optional[str] = name
         # Use the immediate parent path if not
         # path is provided by the user
         self.path: pathlib.Path = pathlib.Path(__name__).parent.absolute()
@@ -269,6 +274,8 @@ class Database:
 
     @property
     def is_ready(self):
+        if self.migrations is None:
+            return False
         return self.migrations.migrated
 
     @property
@@ -328,9 +335,11 @@ class Database:
         and applying other specified parameters to the tables.
 
         Args:
-            dry_run (bool, optional): If set to True, the migration process will simulate the 
-                                      changes without actually applying them to the database. Defaults to False.
+            dry_run (bool, optional): If set to True, the migration process will simulate the changes without actually applying them to the database. Defaults to False.
         """
+        if self.migrations is None:
+            raise ValueError(
+                "Migrations instance is not initialized for this database.")
         self.migrations.migrate(self.table_map, dry_run=dry_run)
 
     @deprecated("Use migrate instead")
@@ -378,18 +387,19 @@ class Database:
     def foreign_key(self, name: str, left_table: TypeTable, right_table: TypeTable, on_delete: Optional[TypeOnDeleteTypes] = None, related_name: Optional[str] = None):
         """Adds a foreign key between two tables by using the
         default primary ID field. The orientation for the foreign
-        key goes from `left_table.id` to `right_table.field_id`
+        key goes from `left_table.id` to `right_table.field_id`::
 
-        >>> table1 = Table('celebrities', fields=[CharField('firstname', max_length=200)])
-        ... table2 = Table('social_media', fields=[CharField('name', max_length=200)])
+            table1 = Table('celebrities', fields=[CharField('firstname', max_length=200)])
+            table2 = Table('social_media', fields=[CharField('name', max_length=200)])
 
-        >>> db = Database(table1, table2)
-        ... db.foreign_key('followers', table1, table2, on_delete=OnDeleteEnum.CASCADE, related_name='f_my_table')
-        ... db.migrate()
-        ... db.social_media_tbl.all()
-        ... db.celebrity_tbl_set.all()
-        ... db.objects.foreign_key('social_media').all()
-        ... db.objects.foreign_key('social_media', reverse=True).all()
+            db = Database(table1, table2)
+            db.foreign_key('followers', table1, table2, on_delete=OnDeleteEnum.CASCADE, related_name='f_my_table')
+            db.migrate()
+
+            db.social_media_tbl.all()
+            db.celebrity_tbl_set.all()
+            db.objects.foreign_key('social_media').all()
+            db.objects.foreign_key('social_media', reverse=True).all()
         """
         relationship_map = self._prepare_relationship_map(
             right_table,

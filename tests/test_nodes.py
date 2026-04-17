@@ -2,6 +2,8 @@ import sqlite3
 import unittest
 from unittest.mock import patch
 
+from numpy import delete
+
 from lorelie.database.nodes import (BaseNode, ComplexNode, DeleteNode,
                                     InsertNode, IntersectNode, JoinNode,
                                     OrderByNode, RawSQL, SelectMap, SelectNode,
@@ -39,6 +41,8 @@ class TestInsertNode(LorelieTestCase):
                 'returning id'
             ]
         )
+
+        table.objects.all()
 
         batch_values = [{'firstname': 'Kendall'}, {'firstname': 'Jaime'}]
         node = InsertNode(table, batch_values=batch_values)
@@ -441,7 +445,7 @@ class TestComplexNode(LorelieTestCase):
     def test_similar_nodes(self, mock_connect):
         select = SelectNode(self.create_table())
         where = WhereNode(name='Kendall')
-        where2 = WhereNode(name='Kylie')
+        where2 = WhereNode(lastname='Kylie')
 
         complex_node = ComplexNode(select, where, where2)
         raw_sql = complex_node.as_sql(self.create_connection())

@@ -1,6 +1,6 @@
 import re
 from collections import OrderedDict
-from typing import Any, ClassVar, Generic, Optional, Type
+from typing import Any, ClassVar, Optional, Type
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
@@ -121,32 +121,32 @@ class Table(AbstractTable):
 
     A table is then attached to a Database instance
     which manages the actual database file and
-    connection.
+    connection::
 
-    >>> table = Table('my_table', fields=[CharField('url')])
-    ... database = Database(table)
-    ... database.migrate()
-    ... database.objects.create(url='http://example.com')
-    ... database.objects.all()
+        table = Table('my_table', fields=[CharField('url')])
+        database = Database(table)
+        database.migrate()
+        database.objects.create(url='http://example.com')
+        database.objects.all()
 
     If the table dooes not have any fields, an ID field
     is automatically created for you.
 
     A table can also have indexes and constraints
-    associated with it:
+    associated with it::
 
-    >>> from lorelie.database.tables.base import Table
-    ... from lorelie.fields.base import CharField
-    ... from lorelie.database.indexes import Index
-    ... from lorelie.expressions import Q
-    ... fields = [
-    ...     CharField('name', max_length=5)
-    ... ]
-    ... indexes = [
-    ...     Index('unique_name', ['name']),
-    ...     Index('another_index', ['name'], condition=Q(name='Kendall'))
-    ... ]
-    ... tb = Table('company', fields=fields, indexes=indexes)   
+        from lorelie.database.tables.base import Table
+        from lorelie.fields.base import CharField
+        from lorelie.database.indexes import Index
+        from lorelie.expressions import Q
+        fields = [
+            CharField('name', max_length=5)
+        ]
+        indexes = [
+            Index('unique_name', ['name']),
+            Index('another_index', ['name'], condition=Q(name='Kendall'))
+        ]
+        tb = Table('company', fields=fields, indexes=indexes)   
 
     Args:
         name (str): The name of the table
@@ -159,8 +159,9 @@ class Table(AbstractTable):
     Returns:
         Table: The constructed Table instance
 
-    Raises:
-        ValueError: If any of the fields or indexes are invalid
+    Exceptions:
+        ValueError: If the table name is invalid or if any of the fields, indexes or constraints are not of the correct type.
+        NoTableBackendError: If you try to use a table without it being attached to a database and therefore without a backend.
     """
 
     def __init__(self, name: str, *, fields: list[TypeField] = [], indexes: list[TypeIndex] = [], constraints: list[TypeConstraint] = [], ordering: list[str] = [], str_field='id'):
@@ -260,7 +261,7 @@ class Table(AbstractTable):
     def __contains__(self, value: Any):
         return value in self.field_names
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: Any):
         if name == 'name':
             pass
         return super().__setattr__(name, value)

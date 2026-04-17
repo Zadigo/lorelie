@@ -195,6 +195,14 @@ class AnnotationMap:
 
 
 class RawSQL:
+    """Class used to aggregate multiple nodes together and generate the final SQL statement.
+    It can also resolve a select map if the first node is a select node and the rest of the nodes are compatible with it.
+
+    Args:
+        backend (TypeSQLiteBackend): The backend to use for SQL generation.
+        *nodes (TypeNode): The nodes to aggregate together to form the SQL statement.
+    """
+
     def __init__(self, backend: TypeSQLiteBackend, *nodes: TypeNode):
         for node in nodes:
             if not isinstance(node, (BaseNode, str)):
@@ -284,25 +292,34 @@ class ComplexNode[T: TypeNode]:
     def as_sql(self, backend: TypeSQLiteBackend):
         clean_nodes: list[TypeNode] = []
 
-        # Merge all where nodes into a single one
-        _where_nodes = filter(
-            lambda node: node.node_name != NodeEnums.WHERE.value,
-            self.nodes
-        )
-        
-        base_node: Optional[T] = None
-        for i, node in enumerate(_where_nodes):
-            if i == 0:
-                base_node = node
-                continue
+        base_node: Optional[T] = self.nodes[0] if self.nodes else None
 
+        # Merge all where nodes into a single one
+        _where_nodes = self.nodes[1:] if self.nodes else []
+
+        new_args = []
+        new_kwargs = {}
+        for i, node in enumerate(_where_nodes):
             _, _, _, args, kwargs = node.deconstruct()
-            if base_node is not None:
-                base_node(*args, **kwargs)
+            new_args.extend(args)
+            new_kwargs.update(kwargs)
 
         if base_node is not None:
-            clean_nodes.append(base_node)
+            clean_nodes.extend([base_node, WhereNode(*new_args, **new_kwargs)])
         return RawSQL(backend, *clean_nodes)
+
+        # for i, node in enumerate(self.nodes):
+        #     if i == 0:
+        #         base_node = node
+        #         continue
+
+        #     _, _, _, args, kwargs = node.deconstruct()
+        #     if base_node is not None:
+        #         base_node(*args, **kwargs)
+
+        # if base_node is not None:
+        #     clean_nodes.append(base_node)
+        # return RawSQL(backend, *clean_nodes)
 
 
 class BaseNode(ABC):

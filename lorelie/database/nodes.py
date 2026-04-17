@@ -20,7 +20,7 @@ import itertools
 from dataclasses import field
 import re
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Optional, Sequence, override
+from typing import Any, ClassVar, Optional, override
 
 from lorelie.expressions import CombinedExpression, Q
 from lorelie.lorelie_typings import (NodeEnums, TypeJoinTypes, TypeNode, TypeOrCombinedExpression, TypeQ,
@@ -39,6 +39,15 @@ class SelectMap:
         3. "GROUP BY" + "HAVING"
         4. "ORDER BY"
         5. "LIMIT" + "OFFSET"
+
+    Attributes:
+        select (Optional[SelectNode]): The select node containing the base select statement.
+        where (Optional[WhereNode]): The where node containing the filtering conditions.
+        order_by (Optional[OrderByNode]): The order by node containing the ordering conditions.
+        limit (Optional[int]): The limit on the number of rows to return.
+        offset (Optional[int]): The offset for the rows to return.
+        groupby (Optional[str]): The group by clause for the select statement.
+        having (Optional[str]): The having clause for the select statement.
     """
 
     # The node used to complete the dataclass fields
@@ -50,7 +59,7 @@ class SelectMap:
     groupby: Optional[str] = None
     having: Optional[str] = None
 
-    def __setitem__(self, name: str,  value: str):
+    def __setitem__(self, name: str,  value: Any):
         setattr(self, name, value)
 
     @property
@@ -239,18 +248,20 @@ class RawSQL:
         return sql
 
 
-class ComplexNode[T = TypeNode]:
-    """A node that aggregates multiple nodes together
+class ComplexNode[T: TypeNode]:
+    """A node that aggregates multiple nodes together.
+
+    .. code-block:: python
+        node1 = SelectNode(table, 'name')
+        node2 = WhereNode(name='Kendall')
+
+        complex_node = ComplexNode(node1, node2)
+        complex_node.as_sql(connection)
+
+        # Result : ["select name from table", "where name='Kendall'"]
 
     Args:
         *nodes (TypeNode): The nodes to aggregate
-
-    Example:
-    >>> node1 = SelectNode(table, 'name')
-    >>> node2 = WhereNode(name='Kendall')
-    >>> complex_node = ComplexNode(node1, node2)
-    ... complex_node.as_sql(connection)
-    ... ["select name from table", "where name='Kendall'"]
     """
 
     def __init__(self, *nodes: T):
@@ -278,34 +289,38 @@ class ComplexNode[T = TypeNode]:
             lambda node: node.node_name != NodeEnums.WHERE.value,
             self.nodes
         )
-        base_node: T = None
+        
+        base_node: Optional[T] = None
         for i, node in enumerate(_where_nodes):
             if i == 0:
                 base_node = node
                 continue
-            _, _, _, args, kwargs = node.deconstruct()
-            base_node(*args, **kwargs)
 
-        clean_nodes.append(base_node)
+            _, _, _, args, kwargs = node.deconstruct()
+            if base_node is not None:
+                base_node(*args, **kwargs)
+
+        if base_node is not None:
+            clean_nodes.append(base_node)
         return RawSQL(backend, *clean_nodes)
 
 
 class BaseNode(ABC):
     template_sql: ClassVar[str] = ''
 
-    def __init__(self, table: Optional[TypeTable] = None, fields: Sequence[str] = []):
+    def __init__(self, table: Optional[TypeTable] = None, fields: list[str] = []):
         self.table = table
         self.fields = fields or ['*']
 
     def __repr__(self):
         return f'<{self.__class__.__name__}>'
 
-    def __add__(self, node):
+    def __add__(self, node: Any):
         if not isinstance(node, BaseNode):
             return NotImplemented
         return ComplexNode(self, node)
 
-    def __eq__(self, node):
+    def __eq__(self, node: Any):
         name = node
         if isinstance(node, BaseNode):
             name = node.node_name
@@ -315,17 +330,17 @@ class BaseNode(ABC):
 
         return name == self.node_name
 
-    def __contains__(self, value):
+    def __contains__(self, value: Any):
         name = self.node_name
         if isinstance(name, NodeEnums):
             name = name.value
 
         return value in name
 
-    def __and__(self, node):
+    def __and__(self, node: Any):
         return NotImplemented
 
-    def __call__(self, *fields: str):
+    def __call__(self, *args: Any, **kwargs: Any):
         raise NotImplementedError
 
     @property
@@ -359,10 +374,21 @@ class BaseNode(ABC):
 
 
 class SelectNode(BaseNode):
+    """Node used to create the SQL statement that allows selecting values from the database.
+
+     Args:
+        table (TypeTable): The table to select from.
+        *fields (str): The fields to select from the table. If no fields are provided, it defaults to selecting all fields using '*'.
+        distinct (bool, optional): Whether to select distinct values. Defaults to False.
+        limit (Optional[int], optional): An optional limit on the number of rows to return. Defaults to None.
+        offset (Optional[int], optional): An optional offset for the rows to return. Defaults to None.
+        view_name (Optional[str], optional): An optional name of a view to select from instead of the table. Defaults to None.
+     """
+
     template_sql: ClassVar[str] = 'select {fields} from {table}'
 
     def __init__(self, table: TypeTable, *fields: str, distinct: bool = False, limit: Optional[int] = None, offset: Optional[int] = None, view_name: Optional[str] = None):
-        super().__init__(table=table, fields=fields)
+        super().__init__(table=table, fields=list(fields))
         self.distinct = distinct
         # This parameter is implemented
         # afterwards on the SelectMap
@@ -380,6 +406,10 @@ class SelectNode(BaseNode):
 
     @override
     def as_sql(self, backend: TypeSQLiteBackend):
+        if self.table is None:
+            raise ValueError(
+                'SelectNode requires a table to be specified')
+
         select_sql = self.template_sql.format_map({
             'fields': backend.comma_join(self.fields),
             # We can query a table or view that was previously
@@ -607,6 +637,9 @@ class UpdateNode(BaseNode):
         return NodeEnums.UPDATE.value
 
     def as_sql(self, backend: TypeSQLiteBackend):
+        if self.table is None:
+            raise ValueError('UpdateNode requires a table to be specified')
+
         where_node = WhereNode(*self.where_args, **self.where_expressions)
         fields_to_set = backend.parameter_join(self.update_defaults)
 
@@ -719,7 +752,7 @@ class InsertNode(BaseNode):
 
             values = []
             for item in self.batch_values:
-                quoted_values = backend.quote_values(item.values())
+                quoted_values = backend.quote_values(list(item.values()))
                 joined = backend.comma_join(quoted_values)
                 values.append(f"({joined})")
 
@@ -731,7 +764,7 @@ class InsertNode(BaseNode):
 
         insert_sql = template.format_map({
             'table': self.table.name,
-            'columns': backend.comma_join(columns),
+            'columns': backend.comma_join(list(columns)),
             'values': joined_values
         })
         sql = [insert_sql]
@@ -782,7 +815,7 @@ class JoinNode(BaseNode):
 
         join_sql = self.template_sql.format_map({
             'join_type': self.join_type,
-            'table': self.table,
+            'table': self.table.name,
             'condition': condition
         })
         return [join_sql]

@@ -141,7 +141,7 @@ class NodeEnums(Enum):
     INSERT = 'insert'
     ORDER_BY = 'order_by'
     WHERE = 'where'
-    # JOIN = 'join'
+    JOIN = 'join'
     # GROUP_BY = 'group_by'
     # HAVING = 'having'
     # LIMIT = 'limit'
@@ -160,6 +160,7 @@ class JoinTypeEnum(Enum):
     LEFT = 'left'
     RIGHT = 'right'
     CROSS = 'cross'
+
 
 class FieldTypesEnum(Enum):
     TEXT = 'text'

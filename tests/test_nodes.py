@@ -102,7 +102,8 @@ class TestInsertNode(LorelieTestCase):
         node = InsertNode(
             self.create_table(),
             insert_values={'name': 'Kendall'},
-            batch_values=[{'name': 'Kylie'}], # batch_values should take precedence over insert_values
+            # batch_values should take precedence over insert_values
+            batch_values=[{'name': 'Kylie'}],
             returning=['id']
         )
         result = node.as_sql(self.create_connection())
@@ -436,6 +437,19 @@ class TestComplexNode(LorelieTestCase):
 
         self.assertIsInstance(raw_sql, RawSQL)
         self.assertIn(where, complex_node)
+
+    def test_similar_nodes(self, mock_connect):
+        select = SelectNode(self.create_table())
+        where = WhereNode(name='Kendall')
+        where2 = WhereNode(name='Kylie')
+
+        complex_node = ComplexNode(select, where, where2)
+        raw_sql = complex_node.as_sql(self.create_connection())
+
+        print(raw_sql)
+
+        # self.assertIsInstance(raw_sql, RawSQL)
+        # self.assertIn(where, complex_node)
 
 
 @patch.object(sqlite3, 'connect')

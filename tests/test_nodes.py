@@ -14,13 +14,16 @@ class TestBaseNode(LorelieTestCase):
     def test_structure(self):
         class CustomNode(BaseNode):
             def as_sql(self, backend):
-                return 'custom sql'
+                return ['custom sql']
 
         node = CustomNode(self.create_table())
         self.assertListEqual(node.fields, ['*'])
-        self.assertIsNone(node.node_name)
+        self.assertEqual(node.node_name, '')
         self.assertIsInstance(node + node, ComplexNode)
-        self.assertEqual(node.as_sql(self.create_connection()), 'custom sql')
+        self.assertListEqual(
+            node.as_sql(self.create_connection()),
+            ['custom sql']
+        )
 
 
 class TestInsertNode(LorelieTestCase):
@@ -48,7 +51,7 @@ class TestInsertNode(LorelieTestCase):
             ]
         )
 
-    def test_different_value_types(self):
+    def test_insert_values(self):
         data = {
             'name': 'Kendall',
             'age': 22,
@@ -70,6 +73,37 @@ class TestInsertNode(LorelieTestCase):
         node = InsertNode(
             self.create_table(),
             batch_values=[{'name': 'Kendall'}, {'name': 'Kylie'}]
+        )
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            [
+                "insert into celebrities (name) values ('Kendall'), ('Kylie')",
+                'returning id'
+            ]
+        )
+
+    def test_returning(self):
+        node = InsertNode(
+            self.create_table(),
+            insert_values={'name': 'Kendall'},
+            returning=['id']
+        )
+        result = node.as_sql(self.create_connection())
+        self.assertListEqual(
+            result,
+            [
+                "insert into celebrities (name) values('Kendall')",
+                'returning id'
+            ]
+        )
+
+    def test_all_parameters(self):
+        node = InsertNode(
+            self.create_table(),
+            insert_values={'name': 'Kendall'},
+            batch_values=[{'name': 'Kylie'}],
+            returning=['id']
         )
         result = node.as_sql(self.create_connection())
         self.assertListEqual(

@@ -15,7 +15,7 @@ from lorelie.lorelie_typings import TypeConstraint, TypeDeconstructedField, Type
 from lorelie.validators import url_validator
 
 
-class Field[T]:
+class Field[T = Any]:
     python_type = str
     base_validators: list[Callable[[Any], None]] = []
     default_field_errors: dict[str, str] = {}
@@ -27,14 +27,15 @@ class Field[T]:
         self.editable: bool = editable
         self.null: bool = null
         self.primary_key: bool = primary_key
-        self.default = default
+        self.default: Optional[T] = default
         self.unique: bool = unique
         self.table: Optional[TypeTable] = None
         self.max_length: Optional[int] = max_length
         self.base_validators = self.base_validators + validators
-        self.standard_field_types = ['text', 'integer', 'blob', 'real', 'null']
+        self.standard_field_types: list[str] = [
+            'text', 'integer', 'blob', 'real', 'null']
         self.is_relationship_field = False
-        self.index = 0
+        self.index: int = 0
         self.base_field_parameters = {
             'primary key': False,
             'not null': True,
@@ -61,7 +62,7 @@ class Field[T]:
         ])
 
     @property
-    def field_type(self):
+    def field_type(self) -> str:
         """The field type is the type for
         the field that will be registered
         in the database. SQLite has converters
@@ -542,7 +543,7 @@ class SlugField(CharField):
     pass
 
 
-class UUIDField(Field):
+class UUIDField(Field[uuid.UUID]):
     def __init__(self, name: str, **kwargs: Any):
         super().__init__(name, **kwargs)
         self.python_type = (str, uuid.UUID)
@@ -562,7 +563,7 @@ class UUIDField(Field):
     def to_python(self, data: Any):
         if not isinstance(data, uuid.UUID):
             try:
-                param = 'hex' if isinstance(data, int) else 'hex'
+                param = 'int' if isinstance(data, int) else 'hex'
                 return uuid.UUID(**{param: data})
             except:
                 raise ValidationError('uuid is not valid')

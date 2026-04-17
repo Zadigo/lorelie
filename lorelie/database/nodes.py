@@ -20,7 +20,7 @@ import itertools
 from dataclasses import field
 import re
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Generic, Optional, override
+from typing import Any, ClassVar, Optional, Sequence, override
 
 from lorelie.expressions import CombinedExpression, Q
 from lorelie.lorelie_typings import (NodeEnums, TypeJoinTypes, TypeNode, TypeOrCombinedExpression, TypeQ,
@@ -62,6 +62,10 @@ class SelectMap:
 
     def resolve(self, backend: TypeSQLiteBackend):
         nodes: list[str] = []
+        if self.select is None:
+            raise ValueError(
+                'Select node is required to resolve the select map')
+
         nodes.extend(self.select.as_sql(backend))
 
         if self.where is not None:
@@ -235,7 +239,7 @@ class RawSQL:
         return sql
 
 
-class ComplexNode(Generic[TypeNode]):
+class ComplexNode[T = TypeNode]:
     """A node that aggregates multiple nodes together
 
     Args:
@@ -249,7 +253,7 @@ class ComplexNode(Generic[TypeNode]):
     ... ["select name from table", "where name='Kendall'"]
     """
 
-    def __init__(self, *nodes: TypeNode):
+    def __init__(self, *nodes: T):
         self.nodes = list(nodes)
 
     def __repr__(self):
@@ -274,7 +278,7 @@ class ComplexNode(Generic[TypeNode]):
             lambda node: node.node_name != NodeEnums.WHERE.value,
             self.nodes
         )
-        base_node: TypeNode = None
+        base_node: T = None
         for i, node in enumerate(_where_nodes):
             if i == 0:
                 base_node = node
@@ -289,7 +293,7 @@ class ComplexNode(Generic[TypeNode]):
 class BaseNode(ABC):
     template_sql: Optional[str] = None
 
-    def __init__(self, table: Optional[TypeTable] = None, fields: list[str] = []):
+    def __init__(self, table: Optional[TypeTable] = None, fields: Sequence[str] = []):
         self.table = table
         self.fields = fields or ['*']
 
@@ -322,7 +326,7 @@ class BaseNode(ABC):
         return NotImplemented
 
     def __call__(self, *fields: str):
-        return NotImplemented
+        raise NotImplementedError
 
     @property
     def node_name(self) -> str:
@@ -330,9 +334,23 @@ class BaseNode(ABC):
 
     @abstractmethod
     def as_sql(self, backend: TypeSQLiteBackend) -> list[str]:
-        raise NotImplemented
+        """Method that should be implemented by all nodes to return the SQL
+        representation of the node
+
+        Args:
+            backend (TypeSQLiteBackend): The backend to use for SQL generation
+
+        Returns:
+            list[str]: The SQL representation of the node as a list of strings. Each string represents a part of the SQL statement.
+        """
+        raise NotImplementedError
 
     def deconstruct(self) -> list[str | Optional[str] | tuple[str, ...] | list[str]]:
+        """Deconstruct the node into its components for serialization or inspection.
+
+        Returns:
+            list[str | Optional[str] | tuple[str, ...] | list[str]]: A list containing the class name, table name, and fields of the node.
+        """
         return [
             self.__class__.__name__,
             None if self.table is None else self.table.name,
@@ -353,8 +371,8 @@ class SelectNode(BaseNode):
         self.view_name = view_name
 
     def __call__(self, *fields: str, **kwargs: Any):
-        new_fields = self.fields.extend(fields)
-        return self.__class__(self.table, *new_fields, **kwargs)
+        self.fields.extend(fields)
+        return self.__class__(self.table, *self.fields, **kwargs)
 
     @property
     def node_name(self):
@@ -392,15 +410,22 @@ class SelectNode(BaseNode):
 
 class WhereNode(BaseNode):
     """
-    >>> node = WhereNode(name='Kendall')
-    ... node.as_sql(connection)
-    ... "where name='Kendall'"
+    Node used to create the SQL statement that allows filtering values in the database. In other
+    words it is the `where` part of a SQL statement.
 
-    `args` accepts a `Q` function as arguments:
+    `expressions` can be provided as key-value pairs::
 
-    >>> node = WhereNode(Q(name='Kendall'))
-    ... node.as_sql(connection)
-    ... "where name='Kendall'"
+        node = WhereNode(name='Kendall')
+        node.as_sql(connection)
+
+        # Result: "where name='Kendall'"
+
+    `args` accepts a `Q` function as arguments::
+
+        node = WhereNode(Q(name='Kendall'))
+        node.as_sql(connection)
+        
+        # Result: "where name='Kendall'"
     """
 
     template_sql: Optional[str] = 'where {params}'
@@ -537,29 +562,32 @@ class OrderByNode(BaseNode):
 
 
 class UpdateNode(BaseNode):
-    """To update existing data in a table, you use SQLite 
-    UPDATE statement. The following illustrates the syntax 
-    of the UPDATE statement:
+    """Node used to create the SQL statement that allows updating values in the database.
 
-    >>> node = UpdateNode(table, {'name': 'Kendall'}, name='Kylie')
-    ... node.as_sql(connection)
-    ... ["update celebrities set name='Kendall'", "where name='Kylie'"]
+    .. code-block:: python
 
-    `where_expressions` can also be provided a key-value pair:
+        node = UpdateNode(table, {'name': 'Kendall'}, name='Kylie')
+        node.as_sql(connection)
 
-    >>> node = UpdateNode(table, {'name': 'Kendall'}, name='Kylie')
+        # Result: ["update celebrities set name='Kendall'", "where name='Kylie'"]
 
-    `where_args` accepts `Q` functions as arguments:
+    `where_expressions` can also be provided a key-value pair::
 
-    >>> node = UpdateNode(table, {'name': 'Kendall'}, Q(name='Kylie'))
-    ... node.as_sql(connection)
-    ... ["update celebrities set name='Kendall'", "where name='Kylie'"]
+        node = UpdateNode(table, {'name': 'Kendall'}, name='Kylie')
 
-    If both `where_args` and `where_expressions` are provided:
+    `where_args` accepts `Q` functions as arguments::
 
-    >>> ["update celebrities set name='Kendall'", "where name='Kylie' and name='Julie'"]
+        node = UpdateNode(table, {'name': 'Kendall'}, Q(name='Kylie'))
+        node.as_sql(connection)
 
-    Note: https://www.sqlitetutorial.net/sqlite-update/
+        # Result: ["update celebrities set name='Kendall'", "where name='Kylie'"]
+
+    If both `where_args` and `where_expressions` are provided::
+
+        # Result: ["update celebrities set name='Kendall'", "where name='Kylie' and name='Julie'"]
+
+    .. _Documentation: 
+        https://www.sqlitetutorial.net/sqlite-update/
     """
 
     template_sql = 'update {table} set {fields}'
@@ -590,6 +618,16 @@ class UpdateNode(BaseNode):
 
 
 class DeleteNode(BaseNode):
+    """Node used to create the SQL statement that allows deleting values in the database.
+
+    Args:
+        table (TypeTable): The table to delete from.
+        where_args (Q): Positional arguments representing complex conditions for the WHERE clause.
+        order_by (list[str], optional): A list of fields to order the deletion by. Defaults to [].
+        limit (Optional[int], optional): An optional limit on the number of rows to delete. Defaults to None.
+        where_expressions (dict[str, Any]): Keyword arguments representing simple conditions for the WHERE clause.
+    """
+
     def __init__(self, table: TypeTable, *where_args: Q, order_by: list[str] = [], limit: Optional[int] = None, **where_expressions: dict[str, Any]):
         super().__init__(table=table)
         self.where_args = where_args
@@ -602,6 +640,9 @@ class DeleteNode(BaseNode):
         return NodeEnums.DELETE.value
 
     def as_sql(self, backend: TypeSQLiteBackend):
+        if self.table is None:
+            raise ValueError('DeleteNode requires a table to be specified')
+
         delete_sql = backend.DELETE.format_map({
             'table': self.table.name
         })
@@ -630,13 +671,23 @@ class InsertNode(BaseNode):
     is a list of dictionnaries or inserted as a single element
     using `insert_values`
 
-    Note: https://www.sqlitetutorial.net/sqlite-insert/
+    Args:
+        table (TypeTable): The table to insert the values into.
+        batch_values (list[dict[str, Any]], optional): A list of dictionnaries containing the values to insert. Defaults to [].
+        insert_values (dict[str, Any], optional): A dictionnary containing the values to insert. Defaults to {}.
+        returning (list[str], optional): A list of fields to return after the insert operation. Defaults to [].
+
+    Exceptions:
+        ValueError: If any of the items in `batch_values` is not a dictionnary.
+
+    .. _Documentation:
+        https://www.sqlitetutorial.net/sqlite-insert/
     """
 
     template_sql: Optional[str] = 'insert into {table} ({columns}) values({values})'
     batch_insert_sql: ClassVar[str] = 'insert into {table} ({columns}) values {values}'
 
-    def __init__(self, table: TypeTable, batch_values: list[dict] = [], insert_values: dict = {}, returning: list[str] = []):
+    def __init__(self, table: TypeTable, batch_values: list[dict[str, Any]] = [], insert_values: dict[str, Any] = {}, returning: list[str] = []):
         super().__init__(table=table)
         self.insert_values = insert_values
         self.returning = returning
@@ -759,7 +810,7 @@ class ViewNode(BaseNode):
         fields (list[str], optional): Column names to display in the view. Defaults to [].
     """
 
-    template_sql: Optional[str] = 'create view if not exists {name} as {select_node}'
+    template_sql: str = 'create view if not exists {name} as {select_node}'
 
     def __init__(self, name: str, queryset: TypeQuerySet, *, fields: list[str] = [], temporary: bool = False):
         self.name = name

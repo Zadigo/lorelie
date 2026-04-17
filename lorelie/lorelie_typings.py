@@ -18,33 +18,38 @@ if TYPE_CHECKING:
     from lorelie.database.functions.window import Rank, PercentRank, CumeDist, Lead, Lag, DenseRank, LastValue, FirstValue, NthValue, NTile, RowNumber
 
 
+type NullableType[T] = T | None
+
+type TypeListStr = list[str]
+
+
+type TypeField = 'Field'
+
 type TypeRow = 'BaseRow'
 
 type TypeRowList = list[TypeRow]
 
 type TypeDatabaseManager = 'DatabaseManager'
 
+
+type TypeDatabase = 'Database'
+
 type TypeTable = 'Table'
 
 type TypeSQLiteBackend = 'SQLiteBackend'
 
-type NullableType[T] = T | None
 
 type TypeFunction = 'Functions'
 
-type TypeDatabase = 'Database'
-
-type TypeField = 'Field'
-
-type TypeListStr = list[str]
-
 type TypeNode = 'BaseNode'
+
 
 type TypeTableMap = dict[str, TypeTable]
 
 type TypeQuerySet = 'QuerySet'
 
 type TypeQ = 'Q'
+
 
 type TypeOrCombinedExpression[T] = 'T | CombinedExpression'
 
@@ -156,6 +161,16 @@ class JoinTypeEnum(Enum):
     RIGHT = 'right'
     CROSS = 'cross'
 
+class FieldTypesEnum(Enum):
+    TEXT = 'text'
+    INTEGER = 'integer'
+    REAL = 'real'
+    BLOB = 'blob'
+    BOOLEAN = 'boolean'
+    DATE = 'date'
+    DATETIME = 'datetime'
+    TIME = 'time'
+
 
 TypeJoinTypes = Literal[
     'inner',
@@ -215,11 +230,13 @@ class OnDeleteEnum(Enum):
     SET_DEFAULT = 'set_default'
 
 
-TypeOnDeleteTypes = Literal[OnDeleteEnum.CASCADE,
-                            OnDeleteEnum.SET_NULL,
-                            OnDeleteEnum.RESTRICT,
-                            OnDeleteEnum.NO_ACTION,
-                            OnDeleteEnum.SET_DEFAULT]
+TypeOnDeleteTypes = Literal[
+    OnDeleteEnum.CASCADE,
+    OnDeleteEnum.SET_NULL,
+    OnDeleteEnum.RESTRICT,
+    OnDeleteEnum.NO_ACTION,
+    OnDeleteEnum.SET_DEFAULT
+]
 
 
 class TriggerEnum(Enum):

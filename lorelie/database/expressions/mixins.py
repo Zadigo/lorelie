@@ -426,12 +426,12 @@ class SQL(ExpressionFiltersMixin):
 
             return str(value)
 
-        values = map(check_integers, values)
+        clean_values = map(check_integers, values)
 
         if space_characters:
-            return ' '.join(values)
+            return ' '.join(clean_values)
 
-        return ''.join(values)
+        return ''.join(clean_values)
 
     @staticmethod
     def finalize_sql(sql: str):
@@ -467,7 +467,7 @@ class SQL(ExpressionFiltersMixin):
         >>> self.build_dot_notation([('followers', 'id', '=', '1')])
         ... 'followers.id = 1'
         """
-        notations = []
+        notations: list[str] = []
         for sub_items in values:
             if not isinstance(sub_items, (list, tuple)):
                 raise ValueError(
@@ -484,7 +484,7 @@ class SQL(ExpressionFiltersMixin):
                     "in order to create a valid dot notation"
                 )
 
-            dot_notation = []
+            dot_notation: list[str] = []
             for i, sub_value in enumerate(sub_items):
                 # As soon as we get the operator, stop the
                 # dotting. Get the remaing items from the
@@ -522,7 +522,7 @@ class SQL(ExpressionFiltersMixin):
             result.append(equality)
         return self.comma_join(result)
 
-    def quote_values(self, values: list[Any]):
+    def quote_values(self, values: Sequence[Any]):
         """Quotes multiple values at once"""
         return list(map(lambda x: self.quote_value(x), values))
 

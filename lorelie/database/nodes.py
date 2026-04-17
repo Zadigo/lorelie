@@ -291,7 +291,7 @@ class ComplexNode[T = TypeNode]:
 
 
 class BaseNode(ABC):
-    template_sql: Optional[str] = None
+    template_sql: ClassVar[str] = ''
 
     def __init__(self, table: Optional[TypeTable] = None, fields: Sequence[str] = []):
         self.table = table
@@ -359,7 +359,7 @@ class BaseNode(ABC):
 
 
 class SelectNode(BaseNode):
-    template_sql: Optional[str] = 'select {fields} from {table}'
+    template_sql: ClassVar[str] = 'select {fields} from {table}'
 
     def __init__(self, table: TypeTable, *fields: str, distinct: bool = False, limit: Optional[int] = None, offset: Optional[int] = None, view_name: Optional[str] = None):
         super().__init__(table=table, fields=fields)
@@ -413,6 +413,10 @@ class WhereNode(BaseNode):
     Node used to create the SQL statement that allows filtering values in the database. In other
     words it is the `where` part of a SQL statement.
 
+    Args:
+        *args (TypeOrCombinedExpression[TypeQ]): Positional arguments representing complex conditions for the WHERE clause.
+        **expressions (dict[str, Any]): Keyword arguments representing simple conditions for the WHERE clause.
+
     `expressions` can be provided as key-value pairs::
 
         node = WhereNode(name='Kendall')
@@ -424,11 +428,11 @@ class WhereNode(BaseNode):
 
         node = WhereNode(Q(name='Kendall'))
         node.as_sql(connection)
-        
+
         # Result: "where name='Kendall'"
     """
 
-    template_sql: Optional[str] = 'where {params}'
+    template_sql: ClassVar[str] = 'where {params}'
 
     def __init__(self, *args: TypeOrCombinedExpression[TypeQ], **expressions: Any):
         self.expressions = expressions
@@ -486,7 +490,7 @@ class WhereNode(BaseNode):
 
 
 class OrderByNode(BaseNode):
-    template_sql: Optional[str] = 'order by {fields}'
+    template_sql: ClassVar[str] = 'order by {fields}'
 
     def __init__(self, table: TypeTable, *fields: str):
         self.ascending: set[str] = set()
@@ -590,7 +594,7 @@ class UpdateNode(BaseNode):
         https://www.sqlitetutorial.net/sqlite-update/
     """
 
-    template_sql = 'update {table} set {fields}'
+    template_sql: ClassVar[str] = 'update {table} set {fields}'
 
     def __init__(self, table: TypeTable, update_defaults: dict, *where_args: Q, **where_expressions: dict[str, Any]):
         super().__init__(table=table)
@@ -679,12 +683,13 @@ class InsertNode(BaseNode):
 
     Exceptions:
         ValueError: If any of the items in `batch_values` is not a dictionnary.
+        ValueError: If the table is not specified.
 
     .. _Documentation:
         https://www.sqlitetutorial.net/sqlite-insert/
     """
 
-    template_sql: Optional[str] = 'insert into {table} ({columns}) values({values})'
+    template_sql: ClassVar[str] = 'insert into {table} ({columns}) values({values})'
     batch_insert_sql: ClassVar[str] = 'insert into {table} ({columns}) values {values}'
 
     def __init__(self, table: TypeTable, batch_values: list[dict[str, Any]] = [], insert_values: dict[str, Any] = {}, returning: list[str] = []):
@@ -705,6 +710,9 @@ class InsertNode(BaseNode):
 
     def as_sql(self, backend: TypeSQLiteBackend):
         template = self.template_sql
+
+        if self.table is None:
+            raise ValueError('InsertNode requires a table to be specified')
 
         if self.batch_values:
             columns = self.batch_values[0].keys()
@@ -739,10 +747,10 @@ class JoinNode(BaseNode):
     """Node used to create the SQL statement
     that allows foreign key joins"""
 
-    template_sql: Optional[str] = '{join_type} join {table} on {condition}'
+    template_sql: ClassVar[str] = '{join_type} join {table} on {condition}'
 
-    cross_join: Optional[str] = 'cross join {field}'
-    full_outer_join: Optional[str] = 'full outer join {table} using({field})'
+    cross_join: ClassVar[str] = 'cross join {field}'
+    full_outer_join: ClassVar[str] = 'full outer join {table} using({field})'
 
     def __init__(self, table: TypeTable, relationship_map, join_type: TypeJoinTypes = 'inner'):
         super().__init__()
@@ -781,7 +789,7 @@ class JoinNode(BaseNode):
 
 
 class IntersectNode(BaseNode):
-    template_sql: Optional[str] = '{0} intersect {1}'
+    template_sql: ClassVar[str] = '{0} intersect {1}'
 
     def __init__(self, left_select: 'SelectNode', right_select: 'SelectNode'):
         self.left_select = left_select
@@ -810,7 +818,7 @@ class ViewNode(BaseNode):
         fields (list[str], optional): Column names to display in the view. Defaults to [].
     """
 
-    template_sql: str = 'create view if not exists {name} as {select_node}'
+    template_sql: ClassVar[str] = 'create view if not exists {name} as {select_node}'
 
     def __init__(self, name: str, queryset: TypeQuerySet, *, fields: list[str] = [], temporary: bool = False):
         self.name = name
@@ -856,7 +864,7 @@ class WhenNode:
     def as_sql(self, backend: TypeSQLiteBackend):
         filters = backend.decompose_filters(**self.condition)
         joined_filters = backend.build_filters(filters, space_characters=False)
-        when_sql = backend.WHEN_TEMPLATE.format_map({
+        when_sql = backend.WHEN.format_map({
             'condition': joined_filters
         })
         return when_sql

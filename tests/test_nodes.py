@@ -102,14 +102,14 @@ class TestInsertNode(LorelieTestCase):
         node = InsertNode(
             self.create_table(),
             insert_values={'name': 'Kendall'},
-            batch_values=[{'name': 'Kylie'}],
+            batch_values=[{'name': 'Kylie'}], # batch_values should take precedence over insert_values
             returning=['id']
         )
         result = node.as_sql(self.create_connection())
         self.assertListEqual(
             result,
             [
-                "insert into celebrities (name) values ('Kendall'), ('Kylie')",
+                "insert into celebrities (name) values ('Kylie')",
                 'returning id'
             ]
         )

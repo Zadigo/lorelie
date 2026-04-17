@@ -1,6 +1,6 @@
 [project]
 name = "lorelie"
-version = "0.1.0"
+version = "1.0.0-alpha.3"
 description = "Lorelie is a lightweight ORM for Python, designed to simplify database interactions with an intuitive and expressive API."
 keywords = ["ORM", "database", "Python", "SQLAlchemy", "SQLite"]
 authors = [

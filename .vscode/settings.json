@@ -1,9 +1,10 @@
 {
-    "python.analysis.autoFormatStrings": true,
     "python.analysis.typeCheckingMode": "standard",
+    "python.analysis.autoFormatStrings": true,
     "[python]": {
         "editor.defaultFormatter": "ms-python.autopep8",
         "editor.codeActionsOnSave": {
+            "source.fixAll.pylance": "always",
             "source.unusedImports": "always"
         }
     },
@@ -12,7 +13,7 @@
             "previewLimit": 50,
             "driver": "SQLite",
             "database": "${workspaceFolder:lorelie}/companies.sqlite",
-            "name": "Cmopanies"
+            "name": "Companies"
         }
     ]
 }

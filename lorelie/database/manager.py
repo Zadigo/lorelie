@@ -2,7 +2,7 @@ import collections
 import dataclasses
 import datetime
 from dataclasses import is_dataclass
-from typing import Any, Generator, Iterator, Optional, Sequence, Type
+from typing import Any, Generator, Iterator, Optional, Self, Sequence, Type, overload
 from warnings import deprecated
 
 from asgiref.sync import sync_to_async
@@ -16,7 +16,7 @@ from lorelie.lorelie_typings import TypeDatabase, TypeFunction, TypeNewValue, Ty
 from lorelie.queries import QuerySet, ValuesIterable
 
 
-class DatabaseManager:
+class DatabaseManager[T: TypeTable]:
     """A manager is a class that implements query
     functionnalities for inserting, updating, deleting
     or retrieving data from the underlying database tables"""
@@ -24,7 +24,7 @@ class DatabaseManager:
     def __init__(self):
         self.table_map: TypeTableMap = {}
         self.database: Optional[TypeDatabase] = None
-        self.table: Optional[TypeTable] = None
+        self.table: Optional[T] = None
         # Tells if the manager was
         # created via as_manager
         self.auto_created: bool = True
@@ -33,7 +33,13 @@ class DatabaseManager:
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.database}>'
 
-    def __get__(self, instance: TypeTable, cls: Optional[Type[TypeTable]] = None):
+    @overload
+    def __get__(self, instance: None, cls: Type[T]) -> Self: ...
+
+    @overload
+    def __get__(self, instance: T, cls: Optional[Type[T]] = None) -> Self: ...
+
+    def __get__(self, instance: T, cls: Optional[Type[T]] = None) -> Self:
         if not self.table_map:
             self.table = instance
 
@@ -69,7 +75,7 @@ class DatabaseManager:
         return instance
 
     @deprecated('Use database current_timestamp, dataetim and data database functions directly')
-    def _validate_auto_fields(self, table: TypeTable, params: dict[str, Any], update_only: bool = False):
+    def _validate_auto_fields(self, table: T, params: dict[str, Any], update_only: bool = False):
         # There might be cases where the
         # user does not pass any values
         # in the create fields but that
@@ -102,6 +108,10 @@ class DatabaseManager:
                 continue
             data_dict[field] = values[i]
         return named(**data_dict)
+
+    def pre_check(self):
+        if self.table is None:
+            raise ValueError("Manager should be used via a table instance")
 
     def first(self):
         """Returns the first row from
@@ -188,10 +198,10 @@ class DatabaseManager:
 
     def get(self, *args, **kwargs):
         """Returns a specific row from the database
-        based on a set of criteria
+        based on a set of criteria::
 
-        >>> instance.objects.get(id__eq=1)
-        ... instance.objects.get(id=1)
+            instance.objects.get(id__eq=1)
+            instance.objects.get(id=1)
         """
         self._pre_query()
 
@@ -218,50 +228,50 @@ class DatabaseManager:
         a query by adding additional fields to your querysets based on the values 
         of existing fields
 
-        For example, returning each values of the name in lower or uppercase:
+        For example, returning each values of the name in lower or uppercase::
 
-        >>> db.objects.annotate(lowered_name=Lower('name'))
-        ... db.objects.annotate(uppered_name=Upper('name'))
+            db.objects.annotate(lowered_name=Lower('name'))
+            db.objects.annotate(uppered_name=Upper('name'))
 
-        Returning only the year for a given column:
+        Returning only the year for a given column::
 
-        >>> database.objects.annotate(year=ExtractYear('created_on'))
+            database.objects.annotate(year=ExtractYear('created_on'))
 
         We can also run cases. For example, when a price is equal to 1,
         then create temporary column named custom price with either 2 or 3:
 
-        >>> condition = When('price=1', 2)
-        ... case = Case(condition, default=3, output_field=CharField())
-        ... db.objects.annotate(custom_price=case)
+            condition = When('price=1', 2)
+            case = Case(condition, default=3, output_field=CharField())
+            db.objects.annotate(custom_price=case)
 
         Suppose you have two columns `price` and `tax` we can return a new
-        column with `price + tax`:
+        column with `price + tax`::
 
-        >>> db.objects.annotate(new_price=F('price') + F('tax'))
+            db.objects.annotate(new_price=F('price') + F('tax'))
 
-        You can also add a constant value to a column:
+        You can also add a constant value to a column::
 
-        >>> db.objects.annotate(new_price=F('price') + 10)
+            db.objects.annotate(new_price=F('price') + 10)
 
-        The `Value` expression can be used to return a specific value in a column:        
+        The `Value` expression can be used to return a specific value in a column::   
 
-        >>> db.objects.annotate(new_price=Value(1))
+            db.objects.annotate(new_price=Value(1))
 
         Finally, `Q` objects are used to encapsulate a collection 
         of keyword arguments and can be used to evaluate conditions.
 
         For instance, to annotate a result indicating whether the price 
-        is greater than 1:
+        is greater than 1::
 
-        >>> db.objects.annotate(result=Q(price__gt=1))
+            db.objects.annotate(result=Q(price__gt=1))
 
         NOTE: Using expressions without an alias field name will raise an error.
 
         Aggregate functions can also be used in annotations, but they will return 
         the result for each element grouped by a specified field. For example, to 
-        count the number of occurrences of each `price`:
+        count the number of occurrences of each `price`::
 
-        >>> db.objects.annotate(Count('price'))
+            db.objects.annotate(Count('price'))
 
         The above will return the price count for each products. If there are
         two products with a price of 1 we will then get `[{'price': 1, 'count_price': 2}]`
@@ -321,10 +331,14 @@ class DatabaseManager:
 
     def values(self, *fields: str):
         """Returns data from the database as a list
-        of dictionnary values
+        of dictionnary values::
 
-        >>> instance.objects.as_values('id')
-        ... [{'id': 1}]
+            instance.objects.as_values('id')
+
+            # Result: [{'id': 1}]
+
+        Args:
+            *fields (str): The fields to be returned as a list of strings. If no fields are provided, all fields will be returned.
         """
         # columns = list(fields) or ['rowid', '*']
         columns = list(fields)
@@ -541,9 +555,10 @@ class DatabaseManager:
 
     def exclude(self, *args: TypeOrCombinedExpression[TypeQ], **kwargs):
         """Selects all the values from the database
-        that match the filters
+        that match the filters::
 
-        >>> table.objects.exclude(firstname='Kendall')"""
+            table.objects.exclude(firstname='Kendall')
+        """
         select_node = SelectNode(self.table)
         where_node = ~WhereNode(*args, **kwargs)
 
@@ -570,10 +585,10 @@ class DatabaseManager:
         parameter to create the values that do not exist.
 
         If `defaults` is not specified, the values passed in kwargs
-        will become the default `defaults`.
+        will become the default `defaults`::
 
-        >>> defaults = {'age': 24}
-        ... db.objects.get_or_create(create_defaults=defaults, firstname='Margot')
+            defaults = {'age': 24}
+            db.objects.get_or_create(create_defaults=defaults, firstname='Margot')
 
         If the queryset returns multiple elements, an error is raised.
         """
@@ -719,11 +734,11 @@ class DatabaseManager:
         distinct rows that appear in both result sets. 
         This is similar to the SQL `INTERSECT` operator, 
         which is used to find the common records between 
-        two `SELECT` statements
+        two `SELECT` statements::
 
-        >>> qs1 = db.objects.all('celebrities')
-        ... qs2 = db.objects.all('celebrities')
-        ... qs3 = db.objects.intersect(qs1, qs2)
+            qs1 = db.objects.all('celebrities')
+            qs2 = db.objects.all('celebrities')
+            qs3 = db.objects.intersect(qs1, qs2)
         """
         if not isinstance(qs1, QuerySet):
             raise ValueError(f'{qs1} should be an instance of QuerySet')

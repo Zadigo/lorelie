@@ -1,7 +1,7 @@
 [project]
 name = "lorelie"
-version = "1.0.0-alpha.3"
-description = "Lorelie is a lightweight ORM for Python, designed to simplify database interactions with an intuitive and expressive API."
+version = "0.1.0.dev1"
+description = "Lorelie is a Python package that provides APIs to interact with SLite databases. It is designed to be easy to use and efficient, making it a great choice for developers who need to work with SQLite databases in their Python applications."
 keywords = ["ORM", "database", "Python", "SQLAlchemy", "SQLite"]
 authors = [
     { name = "John Pendenque", email = "pendenquejohn@gmail.com" },
@@ -13,6 +13,7 @@ readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.13"
 classifiers = [
+    "Development Status :: 1 - Planning",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",   
     "Programming Language :: Python :: 3.12",
@@ -21,12 +22,56 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: Database",
     "Topic :: Software Development :: Libraries :: Python Modules",
-    "Development Status :: 3 - Alpha",
 ]
 dependencies = [
-    "coverage>=7.13.1",
-    "pytest>=9.0.1",
     "pandas>=2.3.3",
     "asgiref>=3.11.1",
     "pytz>=2026.1.post1",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-aio>=2.1.7",
+    "pytest-cov>=7.1.0",
+    "pytest-datafiles>=3.0.1",
+    "pytest-django>=4.12.0",
+    "pytest-env>=1.6.0",
+    "ruff>=0.15.16",
+]
+
+[tool.pytest]
+# addopts = ["--import-mode=importlib"]
+
+[tool.pytest.ini_options]
+# addopts = "--cov=turboenv --cov-report html"
+
+[project.urls]
+Homepage = "https://github.com/Zadigo/turboenv"
+Documentation = "https://github.com/Zadigo/turboenv/wiki"
+Repository = "https://github.com/Zadigo/turboenv.git"
+Changelog = "https://github.com/Zadigo/turboenv/blob/main/CHANGELOG.md"
+
+[tool.pyright]
+typeCheckingMode = "off"
+reportMissingImports = true
+reportUntypedBaseClass = true
+
+# [tool.pytest_env]
+# env_files = [".env", ".env.test"]
+
+[tool.setuptools]
+# packages = [""]
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
+
+[tool.autopep8]
+max_line_length = 120
+# ignore = "E501,W6"  # or ["E501", "W6"]
+in-place = true
+recursive = true
+aggressive = 3

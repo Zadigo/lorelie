@@ -1,6 +1,6 @@
 import re
 from collections import OrderedDict
-from typing import Any, ClassVar, Optional, Type
+from typing import Any, ClassVar, Optional, Self, Type
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
@@ -34,7 +34,7 @@ class AbstractTable(metaclass=BaseTable):
     query_class: ClassVar[Type[Query]] = Query
 
     backend_class: ClassVar[Type[SQLiteBackend]] = SQLiteBackend
-    objects: ClassVar[DatabaseManager] = DatabaseManager()
+    objects: ClassVar[DatabaseManager[Self]] = DatabaseManager()
 
     def __init__(self):
         self.backend: Optional[TypeSQLiteBackend] = None

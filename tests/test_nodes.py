@@ -2,8 +2,6 @@ import sqlite3
 import unittest
 from unittest.mock import patch
 
-from numpy import delete
-
 from lorelie.database.nodes import (BaseNode, ComplexNode, DeleteNode,
                                     InsertNode, IntersectNode, JoinNode,
                                     OrderByNode, RawSQL, SelectMap, SelectNode,

@@ -202,6 +202,7 @@ class TestIntegerField(LorelieTestCase):
         f = IntegerField('age')
         self.assertEqual(f.to_database(1), 1)
         self.assertEqual(f.to_database(1.0), 1)
+        self.assertEqual(f.to_database('25'), 25)
 
         with self.assertRaises(TypeError):
             f.to_database(lambda: {'a': 1})
@@ -212,6 +213,11 @@ class TestFloatField(LorelieTestCase):
         f = FloatField('followers')
         self.assertEqual(f.to_database(1.0), 1.0)
 
+        self.assertEqual(f.to_python(1), 1.0)
+        self.assertEqual(f.to_python(1.0), 1.0)
+        self.assertEqual(f.to_python(''), '')
+        self.assertEqual(f.to_python('3.14'), 3.14)
+
     def test_invalid_values(self):
         f = FloatField('followers')
         self.assertEqual(f.to_database(1.0), 1.0)
@@ -221,6 +227,9 @@ class TestFloatField(LorelieTestCase):
 
         with self.assertRaises(TypeError):
             f.to_database(lambda: {'a': 1})
+
+        with self.assertRaises(ValidationError):
+            f.to_python('not a float')
 
 
 class TestJsonField(LorelieTestCase):

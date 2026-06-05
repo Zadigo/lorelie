@@ -16,11 +16,59 @@ from lorelie.validators import url_validator
 
 
 class Field[T = Any]:
+    """Base field class that all other fields inherit from. It defines the basic
+    structure and behavior of a field in the database
+    
+    Args:
+        name (str): The name of the field.
+        max_length (int, optional): The maximum length of the field. Defaults to None.
+        null (bool, optional): Whether the field can be null. Defaults to False.
+        primary_key (bool, optional): Whether the field is a primary key. Defaults to False.
+        default (Any, optional): The default value for the field. Defaults to None.
+        unique (bool, optional): Whether the field should be unique. Defaults to False.
+        validators (list[Callable[[Any], None]], optional): A list of validators to run on the field value. Defaults to [].
+        verbose_name (str, optional): A human-readable name for the field. Defaults to None.
+        editable (bool, optional): Whether the field is editable. Defaults to False.
+    
+    Attributes:
+        constraints (list[TypeConstraint]): A list of constraints applied to the field.
+        name (str): The name of the field.
+        verbose_name (str | None): A human-readable name for the field.
+        editable (bool): Whether the field is editable.
+        null (bool): Whether the field can be null.
+        primary_key (bool): Whether the field is a primary key.
+        default (Any | None): The default value for the field.
+        unique (bool): Whether the field should be unique.
+        table (TypeTable | None): The table the field belongs to.
+        max_length (int | None): The maximum length of the field.
+        base_validators (list[Callable[[Any], None]]): A list of validators to run on the field value.
+        standard_field_types (list[str]): A list of standard field types.
+        is_relationship_field (bool): Whether the field is a relationship field.
+        index (int): The index of the field in the table.
+        base_field_parameters (dict[str, bool]): A dictionary of base field parameters.
+
+    Raises:
+        ValueError: If the field name is not valid or if a validator is not callable.
+        TypeError: If the value for the field is not of the correct type.
+        AttributeError: If the field is not associated with a table when trying to access the default value or constraints.
+        ExceptionGroup: If an exception occurs while trying to build the field parameters or run validators.
+    """
     python_type = str
     base_validators: list[Callable[[Any], None]] = []
     default_field_errors: dict[str, str] = {}
 
-    def __init__(self, name: str, *, max_length: Optional[int] = None, null: bool = False, primary_key: bool = False, default: Optional[T] = None, unique: bool = False, validators: list[Callable[[Any], None]] = [], verbose_name: Optional[str] = None, editable: bool = False):
+    def __init__(
+        self, 
+        name: str, *,
+        max_length: Optional[int] = None, 
+        null: bool = False, 
+        primary_key: bool = False, 
+        default: Optional[T] = None, 
+        unique: bool = False, 
+        validators: list[Callable[[Any], None]] = [], 
+        verbose_name: Optional[str] = None, 
+        editable: bool = False
+    ):
         self.constraints: list[TypeConstraint] = []
         self.name: str = self.validate_field_name(name)
         self.verbose_name: Optional[str] = verbose_name
@@ -54,9 +102,11 @@ class Field[T = Any]:
 
     def __eq__(self, value):
         if not isinstance(value, Field):
-            return NotImplemented
+            raise NotImplementedError(
+                f"Cannot compare {self.__class__.__name__} with {value.__class__.__name__}"
+            )
 
-        return any([
+        return all([
             self.name == value.name,
             self.field_type == value.field_type
         ])
@@ -109,7 +159,7 @@ class Field[T = Any]:
     def run_validators(self, value: Any):
         for validator in self.base_validators:
             if not callable(validator):
-                raise ValueError('Validator should be a callable')
+                raise TypeError('Validator should be a callable')
             validator(value)
 
     def to_python(self, data: Any) -> T:

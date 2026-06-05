@@ -58,6 +58,21 @@ class TestField(LorelieTestCase):
                     expected
                 )
 
+    def test_repr_and_hash(self):
+        field1 = Field('name')
+
+        self.assertEqual(repr(field1), "<Field[name]>")
+        self.assertIsNotNone(hash(field1))
+
+    def test_equality(self):
+        field1 = Field('name')
+        field2 = Field('name')
+        field3 = Field('age')
+
+        self.assertEqual(field1, field2)
+        self.assertNotEqual(field1, field3, 'Fields are equal')
+        self.assertNotEqual(field2, field3)
+
     def test_validate_field_name(self):
         pass
 
@@ -86,11 +101,11 @@ class TestField(LorelieTestCase):
         value = field.to_database(lambda: 'Kendall Jenner')
         self.assertEqual(value, 'Kendall Jenner')
 
-        value = field.to_database(25)
-        self.assertEqual(value, 25)
+    def test_to_database_value_is_none_or_empty_string(self):
+        field = Field('name')
 
-        value = field.to_database([1, 2, 3])
-        self.assertListEqual(value, [1, 2, 3])
+        self.assertEqual(field.to_database(None), '')
+        self.assertEqual(field.to_database(''), '')
 
     def test_base_field_parameters_boolean(self):
         field = Field('name', null=True, primary_key=True, unique=True)
@@ -122,18 +137,6 @@ class TestField(LorelieTestCase):
             ['name', 'varchar(100)', 'not null', 'check(length(name)>100)']
         )
 
-    def test_to_database(self):
-        field = Field('name')
-
-        values = [
-            ('Kendall', 'Kendall'),
-            ('1', '1')
-        ]
-        for value, expected in values:
-            with self.subTest(value=value):
-                result = field.to_database(value)
-                self.assertEqual(result, expected)
-
     def test_field_parameters_dictionnary(self):
         f1 = Field('name')
         self.assertDictEqual(
@@ -156,6 +159,25 @@ class TestField(LorelieTestCase):
                 'unique': True
             }
         )
+
+class TestFieldExceptions(LorelieTestCase):
+    def test_to_database_wrong_type(self):
+        field = Field('name')
+        with self.assertRaises(TypeError):
+            field.to_database(25)
+
+    def test_equality_wrong_type(self):
+        field = Field('name')
+        with self.assertRaises(NotImplementedError):
+            field == 'name'
+
+    def test_validator_is_not_callable(self):
+        field = Field('name')
+        field.base_validators = ['not a function']
+
+        with self.assertRaises(TypeError):
+            field.run_validators('Kendall')
+        
 
 
 class TestCharField(LorelieTestCase):

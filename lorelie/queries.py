@@ -116,20 +116,20 @@ class Query:
             instance.backend.connection.commit()
             instance.result_cache = list(cursor)
             instance.is_evaluated = True
-        finally:
-            instance.is_transactional = True
-            log_queries.mask_values = instance.backend.mask_values
-            log_queries.append(script, table=table, backend=backend)
 
-            # Logging should not be set to True
-            #  in a production environment since there
-            # could be sensitive data passed in the queries
-            # to the log. Warn the user about this
-            if instance.backend.log_queries:
-                for query in log_queries:
-                    lorelie_logger.info(f"▶️ \"{query}\"")
+        instance.is_transactional = True
+        log_queries.mask_values = instance.backend.mask_values
+        log_queries.append(script, table=table, backend=backend)
 
-            return instance
+        # Logging should not be set to True
+        #  in a production environment since there
+        # could be sensitive data passed in the queries
+        # to the log. Warn the user about this
+        if instance.backend.log_queries:
+            for query in log_queries:
+                lorelie_logger.info(f"▶️ \"{query}\"")
+
+        return instance
 
     @property
     def return_single_item(self):

@@ -171,11 +171,11 @@ class Field[T = Any]:
 
             try:
                 value = self.table.backend.quote_value(database_value)
-            except:
+            except Exception as e:
                 raise AttributeError(
                     "Field does not seem to be associated to a table "
                     "and therefore cannot its default value"
-                )
+                ) from e
             else:
                 initial_parameters.extend(['default', value])
 
@@ -200,7 +200,7 @@ class Field[T = Any]:
             # it raises a NoneType error in this section
             try:
                 constraint_sql = constraint.as_sql(self.table.backend)
-            except:
+            except Exception as e:
                 raise ExceptionGroup(
                     "An exception occured while trying to build "
                     f"the field parameters for {self}",
@@ -210,7 +210,7 @@ class Field[T = Any]:
                             "and therefore cannot build its constraints"
                         )
                     ]
-                )
+                ) from e
             else:
                 base_field_parameters.append(constraint_sql)
 
@@ -405,7 +405,7 @@ class DateFieldMixin:
         for f in formats:
             try:
                 d = datetime.datetime.strptime(data, f)
-            except:
+            except Exception:
                 continue
 
         if d is None:
@@ -565,8 +565,8 @@ class UUIDField(Field[uuid.UUID]):
             try:
                 param = 'int' if isinstance(data, int) else 'hex'
                 return uuid.UUID(**{param: data})
-            except:
-                raise ValidationError('uuid is not valid')
+            except Exception as e:
+                raise ValidationError('uuid is not valid') from e
         return data
 
 

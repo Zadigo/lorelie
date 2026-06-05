@@ -12,8 +12,8 @@
     "python.testing.autoTestDiscoverOnSaveEnabled": true,
     "python.testing.pytestArgs": [
         "-vv",
-        "--cov=src",
-        "--cov-report=markdown:lorelie",
+        "--cov=lorelie",
+        "--cov-report=markdown:lorelie-cov",
         "tests"
     ],
     "sqltools.connections": [

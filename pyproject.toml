@@ -31,6 +31,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "coverage>=7.13.5",
     "pytest>=9.0.3",
     "pytest-aio>=2.1.7",
     "pytest-cov>=7.1.0",
@@ -44,13 +45,13 @@ dev = [
 # addopts = ["--import-mode=importlib"]
 
 [tool.pytest.ini_options]
-# addopts = "--cov=turboenv --cov-report html"
+# addopts = "--cov=lorelie --cov-report html"
 
 [project.urls]
-Homepage = "https://github.com/Zadigo/turboenv"
-Documentation = "https://github.com/Zadigo/turboenv/wiki"
-Repository = "https://github.com/Zadigo/turboenv.git"
-Changelog = "https://github.com/Zadigo/turboenv/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Zadigo/lorelie"
+Documentation = "https://github.com/Zadigo/lorelie/wiki"
+Repository = "https://github.com/Zadigo/lorelie.git"
+Changelog = "https://github.com/Zadigo/lorelie/blob/main/CHANGELOG.md"
 
 [tool.pyright]
 typeCheckingMode = "off"

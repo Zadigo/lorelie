@@ -12,13 +12,23 @@ class TestDatabase(LorelieTestCase):
         db = self.create_empty_database
         self.assertTrue(db.in_memory)
 
-        with self.assertRaises(TableExistsError):
-            db.get_table('celebrities')
-
         self.assertFalse(db.migrations.migrated)
         self.assertFalse(db.has_relationships)
 
         db.migrate()
+
+    def test_table_does_not_exist(self):
+        db = self.create_empty_database
+        with self.assertRaises(TableExistsError):
+            db.get_table('celebrities')
+
+    # def test_path_parameter(self):
+    #     db = Database(path=pathlib.Path('.'))
+    #     self.assertFalse(db.in_memory)
+
+    def test_table_is_invalid(self):
+        with self.assertRaises(ValueError):
+            Database('test_table')
 
     def test_direct_table_attribute(self):
         db = self.create_database()

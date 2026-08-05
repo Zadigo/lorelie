@@ -151,3 +151,5 @@ lorelie_docs/node_modules
 *migrations.json
 
 .DS_Store
+*-coverage*
+reports/*

@@ -168,8 +168,11 @@ class Database:
         log_queries (bool, optional): Whether to log SQL queries executed on the database. Defaults to False.
         mask_values (bool, optional): Whether to mask sensitive values in the logs on insert operations. Defaults to False.
 
-    Returns:
-        Database: An instance of the Database class
+    Attributes:
+        migrations (Optional[Migrations]): An instance of the Migrations class that manages the migration process for the database. It is initialized in the constructor and can be used to perform migrations on the database.
+        query_class (Final[Type[Query]]): A reference to the Query class used for constructing and executing database queries. It is defined as a class attribute and is not intended to be modified.
+        migrations_class (Final[Type[Migrations]]): A reference to the Migrations class used for managing database migrations. It is defined as a class attribute and is not intended to be modified.
+        backend_class (Final[Type[SQLiteBackend]]): A reference to the SQLiteBackend class used for handling database connections and operations. It is defined as a class attribute and is not intended to be modified.
 
     Exceptions:
         ValueError: If any of the provided tables are not instances of Table, or if the provided path is not a directory when creating a physical database.

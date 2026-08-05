@@ -11,7 +11,7 @@ from lorelie.backends import SQLiteBackend, connections
 from lorelie.database.indexes import Index
 from lorelie.database.tables.base import Table
 from lorelie.fields.base import CharField, DateTimeField, JSONField
-from lorelie.lorelie_typings import NullableType, TypeConstraint, TypeDatabase, TypeDeconstructedField, TypeDeconstructedIndex, TypeField, TypeTable, TypeTableMap
+from lorelie.lorelie_typings import NullableType, TypeDatabase, TypeDeconstructedField, TypeDeconstructedIndex, TypeField, TypeTable, TypeTableMap
 from lorelie.queries import Query
 from lorelie import lorelie_logger
 
@@ -20,6 +20,22 @@ TypeFieldsToCheck = defaultdict[str, dict[str, TypeField]]
 
 @dataclass
 class JsonMigrationsSchema:
+    """Represents the structure of the JSON migration file which is used to
+    track the different states of the database and its tables across different
+    migration runs. It is used as a reference for the Migrations class to
+    determine the necessary operations to perform on the database in order to
+    update it to the latest state as defined by the user in their codebase
+    and the existing migration file (if any)
+    
+    Attributes:
+        id (Optional[str]): A unique identifier for the migration, generated as a random hexadecimal string. It is used to track different migration runs and can be useful for debugging and reference purposes.
+        date (Optional[str]): The date and time when the migration was created or last updated, stored as a string. It is used to track the timeline of migrations and can be useful for debugging and reference purposes.
+        number (Optional[int]): A sequential number representing the migration version. It is incremented with each migration run and is used to track the progression of migrations over time.
+        migrated (bool): A boolean flag indicating whether the migration has been applied to the database. It is used to determine whether the database is up to date with the latest migration schema and can be useful for conditional logic in the migration process.
+        in_memory (bool): A boolean flag indicating whether the database is an in-memory database. It is used to determine the migration strategy, as in-memory databases need to be recreated with each migration run, while physical databases can be altered in place.
+        schema (dict): A dictionary representing the current state of the database schema, including the tables, fields, indexes, and other relevant metadata.
+    """
+
     id: Optional[str] = None
     date: Optional[str] = None
     number: Optional[int] = None
@@ -95,11 +111,14 @@ def migration_validator(value):
 
 
 class Migrations:
-    """This class manages the different
-    states of a given database. It references
-    existing tables, dropped tables and their
+    """This class manages the different states of a given database. 
+    It references existing tables, dropped tables and their
     fields and runs the different methods required
-    to create or delete them eventually"""
+    to create or delete them eventually on the database. It also manages the 
+    different migration files (JSON and SQL) and their content across different 
+    migration runs. It is used as a reference for the Database class to perform the 
+    necessary operations on the database in order to update it to the latest state 
+    as defined by the user in their codebase and the existing migration file (if any)"""
 
     JSON_MIGRATIONS_SCHEMA: Optional[JsonMigrationsSchema] = None
     backend_class: Final[Type[SQLiteBackend]] = SQLiteBackend
@@ -135,7 +154,7 @@ class Migrations:
         # fully functionnal
         self.migrated = all([
             self.JSON_MIGRATIONS_SCHEMA.migrated,
-            self.SQL_MIGRATIONS_SCHEMA is not None
+            self.SQL_MIGRATIONS_SCHEMA is not None and self.SQL_MIGRATIONS_SCHEMA != ''
         ])
 
     def __repr__(self):
@@ -466,7 +485,7 @@ class Migrations:
         with open(self.migrations_json_path, mode='w+') as f:
             data = dataclasses.asdict(using)
             json.dump(data, f, indent=4, ensure_ascii=False)
-            lorelie_logger.info(f"✅ Created new blank JSON migration file...")
+            lorelie_logger.info("✅ Created new blank JSON migration file...")
         return using
 
     def write_to_sql_file(self, statement_or_statements: str | list[str]):

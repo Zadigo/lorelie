@@ -1,15 +1,18 @@
-from typing import Any, Callable, Optional
-import uuid
 import datetime
 import decimal
 import json
 import re
+import uuid
 from decimal import Decimal
 from functools import cached_property
+from typing import Any, Callable, Optional
 from urllib.parse import unquote
 
-from lorelie.constraints import (MaxLengthConstraint, MaxValueConstraint,
-                                 MinValueConstraint)
+from lorelie.constraints import (
+    MaxLengthConstraint,
+    MaxValueConstraint,
+    MinValueConstraint,
+)
 from lorelie.exceptions import ValidationError
 from lorelie.lorelie_typings import TypeConstraint, TypeDeconstructedField, TypeTable
 from lorelie.validators import url_validator

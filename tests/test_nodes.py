@@ -2,9 +2,20 @@ import sqlite3
 import unittest
 from unittest.mock import patch
 
-from lorelie.database.nodes import (BaseNode, ComplexNode, DeleteNode,
-                                    InsertNode, IntersectNode, OrderByNode, RawSQL, SelectMap, SelectNode,
-                                    UpdateNode, ViewNode, WhereNode)
+from lorelie.database.nodes import (
+    BaseNode,
+    ComplexNode,
+    DeleteNode,
+    InsertNode,
+    IntersectNode,
+    OrderByNode,
+    RawSQL,
+    SelectMap,
+    SelectNode,
+    UpdateNode,
+    ViewNode,
+    WhereNode,
+)
 from lorelie.expressions import Q
 from lorelie.test.testcases import LorelieTestCase
 
@@ -23,6 +34,11 @@ class TestBaseNode(LorelieTestCase):
             node.as_sql(self.create_connection()),
             ['custom sql']
         )
+
+    def test_add_valid(self):
+        table = self.create_table()
+        node = BaseNode(table) + BaseNode(table)
+        self.assertIsInstance(node, ComplexNode)
 
 
 class TestInsertNode(LorelieTestCase):
@@ -443,6 +459,22 @@ class TestComplexNode(LorelieTestCase):
 
         # self.assertIsInstance(raw_sql, RawSQL)
         # self.assertIn(where, complex_node)
+
+    def test_add_valid(self, mconn):
+        c1 = ComplexNode() + SelectNode(self.create_table())
+        self.assertIsInstance(c1, ComplexNode)
+
+        c2 = c1 + OrderByNode(self.create_table())
+        self.assertIsInstance(c2, ComplexNode)
+        self.assertTrue(len(c2.nodes) > 0)
+
+    def test_add_invalid(self, mconn):
+        c1 = ComplexNode()
+        c2 = 'Invalid value'
+
+        c3 = c1 + c2
+
+        self.assertEqual(c3, NotImplemented)
 
 
 @patch.object(sqlite3, 'connect')

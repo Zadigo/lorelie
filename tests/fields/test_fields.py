@@ -2,10 +2,24 @@ import datetime
 import uuid
 
 from lorelie.exceptions import ValidationError
-from lorelie.fields.base import (AutoField, BooleanField, CharField, CommaSeparatedField, DateField, DateTimeField, Field, FloatField,
-                                 IntegerField, JSONField, UUIDField)
+from lorelie.fields.base import (
+    AutoField,
+    BooleanField,
+    CharField,
+    CommaSeparatedField,
+    DateField,
+    DateTimeField,
+    Field,
+    FloatField,
+    IntegerField,
+    JSONField,
+    UUIDField,
+)
 from lorelie.test.testcases import LorelieTestCase
-from lorelie.validators import string_comma_separated_validator, number_comma_separated_validator
+from lorelie.validators import (
+    number_comma_separated_validator,
+    string_comma_separated_validator,
+)
 
 
 class TestField(LorelieTestCase):

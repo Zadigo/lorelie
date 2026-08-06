@@ -1,4 +1,3 @@
-
 import json
 import pathlib
 from unittest.mock import Mock, patch
@@ -8,33 +7,37 @@ from lorelie.database.migrations.base import Migrations
 from lorelie.database.migrations.validation import JsonMigrationSchema
 from lorelie.test.testcases import LorelieTestCase
 
+EMPTY_MIGRATION = {
+    'id': '79f47320e4',
+    'date': '2026-08-06T15:58:36.165224+00:00',
+    'number': 1,
+    'migrated': False,
+    'schema': {}
+}
 
+@patch.object(Migrations, 'create_blank_migration')
 class TestMigrationsExistingFile(LorelieTestCase):
     @classmethod
     def setUpClass(cls):
         cls.path = pathlib.Path(__file__).parent
-
         cls.mdb = Mock(
             spec=Database, 
             path=cls.path, 
-            database_name='testdb', 
+            database_name='existingdb',
             in_memory=True
         )
 
-    def _load_file(self, name):
-        with open(self.path / f'{name}.json', 'r') as f:
-            data = json.load(f)
-            return JsonMigrationSchema(**data)
+    def test_structure(self, mcreate):
+        # Skip the creation of the blank migration on the disk
+        mcreate.return_value = JsonMigrationSchema(**EMPTY_MIGRATION)
 
-    def test_structure(self):
-        with patch.object(json, 'dump'):
-            migrations = Migrations(self.mdb)
-            
-            data = self._load_file('migration_empty')
+        migrations = Migrations(self.mdb)
+    
+        self.assertFalse(migrations.for_update)
+        self.assertFalse(migrations.migrated)
+        self.assertTrue(len(migrations.existing_tables) == 0)
+        
 
-            self.assertFalse(migrations.for_update)
-            self.assertFalse(migrations.migrated)
-            self.assertTrue(len(migrations.existing_tables) == 0)
 
     # def test_migrate_creation_mode(self, mblank):
     #     # Creation mode: no existing tables

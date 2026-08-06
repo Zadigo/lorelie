@@ -17,15 +17,21 @@ multiple nodes together
 
 import dataclasses
 import itertools
-from dataclasses import field
 import re
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Optional, override
+from typing import Any, ClassVar, Optional
 
 from lorelie.expressions import CombinedExpression, Q
-from lorelie.lorelie_typings import (NodeEnums, TypeJoinTypes, TypeNode, TypeOrCombinedExpression, TypeQ,
-                                     TypeQuerySet, TypeSQLiteBackend,
-                                     TypeTable)
+from lorelie.lorelie_typings import (
+    NodeEnums,
+    TypeJoinTypes,
+    TypeNode,
+    TypeOrCombinedExpression,
+    TypeQ,
+    TypeQuerySet,
+    TypeSQLiteBackend,
+    TypeTable,
+)
 
 
 @dataclasses.dataclass
@@ -73,7 +79,8 @@ class SelectMap:
         nodes: list[str] = []
         if self.select is None:
             raise ValueError(
-                'Select node is required to resolve the select map')
+                'SelectNode is required to resolve the SQL'
+            )
 
         nodes.extend(self.select.as_sql(backend))
 
@@ -112,7 +119,7 @@ class SelectMap:
         which represents an AND operation.
         """
         if not isinstance(other, WhereNode):
-            raise ValueError()
+            raise ValueError('Invalid WhereNode')
 
         if self.where is None:
             self.where = other
@@ -124,7 +131,7 @@ class SelectMap:
         already exists, we combine them using the `&` operator
         which represents a merging of the ordering fields."""
         if not isinstance(other, OrderByNode):
-            raise ValueError()
+            raise ValueError('Invalid OrderByNode')
 
         if self.order_by is None:
             self.order_by = other
@@ -138,10 +145,10 @@ class AnnotationMap:
     sql statements and their alias fields just like
     SelectMap does for select statements"""
 
-    sql_statements_dict: dict = field(default_factory=dict)
-    alias_fields: list = field(default_factory=list)
-    field_names: list = field(default_factory=list)
-    annotation_type_map: dict = field(default_factory=dict)
+    sql_statements_dict: dict = dataclasses.field(default_factory=dict)
+    alias_fields: list = dataclasses.field(default_factory=list)
+    field_names: list = dataclasses.field(default_factory=list)
+    annotation_type_map: dict = dataclasses.field(default_factory=dict)
 
     def __and__(self, other: 'AnnotationMap'):
         if not isinstance(other, AnnotationMap):
@@ -339,6 +346,7 @@ class BaseNode(ABC):
 
     def __eq__(self, node: Any):
         name = node
+
         if isinstance(node, BaseNode):
             name = node.node_name
 
@@ -349,6 +357,10 @@ class BaseNode(ABC):
 
     def __contains__(self, value: Any):
         name = self.node_name
+
+        if isinstance(value, NodeEnums):
+            value = value.value
+
         if isinstance(name, NodeEnums):
             name = name.value
 
@@ -361,7 +373,7 @@ class BaseNode(ABC):
         raise NotImplementedError
 
     @property
-    def node_name(self) -> str:
+    def node_name(self) -> str | NodeEnums:
         return ''
 
     @abstractmethod
@@ -421,7 +433,6 @@ class SelectNode(BaseNode):
     def node_name(self):
         return NodeEnums.SELECT.value
 
-    @override
     def as_sql(self, backend: TypeSQLiteBackend):
         if self.table is None:
             raise ValueError(
@@ -443,7 +454,7 @@ class SelectNode(BaseNode):
         # before final sql generation
         return [select_sql]
 
-    @override
+    
     def deconstruct(self) -> tuple[str, str, tuple[str, ...], dict[str, Any]]:
         values = super().deconstruct()
         other_params = ({
@@ -500,7 +511,7 @@ class WhereNode(BaseNode):
     def node_name(self):
         return NodeEnums.WHERE.value
 
-    @override
+    
     def as_sql(self, backend: TypeSQLiteBackend):
         # First, resolve Q, CombinedExpression to
         # their SQL representation. They are more
@@ -547,7 +558,7 @@ class OrderByNode(BaseNode):
         for field in self.fields:
             if not isinstance(field, str):
                 raise ValueError(
-                    "Field should be of type <str>"
+                    f"Field '{field}' should be of type <str>"
                 )
 
             result = re.match(r'^(\-)?(\w+)$', field)
@@ -557,7 +568,7 @@ class OrderByNode(BaseNode):
                 if (name in self.ascending or
                         name in self.descending):
                     raise ValueError(
-                        "The field has been registered twice in "
+                        f"The field '{field}' has been registered twice in "
                         "ascending and descending fields"
                     )
 
@@ -607,7 +618,6 @@ class OrderByNode(BaseNode):
         ordering_sql = backend.ORDER_BY.format_map({'conditions': fields})
         return [ordering_sql]
 
-    @override
     def deconstruct(self) -> tuple[str, str, tuple[str, ...]]:
         return tuple(super().deconstruct())
 
@@ -672,7 +682,10 @@ class UpdateNode(BaseNode):
 
 
 class DeleteNode(BaseNode):
-    """Node used to create the SQL statement that allows deleting values in the database.
+    """Node used to create the SQL statement that allows deleting values from the database.
+
+    .. code-block:: sql
+        "delete from table_name where condition"
 
     Args:
         table (TypeTable): The table to delete from.
@@ -718,12 +731,15 @@ class DeleteNode(BaseNode):
 
 
 class InsertNode(BaseNode):
-    """This node allows the creation of the sql
-    for insert one or multiple values in the database.
+    """Node used to create the SQL statement that allows inserting values into the database.
 
-    Values can be inserted in batch using `batch_values` which
-    is a list of dictionnaries or inserted as a single element
-    using `insert_values`
+    .. code-block:: sql
+        -- single insert
+        "insert into table_name (field1, field2) values (value1, value2)"
+        -- batch insert
+        "insert into table_name (field1, field2) values (value1, value2), (value3, value4)"
+        -- insert with returning
+        "insert into table_name (field1, field2) values (value1, value2) returning id"
 
     Args:
         table (TypeTable): The table to insert the values into.
@@ -750,7 +766,7 @@ class InsertNode(BaseNode):
         for item in batch_values:
             if not isinstance(item, dict):
                 raise ValueError(
-                    f"{item} should be a dictionnary"
+                    f"'{item}' should be a dictionnary"
                 )
         self.batch_values = batch_values
 
@@ -794,8 +810,18 @@ class InsertNode(BaseNode):
 
 
 class JoinNode(BaseNode):
-    """Node used to create the SQL statement
-    that allows foreign key joins"""
+    """Node used to create the SQL statement that allows joining two tables in the database.
+    
+    .. code-block:: sql
+        -- inner join
+        "select * from table1 inner join table2 on table1.id = table2.id"
+        -- left join
+        "select * from table1 left join table2 on table1.id = table2.id"
+        -- right join
+        "select * from table1 right join table2 on table1.id = table2.id"
+        -- cross join
+        "select * from table1 cross join table2 on table1.id = table2.id"
+    """
 
     template_sql: ClassVar[str] = '{join_type} join {table} on {condition}'
 
@@ -839,6 +865,12 @@ class JoinNode(BaseNode):
 
 
 class IntersectNode(BaseNode):
+    """Node used to create the SQL statement that allows intersecting two select statements.
+    
+    .. code-block:: sql
+        "select * from table1 intersect select * from table2"
+    """
+
     template_sql: ClassVar[str] = '{0} intersect {1}'
 
     def __init__(self, left_select: 'SelectNode', right_select: 'SelectNode'):
@@ -857,9 +889,10 @@ class IntersectNode(BaseNode):
 
 
 class ViewNode(BaseNode):
-    """Node used to create and SQL statement
-    that allows the creation of a view in the database
-    based on a stored query.
+    """Node used to create a SQL view in the database.
+
+    .. code-block:: sql
+        "create view if not exists view_name as select * from table_name"
 
     Args:
         name (str): The name of the view.
@@ -908,6 +941,11 @@ class ViewNode(BaseNode):
 
 
 class WhenNode:
+    """Node used to create the SQL condition in a CASE statement
+
+    .. code-block:: sql
+        "case ... when condition then result"
+    """
     def __init__(self, **condition: Any):
         self.condition = condition
 

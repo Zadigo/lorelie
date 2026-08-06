@@ -1,21 +1,14 @@
-import json
 import pathlib
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from lorelie.database.base import Database
 from lorelie.database.migrations.base import Migrations
 from lorelie.database.migrations.validation import JsonMigrationSchema
+from lorelie.database.tables.base import Table
 from lorelie.test.testcases import LorelieTestCase
+from tests.database.migrations.utils import EMPTY_MIGRATION, MIGRATION_WITH_SCHEMA
 
-EMPTY_MIGRATION = {
-    'id': '79f47320e4',
-    'date': '2026-08-06T15:58:36.165224+00:00',
-    'number': 1,
-    'migrated': False,
-    'schema': {}
-}
 
-@patch.object(Migrations, 'create_blank_migration')
 class TestMigrationsExistingFile(LorelieTestCase):
     @classmethod
     def setUpClass(cls):
@@ -27,16 +20,27 @@ class TestMigrationsExistingFile(LorelieTestCase):
             in_memory=True
         )
 
-    def test_structure(self, mcreate):
-        # Skip the creation of the blank migration on the disk
-        mcreate.return_value = JsonMigrationSchema(**EMPTY_MIGRATION)
+        with patch.object(Migrations, 'create_blank_migration') as mcreate:
+            # Skip the creation of the blank migration on the disk
+            mcreate.return_value = JsonMigrationSchema(**EMPTY_MIGRATION)
+            cls.migrations = Migrations(cls.mdb)
 
+    def test_structure(self):
         migrations = Migrations(self.mdb)
     
         self.assertFalse(migrations.for_update)
         self.assertFalse(migrations.migrated)
         self.assertTrue(len(migrations.existing_tables) == 0)
         
+    def test_migrate_tables_with_no_tables(self):
+        t1 = MagicMock(spec=Table, name='company')
+        self.migrations.migrate({'company': t1})
+
+    def test_migrate_tables_with_existing_tables(self):
+        self.migrations.JSON_MIGRATIONS_SCHEMA = JsonMigrationSchema(**MIGRATION_WITH_SCHEMA)
+
+        t1 = MagicMock(spec=Table, name='company')
+        self.migrations.migrate({'company': t1})
 
 
     # def test_migrate_creation_mode(self, mblank):

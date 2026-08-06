@@ -1,113 +1,27 @@
 import datetime
-import dataclasses
 import json
 import secrets
 from collections import defaultdict
-from dataclasses import dataclass, field
-from functools import cached_property
-from typing import Any, Final, Optional, Type
 from io import StringIO
+from typing import Final
+
+from lorelie import lorelie_logger
 from lorelie.backends import SQLiteBackend, connections
 from lorelie.database.indexes import Index
+from lorelie.database.migrations.validation import JsonMigrationSchema
 from lorelie.database.tables.base import Table
 from lorelie.fields.base import CharField, DateTimeField, JSONField
-from lorelie.lorelie_typings import NullableType, TypeDatabase, TypeDeconstructedField, TypeDeconstructedIndex, TypeField, TypeTable, TypeTableMap
+from lorelie.lorelie_typings import (
+    TypeDatabase,
+    TypeField,
+    TypeTable,
+    TypeTableMap,
+)
 from lorelie.queries import Query
-from lorelie import lorelie_logger
 
 TypeFieldsToCheck = defaultdict[str, dict[str, TypeField]]
 
 
-@dataclass
-class JsonMigrationsSchema:
-    """Represents the structure of the JSON migration file which is used to
-    track the different states of the database and its tables across different
-    migration runs. It is used as a reference for the Migrations class to
-    determine the necessary operations to perform on the database in order to
-    update it to the latest state as defined by the user in their codebase
-    and the existing migration file (if any)
-    
-    Attributes:
-        id (Optional[str]): A unique identifier for the migration, generated as a random hexadecimal string. It is used to track different migration runs and can be useful for debugging and reference purposes.
-        date (Optional[str]): The date and time when the migration was created or last updated, stored as a string. It is used to track the timeline of migrations and can be useful for debugging and reference purposes.
-        number (Optional[int]): A sequential number representing the migration version. It is incremented with each migration run and is used to track the progression of migrations over time.
-        migrated (bool): A boolean flag indicating whether the migration has been applied to the database. It is used to determine whether the database is up to date with the latest migration schema and can be useful for conditional logic in the migration process.
-        in_memory (bool): A boolean flag indicating whether the database is an in-memory database. It is used to determine the migration strategy, as in-memory databases need to be recreated with each migration run, while physical databases can be altered in place.
-        schema (dict): A dictionary representing the current state of the database schema, including the tables, fields, indexes, and other relevant metadata.
-    """
-
-    id: Optional[str] = None
-    date: Optional[str] = None
-    number: Optional[int] = None
-    migrated: bool = False
-    in_memory: bool = False
-    schema: dict = field(default_factory=dict)
-
-    def __post_init__(self):
-        self.id = self.id or secrets.token_hex(5)
-        self.date = self.date or str(datetime.datetime.now())
-        self.number = self.number or 1
-
-    def __iter__(self):
-        template = {
-            'id': self.id,
-            'date': self.date,
-            'number': self.number,
-            'migrated': self.migrated,
-            'in_memory': self.in_memory,
-            'schema': self.schema
-        }
-
-        for key, value in template.items():
-            yield key, value
-
-    @property
-    def _table_names(self) -> set[str]:
-        tables = self.schema.get('tables', [])
-        return {item['name'] for item in tables}
-
-    def get_table_indexes(self, table_name: str) -> list[TypeDeconstructedIndex]:
-        table = self.get_table(table_name)
-        if table is None:
-            return []
-
-        return table.get('indexes', [])
-
-    def get_table(self, table_name: str) -> Optional[dict[str, Any]]:
-        """Returns the table schema for a given table
-        in the current migration schema"""
-        tables = self.schema.get('tables', [])
-        for item in tables:
-            if item.get('name', '') == table_name:
-                return item
-        return None
-
-    def get_table_fields(self, table_name: str) -> NullableType[list[TypeDeconstructedField]]:
-        """Returns the fields map for a given table
-        in the current migration schema"""
-        json_table = self.get_table(table_name)
-        if json_table:
-            return json_table.get('fields', [])
-        return None
-
-    def get_table_field(self, table_name: str, field_name: str) -> NullableType[TypeDeconstructedField]:
-        """Returns the field parameters for a given field
-        in a given table from the current migration schema"""
-        json_fields = self.get_table_fields(table_name)
-        if json_fields:
-            for field_type, name, params in json_fields:
-                if name == field_name:
-                    return (field_type, name, params)
-        return None
-
-    def table_has_field(self, table_name: str, field_name: str) -> bool:
-        """Checks whether a given table has a field in the
-        current migration schema"""
-        return self.get_table_field(table_name, field_name) is not None
-
-
-def migration_validator(value):
-    pass
 
 
 class Migrations:
@@ -120,23 +34,21 @@ class Migrations:
     necessary operations on the database in order to update it to the latest state 
     as defined by the user in their codebase and the existing migration file (if any)"""
 
-    JSON_MIGRATIONS_SCHEMA: Optional[JsonMigrationsSchema] = None
-    backend_class: Final[Type[SQLiteBackend]] = SQLiteBackend
+    JSON_MIGRATIONS_SCHEMA: JsonMigrationSchema | None = None
+    backend_class: Final[type[SQLiteBackend]] = SQLiteBackend
 
     def __init__(self, database: TypeDatabase):
         self.database = database
         self.database_name = database.database_name or 'memory'
 
-        self.migrations_json_path = database.path / \
-            f'{self.database_name}_migrations.json'
-        self.migrations_sql_path = database.path / \
-            f'{self.database_name}_migrations.sql'
+        self.migrations_json_path = database.path / f'{self.database_name}_migrations.json'
+        self.migrations_sql_path = database.path / f'{self.database_name}_migrations.sql'
 
-        self.JSON_MIGRATIONS_SCHEMA = self.read_json_migrations
+        self.JSON_MIGRATIONS_SCHEMA = self.read_json_migrations()
         self.file_id = self.JSON_MIGRATIONS_SCHEMA.id
         self.JSON_MIGRATIONS_SCHEMA.in_memory = database.in_memory
 
-        self.SQL_MIGRATIONS_SCHEMA = self.read_sql_migrations
+        self.SQL_MIGRATIONS_SCHEMA = self.read_sql_migrations()
 
         self.fields_map = defaultdict(list)
 
@@ -164,27 +76,6 @@ class Migrations:
     def in_memory(self):
         return self.database_name is None
 
-    @cached_property
-    def read_json_migrations(self):
-        try:
-            with open(self.migrations_json_path, mode='r') as f:
-                data = json.load(f)
-                return JsonMigrationsSchema(**data)
-        except FileNotFoundError:
-            # Create a blank migration file
-            instance = JsonMigrationsSchema()
-            return self.blank_migration(instance)
-
-    @cached_property
-    def read_sql_migrations(self):
-        try:
-            with open(self.migrations_sql_path, mode='r') as f:
-                return f.read()
-        except FileNotFoundError:
-            with open(self.migrations_sql_path, mode='w+') as f:
-                f.write('-- Lorelie SQL Migrations File\n')
-            return ''
-
     def _build_migration_table(self, name: str = 'migrations'):
         """Creates a migrations table in the database
         which stores the different configuration for
@@ -194,7 +85,7 @@ class Migrations:
             fields=[
                 CharField('name', unique=True),
                 CharField('database'),
-                JSONField('migration', validators=[migration_validator]),
+                JSONField('migration'),
                 DateTimeField('applied', auto_add=True)
             ],
             str_field='name'
@@ -261,8 +152,33 @@ class Migrations:
             sql_statements.extend(self._check_table_constraints(table))
 
             # Now check changes at the field level
-            for field_name in table.fields_map.keys():
+            for field_name in list(table.fields_map.keys()):
                 pass
+
+    def read_json_migrations(self):
+        if self.migrations_json_path.exists():
+            with self.migrations_json_path.open(mode='r', encoding='utf-8') as f:
+                data = json.load(f)
+                return JsonMigrationSchema(**data)
+        else:
+            # Create a blank migration file
+            instance = JsonMigrationSchema(
+                id=secrets.token_hex(5),
+                date=datetime.datetime.now(tz=datetime.UTC).isoformat(),
+                number=0,
+                migrated=False,
+                schema={}
+            )
+            return self.create_blank_migration(instance)
+
+    def read_sql_migrations(self):
+        if self.migrations_sql_path.exists():
+            with self.migrations_sql_path.open(mode='r', encoding='utf-8') as f:
+                return f.read()
+        else:        
+            with self.migrations_sql_path.open(mode='w+', encoding='utf-8') as f:
+                f.write('-- Lorelie SQL Migrations File\n')
+            return ''
 
     def migrate(self, table_instances: TypeTableMap, dry_run: bool = False):
         lorelie_logger.info("🔄 Starting migration process...")
@@ -480,10 +396,10 @@ class Migrations:
 
         return True
 
-    def blank_migration(self, using: JsonMigrationsSchema):
+    def create_blank_migration(self, using: JsonMigrationSchema):
         """Creates a blank initial migration file"""
-        with open(self.migrations_json_path, mode='w+') as f:
-            data = dataclasses.asdict(using)
+        with self.migrations_json_path.open(mode='w+', encoding='utf-8') as f:
+            data = using.model_dump()
             json.dump(data, f, indent=4, ensure_ascii=False)
             lorelie_logger.info("✅ Created new blank JSON migration file...")
         return using
@@ -510,7 +426,7 @@ class Migrations:
                     f.write(statement)
                     f.write('\n')
             else:
-                if not statement_or_statements in content:
+                if statement_or_statements not in content:
                     f.write(statement_or_statements + ';')
 
             lorelie_logger.info(
@@ -553,7 +469,7 @@ class Migrations:
                         database=self.database.database_name,
                         migration=final_migration
                     )
-                except Exception as e:
+                except Exception:
                     raise TypeError(
                         "Could not log migration "
                         "in the migrations table."

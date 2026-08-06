@@ -8,8 +8,13 @@ from lorelie.database.indexes import Index
 from lorelie.database.tables.base import Table
 from lorelie.exceptions import ValidationError
 from lorelie.expressions import Q
-from lorelie.fields.base import (BooleanField, CharField, DateTimeField,
-                                 FloatField, IntegerField)
+from lorelie.fields.base import (
+    BooleanField,
+    CharField,
+    DateTimeField,
+    FloatField,
+    IntegerField,
+)
 
 __all__ = [
     'LorelieTestCase'

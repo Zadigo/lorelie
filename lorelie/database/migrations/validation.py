@@ -85,7 +85,7 @@ class JsonMigrationSchema(pydantic.BaseModel):
     number: int
     migrated: bool = False
     in_memory: bool = False
-    schema: dict = pydantic.Field(default_factory=JsonSchema)
+    database_schema: dict = pydantic.Field(default_factory=JsonSchema)
 
     @model_validator(mode='before')
     @classmethod
@@ -94,7 +94,7 @@ class JsonMigrationSchema(pydantic.BaseModel):
 
     @property
     def _table_names(self) -> set[str]:
-        tables = self.schema.get('tables', [])
+        tables = self.database_schema.get('tables', [])
         return {item['name'] for item in tables}
 
     def get_table_indexes(self, table_name: str) -> list[TypeDeconstructedIndex]:
@@ -107,7 +107,7 @@ class JsonMigrationSchema(pydantic.BaseModel):
     def get_table(self, table_name: str) -> SchemaTable | None:
         """Returns the table schema for a given table
         in the current migration schema"""
-        tables = self.schema.get('tables', [])
+        tables = self.database_schema.get('tables', [])
         for item in tables:
             if item.get('name', '') == table_name:
                 return SchemaTable(**item)

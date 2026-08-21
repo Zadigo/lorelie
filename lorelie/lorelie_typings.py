@@ -61,8 +61,7 @@ type TypeOrCombinedExpression[T] = 'T | CombinedExpression'
 
 type TypeDecomposedFilterTuple = tuple[str, TypeOperatorType, Any]
 
-type TypeListAny[T: str | int | float |
-                 bool | dict | list | None] = Sequence[T]
+type TypeListAny[T: str | int | float | bool | dict | list | None] = Sequence[T]
 
 type TypeExpressionOrFunction = TypeFunction | TypeOrCombinedExpression['Q']
 

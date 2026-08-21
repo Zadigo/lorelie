@@ -2,12 +2,19 @@ import json
 import pathlib
 from unittest.mock import patch
 
+import pytest
+
 from lorelie.database.base import Database
 from lorelie.database.indexes import Index
 from lorelie.database.migrations import JsonMigrationSchema, Migrations
 from lorelie.database.tables.base import Table
 from lorelie.fields.base import CharField
 from lorelie.test.testcases import LorelieTestCase
+
+
+@pytest.fixture
+def test_migration_schema():
+    return 
 
 
 class TestSchemaDataclass(LorelieTestCase):

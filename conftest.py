@@ -78,3 +78,125 @@ def mocked_table():
 @pytest.fixture
 def mocked_connection():
     return MagicMock(spec=SQLiteBackend)
+
+
+@pytest.fixture
+def empty_migration():
+    return {
+        "id": "79f47320e4",
+        "date": "2025-12-31 22:34:28.716799",
+        "number": 1,
+        "migrated": False,
+        "schema": {}
+    }
+
+
+@pytest.fixture
+def full_migration():
+    return {
+    "id": "79f47320e4",
+    "date": "2025-12-31 22:34:28.716799",
+    "number": 1,
+    "migrated": True,
+    "schema": {
+        "name": "companies",
+        "tables": [
+            {
+                "name": "company",
+                "fields": [
+                    [
+                        "CharField",
+                        "name",
+                        {
+                            "null": False ,
+                            "primary_key": False ,
+                            "default": None,
+                            "unique": False ,
+                            "editable": False ,
+                            "max_length": 5
+                        }
+                    ],
+                    [
+                        "AutoField",
+                        "id",
+                        {
+                            "null": False ,
+                            "primary_key": True,
+                            "default": None,
+                            "unique": False ,
+                            "editable": False 
+                        }
+                    ]
+                ],
+                "indexes": [],
+                "constraints": [],
+                "ordering": [],
+                "str_field": "id"
+            },
+            {
+                "name": "migrations",
+                "fields": [
+                    [
+                        "CharField",
+                        "name",
+                        {
+                            "null": False ,
+                            "primary_key": False ,
+                            "default": None,
+                            "unique": True,
+                            "editable": False 
+                        }
+                    ],
+                    [
+                        "CharField",
+                        "db_name",
+                        {
+                            "null": False ,
+                            "primary_key": False ,
+                            "default": None,
+                            "unique": False ,
+                            "editable": False 
+                        }
+                    ],
+                    [
+                        "JSONField",
+                        "migration",
+                        {
+                            "null": False ,
+                            "primary_key": False ,
+                            "default": None,
+                            "unique": False ,
+                            "editable": False 
+                        }
+                    ],
+                    [
+                        "DateTimeField",
+                        "applied",
+                        {
+                            "null": True,
+                            "primary_key": False ,
+                            "default": None,
+                            "unique": False ,
+                            "editable": False 
+                        }
+                    ],
+                    [
+                        "AutoField",
+                        "id",
+                        {
+                            "null": False ,
+                            "primary_key": True,
+                            "default": None,
+                            "unique": False ,
+                            "editable": False 
+                        }
+                    ]
+                ],
+                "indexes": [],
+                "constraints": [],
+                "ordering": [],
+                "str_field": "name"
+            }
+        ]
+    }
+}

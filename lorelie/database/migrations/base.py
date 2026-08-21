@@ -265,7 +265,7 @@ class Migrations:
             )
 
             if statements:
-                self.JSON_MIGRATIONS_SCHEMA.schema = self.database.deconstruct()
+                self.JSON_MIGRATIONS_SCHEMA.database_schema = self.database.deconstruct()
 
                 self.write_to_json_file(
                     dry_run=dry_run,
@@ -361,7 +361,7 @@ class Migrations:
         #     for field_name in table.fields_map.keys():
         #         pass
 
-        self.JSON_MIGRATIONS_SCHEMA.schema = self.database.deconstruct()
+        self.JSON_MIGRATIONS_SCHEMA.database_schema = self.database.deconstruct()
 
         if not dry_run:
             backend = connections.get_last_connection()
@@ -439,7 +439,7 @@ class Migrations:
             with open(self.migrations_sql_path, mode='r') as fr:
                 content = fr.read().splitlines()
 
-            f.write(f'\n-- Migration executed on {datetime.datetime.now()}\n')
+            f.write(f'\n-- Migration executed on {datetime.datetime.now(tz=datetime.UTC)}\n')
 
             if isinstance(statement_or_statements, list):
                 for statement in statement_or_statements:
@@ -465,7 +465,7 @@ class Migrations:
 
         self.JSON_MIGRATIONS_SCHEMA.migrated = True
         self.JSON_MIGRATIONS_SCHEMA.id = secrets.token_hex(5)
-        self.JSON_MIGRATIONS_SCHEMA.date = datetime.datetime.now().isoformat()
+        self.JSON_MIGRATIONS_SCHEMA.date = datetime.datetime.now(tz=datetime.UTC).isoformat()
         self.JSON_MIGRATIONS_SCHEMA.number += 1
 
         final_migration = dict(self.JSON_MIGRATIONS_SCHEMA)

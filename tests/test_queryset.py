@@ -1,12 +1,12 @@
 from unittest.mock import MagicMock
 
 import pandas
+
 from lorelie.backends import SQLiteBackend
 from lorelie.database.base import Database
 from lorelie.database.functions.text import Lower
 from lorelie.database.nodes import SelectNode
-from lorelie.queries import QuerySet
-from lorelie.queries import Query
+from lorelie.queries import Query, QuerySet
 from lorelie.test.testcases import LorelieTestCase
 
 

@@ -581,11 +581,11 @@ class TimeField(DateTimeField):
 
 
 class EmailField(CharField):
-    base_validators = ()
+    base_validators = []
 
 
 class FilePathField(CharField):
-    base_validators = ()
+    base_validators = []
 
 
 class SlugField(CharField):
@@ -620,7 +620,7 @@ class UUIDField(Field[uuid.UUID]):
 
 
 class URLField(CharField):
-    base_validators = (url_validator,)
+    base_validators = [url_validator]
 
     def to_database(self, data: Any):
         if data is None or data == '':
@@ -633,7 +633,7 @@ class BinaryField(Field):
 
 
 class CommaSeparatedField(Field[list[str]]):
-    base_validators = ()
+    base_validators = []
 
     def to_python(self, data: Any) -> list[str]:
         if data is None or data == '':

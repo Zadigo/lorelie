@@ -385,7 +385,7 @@ class SQL(ExpressionFiltersMixin):
     LIMIT = 'limit {value}'
     OFFSET = 'offset {value}'
 
-    SQL_REGEXES = [
+    SQL_REGEXES: Sequence[re.Pattern] = [
         re.compile(r'^select\s(.*)\sfrom\s(.*)\s(where)?\s(.*);?$')
     ]
 

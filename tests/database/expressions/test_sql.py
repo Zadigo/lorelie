@@ -1,8 +1,29 @@
 import dataclasses
 
+import pytest
+
 from lorelie.database.expressions.mixins import SQL
 from lorelie.database.functions.text import Lower
 from lorelie.test.testcases import LorelieTestCase
+
+
+@pytest.mark.parametrize(
+    'name,testcase',
+    [
+        (
+            'callable',
+            [lambda: ['Kendall', 'Kylie']]
+        ),
+        (
+            'mixt values',
+            ['Kendall', 123, ('Kylie',)]
+        )
+    ]
+)
+def test_comma_join(name, testcase):
+    instance = SQL()
+    result = instance.comma_join(testcase)
+    assert isinstance(result, str)
 
 
 class TestSQL(LorelieTestCase):
@@ -91,8 +112,7 @@ class TestSQL(LorelieTestCase):
             [[('name', 'startswith', 'Kendall')], ["name like 'Kendall%'"]],
             [[('name', 'endswith', 'Kendall')], ["name like '%Kendall'"]],
             [[('name', 'between', [1, 2])], ["name between 1 and 2"]],
-            [[('name', 'in',  ['Kendall', 'Kylie'])],
-             ["name in ('Kendall', 'Kylie')"]]
+            [[('name', 'in',  ['Kendall', 'Kylie'])], ["name in ('Kendall', 'Kylie')"]]
             # TODO: Implement the isnull check
             # [[('name', 'isnull', 'Kendall')], ["name = '1'"]]
         ]

@@ -1,15 +1,25 @@
 import re
 from collections import OrderedDict
-from typing import Any, ClassVar, Optional, Self, Type
+from typing import Any, ClassVar, Self
 
 from lorelie.backends import SQLiteBackend
 from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.database.indexes import Index
 from lorelie.database.manager import DatabaseManager
 from lorelie.database.tables.columns import Column
-from lorelie.exceptions import FieldExistsError, ImproperlyConfiguredError, NoTableBackendError
+from lorelie.exceptions import (
+    FieldExistsError,
+    ImproperlyConfiguredError,
+    NoTableBackendError,
+)
 from lorelie.fields.base import AutoField, DateField, DateTimeField, Field
-from lorelie.lorelie_typings import TypeConstraint, TypeDatabase, TypeField, TypeIndex, TypeSQLiteBackend
+from lorelie.lorelie_typings import (
+    TypeConstraint,
+    TypeDatabase,
+    TypeField,
+    TypeIndex,
+    TypeSQLiteBackend,
+)
 from lorelie.queries import Query
 
 
@@ -31,16 +41,16 @@ class BaseTable(type):
 
 class AbstractTable(metaclass=BaseTable):
     # TODO: Remove
-    query_class: ClassVar[Type[Query]] = Query
+    query_class: ClassVar[type[Query]] = Query
 
-    backend_class: ClassVar[Type[SQLiteBackend]] = SQLiteBackend
+    backend_class: ClassVar[type[SQLiteBackend]] = SQLiteBackend
     objects: ClassVar[DatabaseManager[Self]] = DatabaseManager()
 
     def __init__(self):
-        self.backend: Optional[TypeSQLiteBackend] = None
+        self.backend: TypeSQLiteBackend | None = None
         self.is_prepared: bool = False
         self.field_types = OrderedDict()
-        self.database: Optional[TypeDatabase] = None
+        self.database: TypeDatabase | None = None
 
     def __hash__(self):
         return hash((self.name, self.verbose_name, *self.field_names))
@@ -171,7 +181,7 @@ class Table(AbstractTable):
         self.table_constraints = constraints
         self.field_constraints = {}
         self.is_foreign_key_table = False
-        self.attached_to_database: Optional[TypeDatabase] = None
+        self.attached_to_database: TypeDatabase | None = None
         self.columns_map: dict[str, Column] = {}
 
         # The str_field is the name of the
@@ -240,13 +250,13 @@ class Table(AbstractTable):
 
         for index in indexes:
             if not isinstance(index, Index):
-                raise ValueError(f'{index} should be an instance of Index')
+                raise TypeError(f'{index} should be an instance of Index')
             index.prepare(self)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
 
-    def __eq__(self, value: Any):
+    def __eq__(self, value: object):
         if not isinstance(value, Table):
             return any([
                 value == self.name,
@@ -300,7 +310,7 @@ class Table(AbstractTable):
         database. Returns the newly constructued
         field parameters"""
         if not isinstance(field, Field):
-            raise ValueError(f"{field} should be be an instance of Field")
+            raise TypeError(f"{field} should be be an instance of Field")
 
         if field_name != field.name:
             raise ValueError(

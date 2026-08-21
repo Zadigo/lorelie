@@ -6,7 +6,7 @@ from lorelie.database.migrations.base import Migrations
 from lorelie.database.migrations.validation import JsonMigrationSchema
 from lorelie.database.tables.base import Table
 from lorelie.test.testcases import LorelieTestCase
-from tests.database.migrations.utils import EMPTY_MIGRATION, MIGRATION_WITH_SCHEMA
+from tests.database.migrations.utils import COMPLETE_MIGRATED_SCHEMA, EMPTY_MIGRATION
 
 
 class TestMigrationsExistingFile(LorelieTestCase):
@@ -37,7 +37,7 @@ class TestMigrationsExistingFile(LorelieTestCase):
         self.migrations.migrate({'company': t1})
 
     def test_migrate_tables_with_existing_tables(self):
-        self.migrations.JSON_MIGRATIONS_SCHEMA = JsonMigrationSchema(**MIGRATION_WITH_SCHEMA)
+        self.migrations.JSON_MIGRATIONS_SCHEMA = JsonMigrationSchema(**COMPLETE_MIGRATED_SCHEMA)
 
         t1 = MagicMock(spec=Table, name='company')
         self.migrations.migrate({'company': t1})

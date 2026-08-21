@@ -57,5 +57,5 @@ class View:
         query.add_sql_nodes(sql)
         query.run(commit=True)
 
-        setattr(node.queryset, 'alias_view_name', self.name)
+        node.queryset.alias_view_name = self.name
         return node.queryset

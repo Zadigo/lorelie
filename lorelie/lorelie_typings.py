@@ -1,21 +1,27 @@
 import pathlib
-from typing import TYPE_CHECKING, Any, Literal, Protocol, Sequence, Tuple, TypeVar
+from collections.abc import Sequence
 from enum import Enum
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar
 
 if TYPE_CHECKING:
-    from lorelie.database.base import SQLiteBackend
-    from lorelie.database.tables.base import Table
-    from lorelie.fields import Field
-    from lorelie.database.base import Database
-    from lorelie.database.nodes import BaseNode
     from lorelie.backends import BaseRow
-    from lorelie.queries import QuerySet, Query
-    from lorelie.expressions import Q, CombinedExpression
     from lorelie.constraints import BaseConstraint
+    from lorelie.database.base import Database, SQLiteBackend
+    from lorelie.database.functions.base import Functions
+    from lorelie.database.functions.window import (
+        CumeDist,
+        Lag,
+        Lead,
+        PercentRank,
+        Rank,
+    )
     from lorelie.database.indexes import Index
     from lorelie.database.manager import DatabaseManager
-    from lorelie.database.functions.base import Functions
-    from lorelie.database.functions.window import Rank, PercentRank, CumeDist, Lead, Lag, DenseRank, LastValue, FirstValue, NthValue, NTile, RowNumber
+    from lorelie.database.nodes import BaseNode
+    from lorelie.database.tables.base import Table
+    from lorelie.expressions import CombinedExpression, Q
+    from lorelie.fields import Field
+    from lorelie.queries import Query, QuerySet
 
 
 type NullableType[T] = T | None
@@ -249,9 +255,9 @@ class TriggerEnum(Enum):
     AFTER_DELETE = 'after_delete'
 
 
-TypeDeconstructedIndex = Tuple[str, list[str], dict[str, Any]]
+TypeDeconstructedIndex = tuple[str, list[str], dict[str, Any]]
 
-TypeDeconstructedField = Tuple[str, str, dict[str, bool]]
+TypeDeconstructedField = tuple[str, str, dict[str, bool]]
 
 
 # TypeFunction = TypeVar('TypeFunction', bound='Functions')

@@ -1,4 +1,5 @@
 from warnings import deprecated
+
 from lorelie.fields.base import Field
 
 

@@ -1,15 +1,14 @@
 from collections import defaultdict
-from functools import wraps, partial
-from typing import Callable, DefaultDict, Optional
+from collections.abc import Callable
+from functools import partial, wraps
 from warnings import deprecated
 
 from lorelie.constants import DatabaseEvent, PythonEvent
 from lorelie.lorelie_typings import TypeDatabase, TypeTable
 
-
 TypeTrigerCallable = Callable[[], None]
 
-TypeTriggerPythonDict = DefaultDict[
+TypeTriggerPythonDict = defaultdict[
     PythonEvent,
     list[tuple[TypeTrigerCallable, TypeTable, str]]
 ]
@@ -71,7 +70,7 @@ class TriggerManager:
         print('Initializing TriggerManager')
         self.python_events = PythonTrigger()
 
-    def register_python(self, event: PythonEvent, table: str | TypeTable, *, name: Optional[str] = None):
+    def register_python(self, event: PythonEvent, table: str | TypeTable, *, name: str | None = None):
         def wrapper(func: TypeTrigerCallable):
             trigger_name = name if name is not None else func.__name__
 

@@ -60,10 +60,10 @@ class SelectMap:
     select: Optional['SelectNode'] = None
     where: Optional['WhereNode'] = None
     order_by: Optional['OrderByNode'] = None
-    limit: Optional[int] = None
-    offset: Optional[int] = None
-    groupby: Optional[str] = None
-    having: Optional[str] = None
+    limit: int | None = None
+    offset: int | None = None
+    groupby: str | None = None
+    having: str | None = None
 
     def __setitem__(self, name: str,  value: Any):
         setattr(self, name, value)
@@ -299,7 +299,7 @@ class ComplexNode[T: TypeNode]:
     def as_sql(self, backend: TypeSQLiteBackend):
         clean_nodes: list[TypeNode] = []
 
-        base_node: Optional[T] = self.nodes[0] if self.nodes else None
+        base_node: T | None = self.nodes[0] if self.nodes else None
 
         # Merge all where nodes into a single one
         _where_nodes = self.nodes[1:] if self.nodes else []
@@ -332,7 +332,7 @@ class ComplexNode[T: TypeNode]:
 class BaseNode(ABC):
     template_sql: ClassVar[str] = ''
 
-    def __init__(self, table: Optional[TypeTable] = None, fields: list[str] = []):
+    def __init__(self, table: TypeTable | None = None, fields: list[str] = []):
         self.table = table
         self.fields = fields or ['*']
 
@@ -344,7 +344,7 @@ class BaseNode(ABC):
             return NotImplemented
         return ComplexNode(self, node)
 
-    def __eq__(self, node: Any):
+    def __eq__(self, node: object):
         name = node
 
         if isinstance(node, BaseNode):
@@ -389,7 +389,7 @@ class BaseNode(ABC):
         """
         raise NotImplementedError
 
-    def deconstruct(self) -> list[str | Optional[str] | tuple[str, ...] | list[str]]:
+    def deconstruct(self) -> list[str | None | tuple[str, ...] | list[str]]:
         """Deconstruct the node into its components for serialization or inspection.
 
         Returns:
@@ -416,7 +416,7 @@ class SelectNode(BaseNode):
 
     template_sql: ClassVar[str] = 'select {fields} from {table}'
 
-    def __init__(self, table: TypeTable, *fields: str, distinct: bool = False, limit: Optional[int] = None, offset: Optional[int] = None, view_name: Optional[str] = None):
+    def __init__(self, table: TypeTable, *fields: str, distinct: bool = False, limit: int | None = None, offset: int | None = None, view_name: str | None = None):
         super().__init__(table=table, fields=list(fields))
         self.distinct = distinct
         # This parameter is implemented
@@ -605,14 +605,8 @@ class OrderByNode(BaseNode):
             return backend.DESCENDING.format_map({'field': field})
 
     def as_sql(self, backend: TypeSQLiteBackend):
-        ascending_fields = map(
-            lambda x: self.construct_sql(backend, x),
-            self.ascending
-        )
-        descending_fields = map(
-            lambda x: self.construct_sql(backend, x, ascending=False),
-            self.descending
-        )
+        ascending_fields = (self.construct_sql(backend, x) for x in self.ascending)
+        descending_fields = (self.construct_sql(backend, x, ascending=False) for x in self.descending)
         conditions = list(ascending_fields) + list(descending_fields)
         fields = backend.comma_join(conditions)
         ordering_sql = backend.ORDER_BY.format_map({'conditions': fields})
@@ -695,7 +689,7 @@ class DeleteNode(BaseNode):
         where_expressions (dict[str, Any]): Keyword arguments representing simple conditions for the WHERE clause.
     """
 
-    def __init__(self, table: TypeTable, *where_args: Q, order_by: list[str] = [], limit: Optional[int] = None, **where_expressions: dict[str, Any]):
+    def __init__(self, table: TypeTable, *where_args: Q, order_by: list[str] = [], limit: int | None = None, **where_expressions: dict[str, Any]):
         super().__init__(table=table)
         self.where_args = where_args
         self.where_expressions = where_expressions

@@ -1,22 +1,28 @@
 import dataclasses
 import pathlib
 from collections import OrderedDict
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, Final, Optional, Type
+from typing import Final
 from warnings import deprecated
 
 from asgiref.sync import sync_to_async
 
-from lorelie.backends import SQLiteBackend
 from lorelie import registry
+from lorelie.backends import SQLiteBackend
 from lorelie.database.manager import ForeignTablesManager
 from lorelie.database.migrations import Migrations
 from lorelie.database.tables.base import Table
 from lorelie.exceptions import TableExistsError
 from lorelie.fields import IntegerField
 from lorelie.fields.relationships import ForeignKeyField
+from lorelie.lorelie_typings import (
+    TypeDatabase,
+    TypeOnDeleteTypes,
+    TypeStrOrPathLibPath,
+    TypeTable,
+)
 from lorelie.queries import Query
-from lorelie.lorelie_typings import TypeDatabase, TypeOnDeleteTypes, TypeStrOrPathLibPath, TypeTable
 
 
 @dataclasses.dataclass
@@ -28,16 +34,16 @@ class RelationshipMap:
 
     left_table: TypeTable
     right_table: TypeTable
-    junction_table: Optional[TypeTable] = None
+    junction_table: TypeTable | None = None
     relationship_type: str = dataclasses.field(default='foreign')
     can_be_validated: bool = False
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
     def __post_init__(self):
         accepted_types = ['foreign', 'one', 'many']
         if self.relationship_type not in accepted_types:
             self.error_message = (
-                f"The relationship type is "
+                "The relationship type is "
                 "not valid: {self.relationship_type}"
             )
 
@@ -65,20 +71,20 @@ class RelationshipMap:
         """Creates a default relationship name by using
         the respective name of each table"""
         if self.left_table is not None and self.right_table is not None:
-            left_table_name = getattr(self.left_table, 'name')
-            right_table_name = getattr(self.right_table, 'name')
+            left_table_name = self.left_table.name
+            right_table_name = self.right_table.name
             return f'{left_table_name}_{right_table_name}'
         return None
 
     @property
     def forward_field_name(self):
         # db.objects.first().followers.all()
-        return getattr(self.left_table, 'name')
+        return self.left_table.name
 
     @property
     def backward_field_name(self):
         # db.objects.first().names_set.all()
-        name = getattr(self.right_table, 'name')
+        name = self.right_table.name
         return f'{name}_set'
 
     @property
@@ -90,7 +96,7 @@ class RelationshipMap:
         the age_id which is the backward related
         field name will be the name of the field
         created in A: `age_id <- id`"""
-        name = getattr(self.right_table, 'name')
+        name = self.right_table.name
         return f'{name}_id'
 
     @property
@@ -102,7 +108,7 @@ class RelationshipMap:
         the age_id which is the backward related
         field name will be the name of the field
         created in A: `id -> age_id`"""
-        name = getattr(self.left_table, 'name')
+        name = self.left_table.name
         return f'{name}_id'
 
     def get_relationship_condition(self, table: TypeTable):
@@ -180,13 +186,13 @@ class Database:
         TableExistsError: If a table with the same name already exists in the database when trying to access it.
     """
 
-    migrations: Optional[Migrations] = None
-    query_class: Final[Type[Query]] = Query
-    migrations_class: Final[Type[Migrations]] = Migrations
-    backend_class: Final[Type[SQLiteBackend]] = SQLiteBackend
+    migrations: Migrations | None = None
+    query_class: Final[type[Query]] = Query
+    migrations_class: Final[type[Migrations]] = Migrations
+    backend_class: Final[type[SQLiteBackend]] = SQLiteBackend
 
-    def __init__(self, *tables: Table, name: Optional[str] = None, path: Optional[TypeStrOrPathLibPath] = None, log_queries: bool = False, mask_values: bool = False):
-        self.database_name: Optional[str] = name
+    def __init__(self, *tables: Table, name: str | None = None, path: TypeStrOrPathLibPath | None = None, log_queries: bool = False, mask_values: bool = False):
+        self.database_name: str | None = name
         # Use the immediate parent path if not
         # path is provided by the user
         self.path: pathlib.Path = pathlib.Path(__name__).parent.absolute()
@@ -224,7 +230,7 @@ class Database:
             # from the database instance
             setattr(self, table.name, table)
             # Referene the database on the table
-            setattr(table, 'attached_to_database', self)
+            table.attached_to_database = self
             table.load_current_connection()
 
         self.table_instances = list(tables)
@@ -296,13 +302,13 @@ class Database:
         return 'MEMORY'
 
     @classmethod
-    def async_database(cls, *tables: Table, name: Optional[str] = None, path: Optional[TypeStrOrPathLibPath] = None, log_queries: bool = False):
+    def async_database(cls, *tables: Table, name: str | None = None, path: TypeStrOrPathLibPath | None = None, log_queries: bool = False):
         return sync_to_async(cls)(*tables, name=name, path=path, log_queries=log_queries)
 
     def _add_table(self, table: TypeTable):
         # DELETE: Remove this
         self.table_map[table.name] = table
-        setattr(table, 'attached_to_database', self)
+        table.attached_to_database = self
         table.load_current_connection()
         self.table_instances.append(table)
 
@@ -363,7 +369,7 @@ class Database:
         return NotImplemented
 
     @deprecated("Triggers are not yet supported")
-    def register_trigger(self, trigger, table: Optional[TypeTable] = None):
+    def register_trigger(self, trigger, table: TypeTable | None = None):
         """Registers a trigger function onto the database
         and that will get called at a specific stage of
         when the database runs a specific type of operation
@@ -387,7 +393,7 @@ class Database:
 
         return wrapper
 
-    def foreign_key(self, name: str, left_table: TypeTable, right_table: TypeTable, on_delete: Optional[TypeOnDeleteTypes] = None, related_name: Optional[str] = None):
+    def foreign_key(self, name: str, left_table: TypeTable, right_table: TypeTable, on_delete: TypeOnDeleteTypes | None = None, related_name: str | None = None):
         """Adds a foreign key between two tables by using the
         default primary ID field. The orientation for the foreign
         key goes from `left_table.id` to `right_table.field_id`::
@@ -447,7 +453,7 @@ class Database:
         self.foreign_key(
             name, relationship_map.foreign_forward_related_field_name, right_table, junction_table)
 
-    def one_to_one_key(self, name: str, left_table: TypeTable, right_table: TypeTable, on_delete: Optional[TypeOnDeleteTypes] = None):
+    def one_to_one_key(self, name: str, left_table: TypeTable, right_table: TypeTable, on_delete: TypeOnDeleteTypes | None = None):
         relationship_map = self._prepare_relationship_map(
             right_table,
             left_table
@@ -472,9 +478,8 @@ class Database:
         scratch based on the current table definitions.
         This effectively clears all data and resets the
         schema to match the defined tables."""
-        pass
 
-    def rerun(self, start: int = 0, end: Optional[int] = None):
+    def rerun(self, start: int = 0, end: int | None = None):
         """Reruns migrations from a specified start point to an optional end point with
         the statements present in the SQL migrations file. This allows for selective reapplication of 
         migrations within a defined range.
@@ -483,4 +488,3 @@ class Database:
             start (int, optional): The starting migration index from which to begin rerunning. Defaults to 0.
             end (Optional[int], optional): The ending migration index at which to stop rerunning. Defaults to None, which means all migrations from the start index onward will be rerun.
         """
-        pass

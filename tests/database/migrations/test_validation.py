@@ -2,7 +2,7 @@
 import pytest
 
 from lorelie.database.migrations.validation import JsonMigrationSchema, validate_date
-from tests.database.migrations.utils import EMPTY_MIGRATION, MIGRATION_WITH_SCHEMA
+from tests.database.migrations.utils import COMPLETE_MIGRATED_SCHEMA, EMPTY_MIGRATION
 
 
 def test_empty_migration_validation():
@@ -11,13 +11,13 @@ def test_empty_migration_validation():
 
 
 def test_json_migration_with_table():
-    model = JsonMigrationSchema(**MIGRATION_WITH_SCHEMA)
-    assert model.id == MIGRATION_WITH_SCHEMA['id']
+    model = JsonMigrationSchema(**COMPLETE_MIGRATED_SCHEMA)
+    assert model.id == COMPLETE_MIGRATED_SCHEMA['id']
 
 
 @pytest.fixture
 def migrated_json():
-    return JsonMigrationSchema(**MIGRATION_WITH_SCHEMA)
+    return JsonMigrationSchema(**COMPLETE_MIGRATED_SCHEMA)
 
 
 def test_get_table_names(migrated_json):

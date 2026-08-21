@@ -1,12 +1,30 @@
 import sqlite3
+from collections.abc import Iterator, Sequence
 from functools import total_ordering
 from sqlite3 import IntegrityError, OperationalError
-from typing import Any, Iterator, Optional, Sequence, Type
+from typing import Any
+
 from lorelie import log_queries, lorelie_logger
-from lorelie.database.nodes import (AnnotationMap, BaseNode, OrderByNode, SelectMap,
-                                    SelectNode, WhereNode)
+from lorelie.database.nodes import (
+    AnnotationMap,
+    BaseNode,
+    OrderByNode,
+    SelectMap,
+    SelectNode,
+    WhereNode,
+)
 from lorelie.exceptions import NoBackendError
-from lorelie.lorelie_typings import TypeDatabaseManager, TypeFunction, TypeNode, TypeOrCombinedExpression, TypeQ, TypeQuerySet, TypeRow, TypeSQLiteBackend, TypeTable
+from lorelie.lorelie_typings import (
+    TypeDatabaseManager,
+    TypeFunction,
+    TypeNode,
+    TypeOrCombinedExpression,
+    TypeQ,
+    TypeQuerySet,
+    TypeRow,
+    TypeSQLiteBackend,
+    TypeTable,
+)
 
 
 class Query:
@@ -23,7 +41,7 @@ class Query:
         backend (TypeSQLiteBackend, optional): The database backend to use. Defaults to None.
     """
 
-    def __init__(self, table: Optional[TypeTable] = None, backend: Optional[TypeSQLiteBackend] = None):
+    def __init__(self, table: TypeTable | None = None, backend: TypeSQLiteBackend | None = None):
         if table is None and backend is None:
             raise ValueError(
                 "Either 'table' or 'backend' "
@@ -45,13 +63,13 @@ class Query:
             )
 
         self.backend.set_current_table(table)
-        self.sql: Optional[str] = None
+        self.sql: str | None = None
         self.result_cache: list[TypeRow] = []
         # Alias fields are fields that do not exist
         # in the table and are created virtually. They need
         # to be tracked so that during the transform_to_python
         # method we can transform them properly
-        self.annotation_map: Optional[AnnotationMap] = None
+        self.annotation_map: AnnotationMap | None = None
         self.is_evaluated: bool = False
         self.statements: list[str] = []
         self.select_map: SelectMap = SelectMap()
@@ -66,12 +84,12 @@ class Query:
         return f'<{self.__class__.__name__} [{self.sql}]>'
 
     @classmethod
-    def create(cls, table: Optional[TypeTable] = None, backend: Optional[TypeSQLiteBackend] = None):
+    def create(cls, table: TypeTable | None = None, backend: TypeSQLiteBackend | None = None):
         """Creates a new `Query` class to be executed"""
         return cls(table=table, backend=backend)
 
     @classmethod
-    def run_transaction(cls, backend: Optional[TypeSQLiteBackend] = None, table: Optional[TypeTable] = None, sql_tokens: list[str] = []):
+    def run_transaction(cls, backend: TypeSQLiteBackend | None = None, table: TypeTable | None = None, sql_tokens: list[str] = []):
         """Runs a script made of multiple sql statements
 
         Args:
@@ -226,7 +244,7 @@ class Query:
             if self.map_to_sqlite_table:
                 # updated_rows = []
                 for row in self.result_cache:
-                    setattr(row, 'linked_to_table', 'sqlite_schema')
+                    row.linked_to_table = 'sqlite_schema'
                 #     updated_rows.append(row)
                 # self.result_cache = updated_rows
 
@@ -353,7 +371,7 @@ class QuerySet[R: TypeRow]:
 
         self.query = query
         self.result_cache: list[R] = []
-        self.values_iterable_class: Type[ValuesIterable] = ValuesIterable
+        self.values_iterable_class: type[ValuesIterable] = ValuesIterable
         # There are certain cases where we want
         # to use QuerySet but it's not affiliated
         # to any table ex. returning a QuerySet of
@@ -369,7 +387,7 @@ class QuerySet[R: TypeRow]:
         # to the QuerySet to use an alias view
         # to query items from the database as
         # oppposed to using the table name
-        self.alias_view_name: Optional[str] = None
+        self.alias_view_name: str | None = None
         # Despite existing data in the cache,
         # force the cache to be reloaded from
         # the existing database
@@ -398,14 +416,13 @@ class QuerySet[R: TypeRow]:
 
     def __iter__(self) -> Iterator[TypeRow]:
         self.load_cache()
-        for item in self.result_cache:
-            yield item
+        yield from self.result_cache
 
     def __contains__(self, value: Any):
         self.load_cache()
-        return any(map(lambda x: value in x, self.result_cache))
+        return any(value in x for x in self.result_cache)
 
-    def __eq__(self, value: Any):
+    def __eq__(self, value: object):
         self.load_cache()
         if not isinstance(value, QuerySet):
             return NotImplemented
@@ -479,16 +496,13 @@ class QuerySet[R: TypeRow]:
             self.result_cache = self.query.result_cache
 
     def get_master_manager(self) -> TypeDatabaseManager:
-        return getattr(self.query.table, 'objects')
+        return self.query.table.objects
 
     def get_master_queryset(self) -> 'QuerySet[TypeRow]':
         # This technique allows us to get the main master queryset
         # without evaluaing it. It populates the SelectMap. This allows then
         # allows us to apply modificatons on the undeerlying query before it is evaluated
-        master_objects: TypeDatabaseManager = getattr(
-            self.query.table,
-            'objects'
-        )
+        master_objects: TypeDatabaseManager = self.query.table.objects
         return master_objects.all()
 
     def first(self) -> R | None:
@@ -515,10 +529,7 @@ class QuerySet[R: TypeRow]:
         return self
 
     def filter(self, *args: TypeOrCombinedExpression[TypeQ], **kwargs: TypeOrCombinedExpression[TypeQ]):
-        master_objects: TypeDatabaseManager = getattr(
-            self.query.table,
-            'objects'
-        )
+        master_objects: TypeDatabaseManager = self.query.table.objects
 
         if self.query.select_map.where is not None:
             # Triggered by qs.filter(...).filter(...)
@@ -540,10 +551,7 @@ class QuerySet[R: TypeRow]:
     def annotate(self, *args: TypeFunction, **kwargs: TypeFunction):
         # Triggered by qs.all().annotate(...) or
         # qs.filter(...).annotate(...) or qs.all().annotate(...)
-        master_objects: TypeDatabaseManager = getattr(
-            self.query.table,
-            'objects'
-        )
+        master_objects: TypeDatabaseManager = self.query.table.objects
         if self.query.annotation_map is None:
             return master_objects.annotate(*args, **kwargs)
         else:
@@ -584,7 +592,7 @@ class QuerySet[R: TypeRow]:
 
     def aggregate(self, *args, **kwargs):
         for func in args:
-            allows_aggregate = getattr(func, 'allow_aggregation')
+            allows_aggregate = func.allow_aggregation
             if not allows_aggregate:
                 continue
             kwargs.update({func.aggregate_name: func})

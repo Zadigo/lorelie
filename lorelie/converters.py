@@ -1,6 +1,6 @@
 import datetime
-from typing import Any
 import uuid
+from typing import Any
 
 
 def convert_date(data: Any) -> datetime.date:

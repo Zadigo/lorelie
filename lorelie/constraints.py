@@ -1,14 +1,14 @@
 import secrets
 from abc import ABC, abstractmethod
-from typing import ClassVar, Optional, override
+from typing import ClassVar, override
 
 from lorelie.expressions import CombinedExpression, Q
 from lorelie.lorelie_typings import TypeField, TypeSQLiteBackend
 
 
 class BaseConstraint(ABC):
-    template_sql: Optional[str] = None
-    prefix: Optional[str] = None
+    template_sql: str | None = None
+    prefix: str | None = None
     base_errors = {
         'integer': (
             "Limit for {klass} should be "
@@ -23,7 +23,7 @@ class BaseConstraint(ABC):
         return f'<{self.__class__.__name__}: {self.generated_name}>'
 
     def __hash__(self) -> int:
-        return hash((self.name))
+        return hash(self.name)
 
     @property
     def generated_name(self) -> str:
@@ -32,7 +32,7 @@ class BaseConstraint(ABC):
 
     @abstractmethod
     def as_sql(self, backend: TypeSQLiteBackend) -> str:
-        raise NotImplemented
+        raise NotImplementedError
 
     def deconstruct(self) -> tuple[str, list[str]]:
         params = [self.name]
@@ -62,8 +62,8 @@ class CheckConstraint(BaseConstraint):
         ValueError: If the condition is not an instance of Q or CombinedExpression.
     """
 
-    template_sql: Optional[str] = 'check({condition})'
-    prefix: Optional[str] = 'chk'
+    template_sql: str | None = 'check({condition})'
+    prefix: str | None = 'chk'
 
     def __init__(self, name: str, condition: Q | CombinedExpression):
         super().__init__(name)
@@ -102,8 +102,8 @@ class UniqueConstraint(BaseConstraint):
         fields (list[str]): The list of fields to be included in the unique constraint.
     """
 
-    template_sql: Optional[str] = 'unique({fields})'
-    prefix: Optional[str] = 'unq'
+    template_sql: str | None = 'unique({fields})'
+    prefix: str | None = 'unq'
 
     def __init__(self, name: str, *, fields: list[str] = []):
         super().__init__(name)
@@ -147,7 +147,7 @@ class MaxLengthConstraint(MinMaxMixin, BaseConstraint):
         field (TypeField): The field to which the constraint is applied.
     """
 
-    template_sql: Optional[str] = 'check({condition})'
+    template_sql: str | None = 'check({condition})'
     length_sql: ClassVar[str] = 'length({column})'
 
     @override
@@ -179,8 +179,8 @@ class MinValueConstraint(MinMaxMixin, BaseConstraint):
         field (TypeField): The field to which the constraint is applied.
     """
 
-    template_sql: Optional[str] = 'check({condition})'
-    operator: Optional[str] = '>'
+    template_sql: str | None = 'check({condition})'
+    operator: str | None = '>'
 
     @override
     def as_sql(self, backend: TypeSQLiteBackend):
@@ -211,4 +211,4 @@ class MaxValueConstraint(MinValueConstraint):
         field (TypeField): The field to which the constraint is applied.
     """
 
-    operator: Optional[str] = '<'
+    operator: str | None = '<'

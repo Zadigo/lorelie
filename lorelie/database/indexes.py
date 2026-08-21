@@ -1,8 +1,13 @@
 import secrets
-from typing import Any, ClassVar, Optional
+from typing import ClassVar
 
 from lorelie.database.nodes import WhereNode
-from lorelie.lorelie_typings import TypeDeconstructedIndex, TypeQ, TypeSQLiteBackend, TypeTable
+from lorelie.lorelie_typings import (
+    TypeDeconstructedIndex,
+    TypeQ,
+    TypeSQLiteBackend,
+    TypeTable,
+)
 
 
 class Index:
@@ -32,7 +37,7 @@ class Index:
     prefix: str = 'idx'
     max_name_length = 30
 
-    def __init__(self, name: str, fields: list[str], condition: Optional[TypeQ] = None):
+    def __init__(self, name: str, fields: list[str], condition: TypeQ | None = None):
         if len(name) > self.max_name_length:
             raise ValueError('Name should be maximum 30 carachters long')
 
@@ -49,12 +54,12 @@ class Index:
         index_id = secrets.token_hex(nbytes=5)
         self.index_name = f'{self.prefix}_{name}_{index_id}'
 
-        self.table: Optional[TypeTable] = None
+        self.table: TypeTable | None = None
 
     def __repr__(self):
         return f'<Index: fields={self.fields} condition={self.condition}>'
 
-    def __eq__(self, value: Any):
+    def __eq__(self, value: object):
         if isinstance(value, Index):
             return self.name == value.name
 

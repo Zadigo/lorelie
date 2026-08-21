@@ -22,6 +22,31 @@ from lorelie.queries import Query
 TypeFieldsToCheck = defaultdict[str, dict[str, TypeField]]
 
 
+# class MigrationInterface(abc.ABC):
+#     @abc.abstractmethod
+#     def add_migration(self, instance: 'AbstractMigration'):
+#         pass
+
+#     @abc.abstractmethod
+#     def resolve_migration(self):
+#         pass
+
+
+# class AbstractMigration(MigrationInterface):
+#     migration_logic: MigrationInterface | None = None
+
+#     def resolve_migration(self):
+#         pass
+
+
+# class InMemoryMigration(AbstractMigration):
+#     def resolve_migration(self):
+#         pass
+
+
+# class FileMigration(AbstractMigration):
+#     def resolve_migration(self):
+#         pass
 
 
 class Migrations:
@@ -206,8 +231,7 @@ class Migrations:
 
         # Only tracks tables that are user-defined
         _current_user_tables = set(self.existing_tables)
-        if 'migrations' in _current_user_tables:
-            _current_user_tables.remove('migrations')
+        _current_user_tables.discard('migrations')
 
         # Check for tables that might have been
         # deleted from the incoming tables

@@ -3,9 +3,10 @@ import decimal
 import json
 import re
 import uuid
+from collections.abc import Callable, Sequence
 from decimal import Decimal
 from functools import cached_property
-from typing import Any, Callable, Optional
+from typing import Any, ClassVar
 from urllib.parse import unquote
 
 from lorelie.constraints import (
@@ -57,31 +58,31 @@ class Field[T = Any]:
         ExceptionGroup: If an exception occurs while trying to build the field parameters or run validators.
     """
     python_type = str
-    base_validators: list[Callable[[Any], None]] = []
-    default_field_errors: dict[str, str] = {}
+    base_validators: Sequence[Callable[[Any], None]] = ()
+    default_field_errors: ClassVar[dict[str, str]] = {}
 
     def __init__(
         self, 
         name: str, *,
-        max_length: Optional[int] = None, 
+        max_length: int | None = None, 
         null: bool = False, 
         primary_key: bool = False, 
-        default: Optional[T] = None, 
+        default: T | None = None, 
         unique: bool = False, 
         validators: list[Callable[[Any], None]] = [], 
-        verbose_name: Optional[str] = None, 
+        verbose_name: str | None = None, 
         editable: bool = False
     ):
         self.constraints: list[TypeConstraint] = []
         self.name: str = self.validate_field_name(name)
-        self.verbose_name: Optional[str] = verbose_name
+        self.verbose_name: str | None = verbose_name
         self.editable: bool = editable
         self.null: bool = null
         self.primary_key: bool = primary_key
-        self.default: Optional[T] = default
+        self.default: T | None = default
         self.unique: bool = unique
-        self.table: Optional[TypeTable] = None
-        self.max_length: Optional[int] = max_length
+        self.table: TypeTable | None = None
+        self.max_length: int | None = max_length
         self.base_validators = self.base_validators + validators
         self.standard_field_types: list[str] = [
             'text', 'integer', 'blob', 'real', 'null']
@@ -238,12 +239,7 @@ class Field[T = Any]:
                 self.base_field_parameters.items()
             )
         )
-        additional_parameters = list(
-            map(
-                lambda x: x[0],
-                _additional_parameters
-            )
-        )
+        additional_parameters = [x[0] for x in _additional_parameters]
 
         base_field_parameters = initial_parameters + additional_parameters
 
@@ -311,7 +307,7 @@ class CharField(Field[str]):
 
 
 class NumericFieldMixin:
-    def __init__(self, name: str, *, min_value: Optional[int] = None, max_value: Optional[int] = None, **kwargs: str):
+    def __init__(self, name: str, *, min_value: int | None = None, max_value: int | None = None, **kwargs: str):
         self.min_value = min_value
         self.max_value = max_value
 
@@ -365,7 +361,7 @@ class FloatField(NumericFieldMixin, Field[float | None]):
 
 
 class DecimalField(NumericFieldMixin, Field[Decimal]):
-    def __init__(self, name: str, digits: Optional[int] = None, **kwargs: str):
+    def __init__(self, name: str, digits: int | None = None, **kwargs: str):
         super().__init__(name, **kwargs)
         if digits is None:
             raise ValueError(f'{digits} should be an integer')
@@ -414,8 +410,8 @@ class JSONField(Field[dict | list]):
 
 class BooleanField(Field[bool]):
     python_type = (bool, int)
-    truth_types = ['true', 't', 1, '1']
-    false_types = ['false', 'f', 0, '0']
+    truth_types = ('true', 't', 1, '1')
+    false_types = ('false', 'f', 0, '0')
 
     @property
     def field_type(self):
@@ -502,7 +498,7 @@ class DateField(DateFieldMixin, Field):
             clean_data = self.python_type(d)
 
         if hasattr(data, 'date'):
-            data = getattr(data, 'date')
+            data = data.date
             d = data()
             self.run_validators(d)
             clean_data = self.python_type(d)
@@ -585,11 +581,11 @@ class TimeField(DateTimeField):
 
 
 class EmailField(CharField):
-    base_validators = []
+    base_validators = ()
 
 
 class FilePathField(CharField):
-    base_validators = []
+    base_validators = ()
 
 
 class SlugField(CharField):
@@ -624,7 +620,7 @@ class UUIDField(Field[uuid.UUID]):
 
 
 class URLField(CharField):
-    base_validators = [url_validator]
+    base_validators = (url_validator,)
 
     def to_database(self, data: Any):
         if data is None or data == '':
@@ -637,7 +633,7 @@ class BinaryField(Field):
 
 
 class CommaSeparatedField(Field[list[str]]):
-    base_validators = []
+    base_validators = ()
 
     def to_python(self, data: Any) -> list[str]:
         if data is None or data == '':

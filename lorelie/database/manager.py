@@ -1,18 +1,35 @@
 import collections
 import dataclasses
 import datetime
+import inspect
+from collections.abc import Generator, Iterator, Sequence
 from dataclasses import is_dataclass
-from typing import Any, Generator, Iterator, Optional, Self, Sequence, Type, overload
+from typing import Any, Self, overload
 from warnings import deprecated
 
 from asgiref.sync import sync_to_async
-import inspect
+
 from lorelie.database.functions.aggregation import Count
 from lorelie.database.functions.dates import Extract
-from lorelie.database.nodes import (InsertNode, IntersectNode, OrderByNode,
-                                    SelectNode, UpdateNode, WhereNode)
+from lorelie.database.nodes import (
+    InsertNode,
+    IntersectNode,
+    OrderByNode,
+    SelectNode,
+    UpdateNode,
+    WhereNode,
+)
 from lorelie.exceptions import FieldExistsError, MigrationsExistsError
-from lorelie.lorelie_typings import TypeDatabase, TypeFunction, TypeNewValue, TypeOrCombinedExpression, TypeQ, TypeQuerySet, TypeTable, TypeTableMap
+from lorelie.lorelie_typings import (
+    TypeDatabase,
+    TypeFunction,
+    TypeNewValue,
+    TypeOrCombinedExpression,
+    TypeQ,
+    TypeQuerySet,
+    TypeTable,
+    TypeTableMap,
+)
 from lorelie.queries import QuerySet, ValuesIterable
 
 
@@ -23,8 +40,8 @@ class DatabaseManager[T: TypeTable]:
 
     def __init__(self):
         self.table_map: TypeTableMap = {}
-        self.database: Optional[TypeDatabase] = None
-        self.table: Optional[T] = None
+        self.database: TypeDatabase | None = None
+        self.table: T | None = None
         # Tells if the manager was
         # created via as_manager
         self.auto_created: bool = True
@@ -34,12 +51,12 @@ class DatabaseManager[T: TypeTable]:
         return f'<{self.__class__.__name__}: {self.database}>'
 
     @overload
-    def __get__(self, instance: None, cls: Type[T]) -> Self: ...
+    def __get__(self, instance: None, cls: type[T]) -> Self: ...
 
     @overload
-    def __get__(self, instance: T, cls: Optional[Type[T]] = None) -> Self: ...
+    def __get__(self, instance: T, cls: type[T] | None = None) -> Self: ...
 
-    def __get__(self, instance: T, cls: Optional[Type[T]] = None) -> Self:
+    def __get__(self, instance: T, cls: type[T] | None = None) -> Self:
         if not self.table_map:
             self.table = instance
 
@@ -67,7 +84,7 @@ class DatabaseManager[T: TypeTable]:
         return self
 
     @classmethod
-    def as_manager(cls, table_map={}, database: Optional[TypeDatabase] = None):
+    def as_manager(cls, table_map={}, database: TypeDatabase | None = None):
         instance = cls()
         instance.table_map = table_map
         instance.database = database
@@ -82,7 +99,7 @@ class DatabaseManager[T: TypeTable]:
         # there are auto_add and auto_update
         # fields in the database. We have to
         # send the current dates for these
-        d = datetime.datetime.now()
+        d = datetime.datetime.now(tz=datetime.UTC)
         if not update_only:
             for field in table.auto_add_fields:
                 if field in params:
@@ -467,7 +484,7 @@ class DatabaseManager[T: TypeTable]:
             query.add_sql_node(ordering_node)
         return QuerySet(query)
 
-    def bulk_create(self, objs: Sequence[TypeNewValue] | Iterator[TypeNewValue] | Generator[TypeNewValue, None, None]):
+    def bulk_create(self, objs: Sequence[TypeNewValue] | Iterator[TypeNewValue] | Generator[TypeNewValue]):
         """Creates multiple objects in the database at once
         using a list of datasets or dictionnaries
 
@@ -504,7 +521,7 @@ class DatabaseManager[T: TypeTable]:
         dataclass_values = []
         for obj in objs:
             columns_to_use.update(
-                (field.name for field in dataclasses.fields(obj)))
+                field.name for field in dataclasses.fields(obj))
 
             values = dataclasses.asdict(obj)
             dataclass_values.append(
@@ -531,12 +548,12 @@ class DatabaseManager[T: TypeTable]:
             field_to_sort=field_to_sort,
             ascending=ascending
         )
-        return list(map(lambda x: x.date(), values))
+        return [x.date() for x in values]
 
     def datetimes(self, field, field_to_sort='year', ascending=True):
         qs1 = self.annotate(**{field_to_sort: Extract(field, field_to_sort)})
         qs2 = qs1.order_by(field_to_sort if ascending else f'-{field_to_sort}')
-        return list(map(lambda x: x[field], qs2))
+        return [x[field] for x in qs2]
 
     def difference(self):
         return NotImplemented
@@ -676,7 +693,7 @@ class DatabaseManager[T: TypeTable]:
         _, create_defaults = self.table.validate_values_from_dict(
             create_defaults
         )
-        ids = list(map(lambda x: x['id'], queryset))
+        ids = [x['id'] for x in queryset]
 
         if len(ids) > 1:
             # TODO: Check for cases where kwargs is not provided
@@ -741,10 +758,10 @@ class DatabaseManager[T: TypeTable]:
             qs3 = db.objects.intersect(qs1, qs2)
         """
         if not isinstance(qs1, QuerySet):
-            raise ValueError(f'{qs1} should be an instance of QuerySet')
+            raise TypeError(f'{qs1} should be an instance of QuerySet')
 
         if not isinstance(qs2, QuerySet):
-            raise ValueError(f'{qs2} should be an instance of QuerySet')
+            raise TypeError(f'{qs2} should be an instance of QuerySet')
 
         if not qs1.query.is_evaluated:
             qs1.load_cache()

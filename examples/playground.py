@@ -1,11 +1,19 @@
-from django.forms import FloatField
 from lorelie.constraints import CheckConstraint, UniqueConstraint
 from lorelie.database.base import Database
 from lorelie.database.indexes import Index
 from lorelie.database.tables.base import Table
-from lorelie.expressions import F, Q
-from lorelie.fields.base import CharField, IntegerField, BooleanField, DateField, DateTimeField, URLField, SlugField
 from lorelie.database.views import View
+from lorelie.expressions import F, Q
+from lorelie.fields.base import (
+    BooleanField,
+    CharField,
+    DateField,
+    DateTimeField,
+    FloatField,
+    IntegerField,
+    SlugField,
+    URLField,
+)
 
 
 def name_validator(value: str):

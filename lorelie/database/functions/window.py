@@ -1,4 +1,5 @@
-from typing import ClassVar, Final, Optional
+from typing import ClassVar, Final
+
 from lorelie.database.functions.base import Functions
 from lorelie.lorelie_typings import TypeSQLiteBackend, TypeWindowFunction
 
@@ -21,7 +22,7 @@ class Window(Functions):
 
     template_sql: ClassVar[str] = '{function_name} {over_clause}'
 
-    def __init__(self, function: TypeWindowFunction, partition_by: Optional[str] = None, order_by: Optional[str] = None):
+    def __init__(self, function: TypeWindowFunction, partition_by: str | None = None, order_by: str | None = None):
         if function is None:
             raise ValueError("Function cannot be None")
 
@@ -48,10 +49,7 @@ class Window(Functions):
         else:
             function_name = f'{self.function.template_sql}()'
 
-        return self.template_sql.format(**{
-            'function_name': function_name,
-            'over_clause': self.function.as_sql(backend)
-        })
+        return self.template_sql.format(function_name=function_name, over_clause=self.function.as_sql(backend))
 
 
 class WindowFunctionMixin:

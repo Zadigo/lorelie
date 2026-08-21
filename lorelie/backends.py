@@ -1,25 +1,39 @@
 import datetime
 import pathlib
 import sqlite3
-from typing import Any, Optional, Set
+from typing import Any
 
 import pytz
 
-from lorelie import converters
-from lorelie import registry
-from lorelie.database.functions.aggregation import (CoefficientOfVariation,
-                                                    MeanAbsoluteDifference,
-                                                    StDev, Variance)
-from lorelie.database.functions.text import MD5Hash, RegexSearch, SHA1Hash, SHA224Hash, SHA256Hash, SHA384Hash, SHA512Hash
+from lorelie import converters, registry
+from lorelie.database.expressions.mixins import SQL
+from lorelie.database.functions.aggregation import (
+    CoefficientOfVariation,
+    MeanAbsoluteDifference,
+    StDev,
+    Variance,
+)
+from lorelie.database.functions.text import (
+    MD5Hash,
+    RegexSearch,
+    SHA1Hash,
+    SHA224Hash,
+    SHA256Hash,
+    SHA384Hash,
+    SHA512Hash,
+)
 from lorelie.database.manager import ForeignTablesManager
-from lorelie.database.nodes import (DeleteNode, SelectNode, UpdateNode,
-                                    WhereNode)
+from lorelie.database.nodes import DeleteNode, SelectNode, UpdateNode, WhereNode
 from lorelie.exceptions import ConnectionExistsError
 from lorelie.expressions import Q
-from lorelie.lorelie_typings import (TypeDatabase, TypeRow, TypeSQLiteBackend,
-                                     TypeStrOrPathLibPath, TypeTable)
+from lorelie.lorelie_typings import (
+    TypeDatabase,
+    TypeRow,
+    TypeSQLiteBackend,
+    TypeStrOrPathLibPath,
+    TypeTable,
+)
 from lorelie.queries import Query, QuerySet
-from lorelie.database.expressions.mixins import SQL
 
 
 class Connections:
@@ -28,7 +42,7 @@ class Connections:
     SQLite database"""
 
     connections_map: dict[str, TypeSQLiteBackend] = {}
-    created_connections: Set[TypeSQLiteBackend] = set()
+    created_connections: set[TypeSQLiteBackend] = set()
 
     def __repr__(self):
         return f'<Connections: count={len(self.connections_map.keys())}>'
@@ -50,7 +64,7 @@ class Connections:
         except IndexError:
             raise ConnectionExistsError()
 
-    def register(self, connection: TypeSQLiteBackend, name: Optional[str] = None):
+    def register(self, connection: TypeSQLiteBackend, name: str | None = None):
         if name is None:
             name = 'default'
 
@@ -91,7 +105,7 @@ class BaseRow:
         BaseRow: An instance of the BaseRow class
     """
 
-    def __init__(self, fields: list[str], data: dict, cursor: Optional[sqlite3.Cursor] = None):
+    def __init__(self, fields: list[str], data: dict, cursor: sqlite3.Cursor | None = None):
         # Indicate that this specific row
         # values have been changed and could
         # eligible for saving
@@ -102,10 +116,10 @@ class BaseRow:
         self._backend: TypeSQLiteBackend = connections.get_last_connection()
 
         table = getattr(self._backend, 'current_table', None)
-        self.linked_to_table: Optional[str] = getattr(table, 'name', None)
+        self.linked_to_table: str | None = getattr(table, 'name', None)
 
         self.updated_fields: dict[str, Any] = {}
-        self.pk: Optional[int] = data.get('rowid', data.get('id', None))
+        self.pk: int | None = data.get('rowid', data.get('id', None))
 
         for key, value in self._cached_data.items():
             setattr(self, key, value)
@@ -168,7 +182,7 @@ class BaseRow:
         return value
 
     def __hash__(self):
-        values = list(map(lambda x: getattr(self, x, None), self._fields))
+        values = [getattr(self, x, None) for x in self._fields]
         return hash((self.pk, *values))
 
     def __contains__(self, value):
@@ -285,11 +299,11 @@ class SQLiteBackend(SQL):
         >>> connection = SQLiteBackend(database_instance, log_queries=True)
     """
 
-    def __init__(self, database_or_name: Optional[TypeDatabase | TypeStrOrPathLibPath] = None, log_queries: bool = False, mask_values: bool = False):
-        self.database_name: Optional[str] = None
-        self.database_path: Optional[pathlib.Path] = None
-        self.database_instance: Optional[TypeDatabase] = None
-        self.connection_timestamp = datetime.datetime.now().timestamp()
+    def __init__(self, database_or_name: TypeDatabase | TypeStrOrPathLibPath | None = None, log_queries: bool = False, mask_values: bool = False):
+        self.database_name: str | None = None
+        self.database_path: pathlib.Path | None = None
+        self.database_instance: TypeDatabase | None = None
+        self.connection_timestamp = datetime.datetime.now(tz=datetime.UTC).timestamp()
         self.in_memory_connection: bool = False
         self.mask_values = mask_values
 
@@ -360,21 +374,19 @@ class SQLiteBackend(SQL):
         connection.row_factory = row_factory(self)
 
         self.connection = connection
-        self.current_table: Optional[TypeTable] = None
+        self.current_table: TypeTable | None = None
         self.log_queries = log_queries
 
         connections.register(self, name=self.database_name)
 
     def __hash__(self):
-        return hash((self.database_name))
+        return hash(self.database_name)
 
     def set_current_table(self, table: TypeTable | None):
         """Track the current table that is being updated
         or queried at the connection level for other parts
         of the project that require this knowledge"""
-        if self.current_table is None:
-            self.current_table = table
-        elif self.current_table != table:
+        if self.current_table is None or self.current_table != table:
             self.current_table = table
 
     def set_current_table_from_row(self, row: TypeRow):

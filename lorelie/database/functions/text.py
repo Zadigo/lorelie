@@ -1,5 +1,5 @@
-import re
 import hashlib
+import re
 from sqlite3 import Connection
 from typing import ClassVar
 

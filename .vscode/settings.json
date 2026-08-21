@@ -13,7 +13,7 @@
     "python.testing.pytestArgs": [
         ".",
         "-v",
-        "--cov=.",
+        "--cov=lorelie",
         "--cov-report=markdown:lorelie-coverage.md",
         "--cov-report=html:lorelie-coverage",
         "--report-log=reports/reports.json",

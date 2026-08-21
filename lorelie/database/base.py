@@ -223,7 +223,7 @@ class Database:
         self.table_map: dict[str, Table] = {}
         for table in tables:
             if not isinstance(table, Table):
-                raise ValueError('Value should be an instance of Table')
+                raise TypeError('Value should be an instance of Table')
 
             self.table_map[table.name] = table
             # Allows accessing the table directly
@@ -316,7 +316,7 @@ class Database:
     def _prepare_relationship_map(self, right_table: TypeTable, left_table: TypeTable):
         if (not isinstance(left_table, Table) and
                 not isinstance(right_table, Table)):
-            raise ValueError(
+            raise TypeError(
                 "Both tables should be an instance of "
                 f"Table: {left_table}, {right_table}"
             )

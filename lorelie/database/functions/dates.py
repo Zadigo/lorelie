@@ -1,7 +1,6 @@
 from lorelie.database.functions.base import Functions
 from lorelie.lorelie_typings import TypeSQLiteBackend
 
-
 # ExtractIsoWeekDay,
 # ExtractIsoYear,
 # ExtractQuarter,

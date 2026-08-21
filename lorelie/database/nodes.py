@@ -19,6 +19,7 @@ import dataclasses
 import itertools
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from typing import Any, ClassVar, Optional
 
 from lorelie.expressions import CombinedExpression, Q
@@ -119,7 +120,7 @@ class SelectMap:
         which represents an AND operation.
         """
         if not isinstance(other, WhereNode):
-            raise ValueError('Invalid WhereNode')
+            raise TypeError('Invalid WhereNode')
 
         if self.where is None:
             self.where = other
@@ -131,7 +132,7 @@ class SelectMap:
         already exists, we combine them using the `&` operator
         which represents a merging of the ordering fields."""
         if not isinstance(other, OrderByNode):
-            raise ValueError('Invalid OrderByNode')
+            raise TypeError('Invalid OrderByNode')
 
         if self.order_by is None:
             self.order_by = other
@@ -213,7 +214,7 @@ class RawSQL:
     def __init__(self, backend: TypeSQLiteBackend, *nodes: TypeNode):
         for node in nodes:
             if not isinstance(node, (BaseNode, str)):
-                raise ValueError('RawSQL only accepts BaseNode or str types')
+                raise TypeError('RawSQL only accepts BaseNode or str types')
 
         self.nodes = list(nodes)
         self.backend = backend
@@ -249,7 +250,7 @@ class RawSQL:
             # is always one of the expected nodes
             first_node = self.nodes[0]
             expected_nodes = ['select', 'update', 'delete', 'create']
-            is_valid = map(lambda x: first_node == x, expected_nodes)
+            is_valid = (first_node == x for x in expected_nodes)
             return any(is_valid)
         return False
 
@@ -332,7 +333,7 @@ class ComplexNode[T: TypeNode]:
 class BaseNode(ABC):
     template_sql: ClassVar[str] = ''
 
-    def __init__(self, table: TypeTable | None = None, fields: list[str] = []):
+    def __init__(self, table: TypeTable | None = None, fields: Sequence[str] = ()):
         self.table = table
         self.fields = fields or ['*']
 
@@ -526,7 +527,7 @@ class WhereNode(BaseNode):
         # sense then to accept Q expressions in the node
         for _, value in self.expressions.items():
             if isinstance(value, (Q, CombinedExpression)):
-                raise ValueError(
+                raise TypeError(
                     f'{value} cannot be a Q or CombinedExpression value')
 
         # Resolve base expressions e.g. firstname__eq which
@@ -557,7 +558,7 @@ class OrderByNode(BaseNode):
 
         for field in self.fields:
             if not isinstance(field, str):
-                raise ValueError(
+                raise TypeError(
                     f"Field '{field}' should be of type <str>"
                 )
 
@@ -759,7 +760,7 @@ class InsertNode(BaseNode):
 
         for item in batch_values:
             if not isinstance(item, dict):
-                raise ValueError(
+                raise TypeError(
                     f"'{item}' should be a dictionnary"
                 )
         self.batch_values = batch_values

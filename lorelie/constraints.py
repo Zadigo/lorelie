@@ -1,5 +1,6 @@
 import secrets
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from typing import ClassVar, override
 
 from lorelie.expressions import CombinedExpression, Q
@@ -9,7 +10,7 @@ from lorelie.lorelie_typings import TypeField, TypeSQLiteBackend
 class BaseConstraint(ABC):
     template_sql: str | None = None
     prefix: str | None = None
-    base_errors = {
+    base_errors: ClassVar[dict[str, str]] = {
         'integer': (
             "Limit for {klass} should be "
             "an integer field"
@@ -28,7 +29,7 @@ class BaseConstraint(ABC):
     @property
     def generated_name(self) -> str:
         random_string = secrets.token_hex(nbytes=5)
-        return '_'.join([self.prefix, self.name, random_string])
+        return f'{self.prefix}_{self.name}_{random_string}'
 
     @abstractmethod
     def as_sql(self, backend: TypeSQLiteBackend) -> str:
@@ -68,7 +69,7 @@ class CheckConstraint(BaseConstraint):
     def __init__(self, name: str, condition: Q | CombinedExpression):
         super().__init__(name)
         if not isinstance(condition, (Q, CombinedExpression)):
-            raise ValueError('Condition should be an instance of Q')
+            raise TypeError('Condition should be an instance of Q')
         self.condition = condition
 
     def __repr__(self):
@@ -105,7 +106,7 @@ class UniqueConstraint(BaseConstraint):
     template_sql: str | None = 'unique({fields})'
     prefix: str | None = 'unq'
 
-    def __init__(self, name: str, *, fields: list[str] = []):
+    def __init__(self, name: str, *, fields: Sequence[str] = ()):
         super().__init__(name)
         self.fields = fields
 
@@ -122,7 +123,7 @@ class MinMaxMixin:
     def __init__(self, limit: int, field: TypeField):
         if not isinstance(limit, int):
             error = self.base_errors['integer']
-            raise ValueError(error.format(klass=self.__class__.__name__))
+            raise TypeError(error.format(klass=self.__class__.__name__))
 
         self.limit = limit
         self.field = field

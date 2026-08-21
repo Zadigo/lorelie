@@ -268,7 +268,7 @@ class Field[T = Any]:
     def prepare(self, table: TypeTable):
         from lorelie.database.tables.base import Table
         if not isinstance(table, Table):
-            raise ValueError(
+            raise TypeError(
                 f"{table} should be an "
                 "instance of Table"
             )

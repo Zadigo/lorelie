@@ -1,6 +1,8 @@
 import math
-from typing import Any, ClassVar, Sequence, Union
+from collections.abc import Sequence
 from sqlite3 import Connection
+from typing import Any, ClassVar
+
 from lorelie.database.functions.base import Functions
 from lorelie.lorelie_typings import TypeField, TypeQuerySet, TypeSQLiteBackend
 
@@ -79,18 +81,18 @@ class MathVariance:
     by SQLite for """
 
     def __init__(self):
-        self.total: Union[int, float] = 0
-        self.count: Union[int, float] = 0
+        self.total: int | float = 0
+        self.count: int | float = 0
         self.values = []
 
-    def step(self, value: Union[int, float]):
+    def step(self, value: float):
         self.total += value
         self.count += 1
         self.values.append(value)
 
     def finalize(self):
         average = self.total / self.count
-        variance = list(map(lambda x: abs(x - average)**2, self.values))
+        variance = [abs(x - average)**2 for x in self.values]
         return sum(variance) / self.count
 
 
@@ -166,7 +168,7 @@ class MathMeanAbsoluteDifference:
 
     def finalize(self):
         average = self.total / self.count
-        differences = list(map(lambda x: abs(x - average), self.values))
+        differences = [abs(x - average) for x in self.values]
         return sum(differences) / self.count
 
 

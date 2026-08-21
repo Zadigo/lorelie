@@ -1,10 +1,11 @@
-from typing import ClassVar, Optional
-from lorelie.lorelie_typings import TypeSQLiteBackend
 from abc import ABC, abstractmethod
+from typing import ClassVar
+
+from lorelie.lorelie_typings import TypeSQLiteBackend
 
 
 class Functions(ABC):
-    template_sql: ClassVar[Optional[str]] = None
+    template_sql: ClassVar[str | None] = None
     allow_aggregation: ClassVar[bool] = False
 
     def __init__(self, field_name: str):

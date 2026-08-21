@@ -58,7 +58,7 @@ class Field[T = Any]:
         ExceptionGroup: If an exception occurs while trying to build the field parameters or run validators.
     """
     python_type = str
-    base_validators: Sequence[Callable[[Any], None]] = ()
+    base_validators: ClassVar[Sequence[Callable[[Any], None]]] = []
     default_field_errors: ClassVar[dict[str, str]] = {}
 
     def __init__(

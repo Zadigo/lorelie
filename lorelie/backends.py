@@ -1,7 +1,7 @@
 import datetime
 import pathlib
 import sqlite3
-from typing import Any
+from typing import Any, ClassVar
 
 import pytz
 
@@ -41,8 +41,8 @@ class Connections:
     connections that were created to the
     SQLite database"""
 
-    connections_map: dict[str, TypeSQLiteBackend] = {}
-    created_connections: set[TypeSQLiteBackend] = set()
+    connections_map: ClassVar[dict[str, TypeSQLiteBackend]] = {}
+    created_connections: ClassVar[set[TypeSQLiteBackend]] = set()
 
     def __repr__(self):
         return f'<Connections: count={len(self.connections_map.keys())}>'
@@ -53,7 +53,7 @@ class Connections:
     def __enter__(self, *args, **kwargs):
         return self
 
-    def __exit__(self):
+    def __exit__(self, *args):
         return False
 
     def get_last_connection(self):
@@ -132,7 +132,7 @@ class BaseRow:
         # user chooses to use that column to represent the column
         try:
             str_field = self._backend.current_table.str_field
-        except:
+        except AttributeError:
             str_field = 'pk'
 
             is_type_index = self._cached_data.get('type') == 'index'
@@ -285,6 +285,12 @@ class SQLiteBackend(SQL):
     """A class that wraps the sqlite3 backend and adds additional
     functionalities to it.
 
+    ## Examples:
+
+        connection = SQLiteBackend('my_database', log_queries=True)
+        connection = SQLiteBackend(pathlib.Path('/path/to/database.sqlite'), log_queries=True)
+        connection = SQLiteBackend(database_instance, log_queries=True)
+    
     Args:
         database_or_name: Either the database instance or the name of the database to connect to.
         log_queries: Whether to log the queries that are executed on this backend.
@@ -292,11 +298,6 @@ class SQLiteBackend(SQL):
 
     Returns:
         SQLiteBackend: An instance of the SQLiteBackend class
-
-    Examples:
-        >>> connection = SQLiteBackend('my_database', log_queries=True)
-        >>> connection = SQLiteBackend(pathlib.Path('/path/to/database.sqlite'), log_queries=True)
-        >>> connection = SQLiteBackend(database_instance, log_queries=True)
     """
 
     def __init__(self, database_or_name: TypeDatabase | TypeStrOrPathLibPath | None = None, log_queries: bool = False, mask_values: bool = False):

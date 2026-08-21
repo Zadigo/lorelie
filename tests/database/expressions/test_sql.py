@@ -1,7 +1,8 @@
 import dataclasses
+
 from lorelie.database.expressions.mixins import SQL
-from lorelie.test.testcases import LorelieTestCase
 from lorelie.database.functions.text import Lower
+from lorelie.test.testcases import LorelieTestCase
 
 
 class TestSQL(LorelieTestCase):

@@ -1,6 +1,6 @@
 [project]
 name = "lorelie"
-version = "0.1.0.dev2"
+version = "0.1.0.dev3"
 description = "Lorelie is a Python package that provides APIs to interact with SLite databases. It is designed to be easy to use and efficient, making it a great choice for developers who need to work with SQLite databases in their Python applications."
 keywords = ["ORM", "database", "Python", "SQLAlchemy", "SQLite"]
 authors = [

@@ -1,18 +1,19 @@
-import re
-from typing import Any, Optional, Sequence
-from functools import cached_property
 import dataclasses
 import re
 from collections import defaultdict
-from typing import Any, Sequence
+from collections.abc import Sequence
+from functools import cached_property
+from typing import Any
 
-
-from lorelie.database.nodes import (AnnotationMap)
+from lorelie.database.nodes import AnnotationMap
 from lorelie.lorelie_typings import (
-    TypeFunction, TypeListTranslatedOperatorType, TypeLogicalOperators)
-
-from lorelie.lorelie_typings import TypeOperatorType, TranslatedOperatorType, TypeDecomposedFilterTuple
-
+    TranslatedOperatorType,
+    TypeDecomposedFilterTuple,
+    TypeFunction,
+    TypeListTranslatedOperatorType,
+    TypeLogicalOperators,
+    TypeOperatorType,
+)
 
 BASE_FILTERS: dict[TypeOperatorType, TranslatedOperatorType | str] = {
     'eq': '=',
@@ -132,7 +133,7 @@ class ExpressionFiltersMixin(QuoteValueMixin):
         translated: list[list[str | TranslatedOperatorType | Any]] = []
         for item in tokens:
             if not isinstance(item, (list, tuple)):
-                raise ValueError(f"{item} should be of type list/tuple")
+                raise TypeError(f"{item} should be of type list/tuple")
             translated.append(self.translate_operator_from_tokens(item))
         return translated
 
@@ -149,7 +150,7 @@ class ExpressionFiltersMixin(QuoteValueMixin):
             result = self.decompose_filters_from_string(value)
         elif isinstance(value, dict):
             result = self.decompose_filters(**value)
-        return list(map(lambda x: x[0], result))
+        return [x[0] for x in result]
 
     def decompose_filters_from_string(self, value: str):
         """Decompose a set of filters to a list of
@@ -470,7 +471,7 @@ class SQL(ExpressionFiltersMixin):
         notations: list[str] = []
         for sub_items in values:
             if not isinstance(sub_items, (list, tuple)):
-                raise ValueError(
+                raise TypeError(
                     f"Expected list or array. Got: {sub_items}"
                 )
 
@@ -524,7 +525,7 @@ class SQL(ExpressionFiltersMixin):
 
     def quote_values(self, values: Sequence[Any]):
         """Quotes multiple values at once"""
-        return list(map(lambda x: self.quote_value(x), values))
+        return [self.quote_value(x) for x in values]
 
     def quote_startswith(self, value: str):
         """Creates a startswith wildcard and returns
@@ -567,17 +568,12 @@ class SQL(ExpressionFiltersMixin):
         """
         fields = list(data.keys())
         if quote_values:
-            quoted_value = list(
-                map(
-                    lambda x: self.quote_value(x),
-                    data.values()
-                )
-            )
+            quoted_value = [self.quote_value(x) for x in data.values()]
             return fields, quoted_value
         return fields, list(data.values())
 
     def build_script(self, *sqls: str):
-        return '\n'.join(map(lambda x: self.finalize_sql(x), sqls))
+        return '\n'.join(self.finalize_sql(x) for x in sqls)
 
     def build_annotation(self, conditions: dict[str, TypeFunction]):
         """For each database function, creates a special
@@ -590,7 +586,7 @@ class SQL(ExpressionFiltersMixin):
             annotation_map.alias_fields.append(alias)
             annotation_map.annotation_type_map[alias] = func.__class__.__name__
 
-            internal_type = getattr(func, 'internal_type')
+            internal_type = func.internal_type
             if internal_type == 'expression':
                 func.alias_field_name = alias
 
@@ -627,11 +623,11 @@ class SQL(ExpressionFiltersMixin):
         @dataclasses.dataclass
         class StatementMap:
             columns: list = dataclasses.field(default_factory=list)
-            table: Optional[str] = None
+            table: str | None = None
             where: list = dataclasses.field(default_factory=list)
             group_by: list = dataclasses.field(default_factory=list)
             order_by: list = dataclasses.field(default_factory=list)
-            limit: Optional[int] = None
+            limit: int | None = None
 
             def __setitem__(self, key, value):
                 setattr(self, key, value)
@@ -653,7 +649,7 @@ class SQL(ExpressionFiltersMixin):
 
                 statement_map = StatementMap()
                 tokens = result.group(1).split(',')
-                tokens = list(map(lambda x: x.strip(), tokens))
+                tokens = [x.strip() for x in tokens]
 
                 statement_map[key] = tokens
                 bits.append((key, tokens))

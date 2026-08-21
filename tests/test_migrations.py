@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from lorelie.database.base import Database
 from lorelie.database.indexes import Index
-from lorelie.database.migrations import JsonMigrationsSchema, Migrations
+from lorelie.database.migrations import JsonMigrationSchema, Migrations
 from lorelie.database.tables.base import Table
 from lorelie.fields.base import CharField
 from lorelie.test.testcases import LorelieTestCase
@@ -19,7 +19,7 @@ class TestSchemaDataclass(LorelieTestCase):
         cls.TEST_MIGRATION = data
 
     def test_structure(self):
-        instance = JsonMigrationsSchema(**self.TEST_MIGRATION)
+        instance = JsonMigrationSchema(**self.TEST_MIGRATION)
 
         json_table = instance.get_table('company')
         self.assertIsInstance(json_table, dict)
@@ -50,7 +50,7 @@ class TestMigrations(LorelieTestCase):
     def test_structure(self, mblank):
         with patch.object(json, 'dump') as mdump:
             data = self._load_file('migration_empty')
-            schema = JsonMigrationsSchema(**data)
+            schema = JsonMigrationSchema(**data)
             mblank.return_value = schema
 
             db = Database()
@@ -65,7 +65,7 @@ class TestMigrations(LorelieTestCase):
         with patch.object(json, 'dump') as mdump:
             data = self._load_file('migration_empty')
 
-            schema = JsonMigrationsSchema(**data)
+            schema = JsonMigrationSchema(**data)
             mblank.return_value = schema
 
             table1 = Table('company', fields=[CharField('name')])
@@ -83,7 +83,7 @@ class TestMigrations(LorelieTestCase):
         with patch.object(json, 'dump') as mdump:
             data = self._load_file('migration')
 
-            schema = JsonMigrationsSchema(**data)
+            schema = JsonMigrationSchema(**data)
             mblank.return_value = schema
 
             table1 = Table('company', fields=[CharField('name')])
@@ -114,7 +114,7 @@ class TestMigrations(LorelieTestCase):
         with patch.object(json, 'dump') as mdump:
             data = self._load_file('migration')
 
-            schema = JsonMigrationsSchema(**data)
+            schema = JsonMigrationSchema(**data)
             mblank.return_value = schema
 
             table1 = Table('company', fields=[CharField('name')])
@@ -141,7 +141,7 @@ class TestMigrations(LorelieTestCase):
         with patch.object(json, 'dump') as mdump:
             data = self._load_file('migration')
 
-            schema = JsonMigrationsSchema(**data)
+            schema = JsonMigrationSchema(**data)
             schema.migrated = False
             mblank.return_value = schema
 

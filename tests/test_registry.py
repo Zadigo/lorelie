@@ -1,8 +1,8 @@
+from lorelie import registry
 from lorelie.database.base import Database
 from lorelie.database.tables.base import Table
 from lorelie.fields.base import CharField
 from lorelie.test.testcases import LorelieTestCase
-from lorelie import registry
 
 
 class TestMasterRegistry(LorelieTestCase):

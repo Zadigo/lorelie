@@ -1,7 +1,13 @@
-from lorelie.database.functions.window import (CumeDist, FirstValue, LastValue, NTile, PercentRank, Rank,
-                                               Window)
+from lorelie.database.functions.window import (
+    CumeDist,
+    FirstValue,
+    LastValue,
+    NTile,
+    PercentRank,
+    Rank,
+    Window,
+)
 from lorelie.test.testcases import LorelieTestCase
-
 from tests.items import create_random_celebrities
 
 

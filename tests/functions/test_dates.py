@@ -1,10 +1,13 @@
-
-
 import datetime
 
-from lorelie.database.functions.dates import (Extract, ExtractDay, ExtractHour,
-                                              ExtractMinute, ExtractMonth,
-                                              ExtractYear)
+from lorelie.database.functions.dates import (
+    Extract,
+    ExtractDay,
+    ExtractHour,
+    ExtractMinute,
+    ExtractMonth,
+    ExtractYear,
+)
 from lorelie.test.testcases import LorelieTestCase
 
 
@@ -20,7 +23,7 @@ class TestDates(LorelieTestCase):
 
         item = queryset[0]
 
-        current_year = datetime.datetime.now().year
+        current_year = datetime.datetime.now(tz=datetime.UTC).year
         self.assertEqual(item.year, str(current_year))
 
     def test_extract_day_function(self):

@@ -1,4 +1,3 @@
-
 from lorelie.database.nodes import (
     BaseNode,
     ComplexNode,

@@ -1,4 +1,3 @@
-
 import json
 import pathlib
 from unittest.mock import patch
@@ -7,8 +6,8 @@ from lorelie.database.base import Database
 from lorelie.database.indexes import Index
 from lorelie.database.migrations import JsonMigrationsSchema, Migrations
 from lorelie.database.tables.base import Table
-from lorelie.test.testcases import LorelieTestCase
 from lorelie.fields.base import CharField
+from lorelie.test.testcases import LorelieTestCase
 
 
 class TestSchemaDataclass(LorelieTestCase):

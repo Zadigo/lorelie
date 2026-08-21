@@ -3,6 +3,7 @@ import json
 import secrets
 from collections import defaultdict
 from io import StringIO
+from sqlite3 import IntegrityError, OperationalError
 from typing import Final
 
 from lorelie import lorelie_logger
@@ -371,7 +372,7 @@ class Migrations:
                     backend=backend,
                     sql_tokens=sql_statements
                 )
-            except Exception as e:
+            except (OperationalError, IntegrityError) as e:
                 raise ExceptionGroup(
                     "An error occurred while executing "
                     "the migration transaction",

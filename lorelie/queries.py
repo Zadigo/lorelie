@@ -57,7 +57,7 @@ class Query:
 
         from lorelie.backends import SQLiteBackend
         if not isinstance(self.backend, SQLiteBackend):
-            raise ValueError(
+            raise TypeError(
                 "Backend connection should be an "
                 "instance SQLiteBackend"
             )
@@ -155,7 +155,7 @@ class Query:
 
     def add_sql_node(self, node: BaseNode | str):
         if not isinstance(node, (BaseNode, str)):
-            raise ValueError(
+            raise TypeError(
                 f"{node} should be an instance "
                 "of BaseNode or str"
             )
@@ -171,7 +171,7 @@ class Query:
 
     def add_sql_nodes(self, nodes: list[TypeNode | str]):
         if not isinstance(nodes, list):
-            raise ValueError(
+            raise TypeError(
                 f"{nodes} should be an instance "
                 " of list or tuple"
             )
@@ -367,7 +367,7 @@ class QuerySet[R: TypeRow]:
 
     def __init__(self, query: 'Query', skip_transform: bool = False):
         if not isinstance(query, Query):
-            raise ValueError(f"'{query}' should be an instance of Query")
+            raise TypeError(f"'{query}' should be an instance of Query")
 
         self.query = query
         self.result_cache: list[R] = []

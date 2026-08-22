@@ -279,7 +279,7 @@ class Database:
     def in_memory(self):
         """If the database does not have a
         concrete name then it is `memory`"""
-        return self.database_name is None
+        return self.database_name is None or self.database_name == 'memory'
 
     @property
     def is_ready(self):

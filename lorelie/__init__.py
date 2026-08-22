@@ -1,13 +1,10 @@
-from lorelie.lorelie_typings import TypeDatabase, TypeTable
-from typing import Annotated
-from collections import OrderedDict
 import logging
 import logging.config
 import pathlib
-from collections import defaultdict, deque
-from typing import Optional
+from collections import OrderedDict, defaultdict, deque
+from typing import Annotated
 
-from lorelie.lorelie_typings import TypeSQLiteBackend, TypeTable
+from lorelie.lorelie_typings import TypeDatabase, TypeSQLiteBackend, TypeTable
 
 PROJECT_PATH = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -40,11 +37,11 @@ class LogQueries:
     def __len__(self):
         return len(self.container)
 
-    def append(self, statement: str, table: Optional[TypeTable] = None, backend: Optional[TypeSQLiteBackend] = None):
+    def append(self, statement: str, table: TypeTable | None = None, backend: TypeSQLiteBackend | None = None):
         self.container.append(statement)
 
         if backend is not None:
-            table = getattr(backend, 'current_table')
+            table = backend.current_table
 
         if table is not None:
             try:
@@ -122,12 +119,12 @@ class MasterRegistry:
         from lorelie.database.base import Database
 
         if not isinstance(database, Database):
-            raise ValueError(f"'{database}' should be an instance of database")
+            raise TypeError(f"'{database}' should be an instance of database")
 
         for name, table in database.table_map.items():
             self.known_tables[name] = table
 
-    def get_table(self, name: str) -> Optional[TypeTable]:
+    def get_table(self, name: str) -> TypeTable | None:
         """Get a table by its name from the registry.
 
         Args:

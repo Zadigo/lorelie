@@ -100,7 +100,7 @@ class Migrations:
 
     @property
     def in_memory(self):
-        return self.database_name is None
+        return self.database.in_memory
     
     @property
     def get_date(self):

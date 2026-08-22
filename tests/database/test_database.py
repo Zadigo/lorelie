@@ -37,40 +37,39 @@ def test_structure_migrate(none_migrated_database):
     # assert none_migrated_database.has_relationships is False
 
 @pytest.mark.parametrize(
-    'name,path',
+    'testcase,name,path',
     [
         (
             'in memory',
+            None,
             None
         ),
         (
             'physical - no path',
+            'test_database',
             None
         ),
         (
             'physical - with path',
-            pathlib.Path(__file__).joinpath('testdb')
+            'test_database',
+            pathlib.Path(__file__).parent.absolute()
         ),
         (
             'in memory - with path',
-            pathlib.Path(__file__).joinpath('testdb')
+            None,
+            pathlib.Path(__file__).parent.absolute()
         )
     ]
 )
-def test_different_connection_types(name, path):
-    db = Database(name='test_database', path=path)
+def test_different_connection_types(testcase, name, path):
+    db = Database(name=name, path=path)
 
-    if name == 'in memory':
+    if 'in memory' in testcase:
         assert db.in_memory is True
 
-    if name == 'physical - no path':
-        assert db.in_memory is False
-        
-    if name == 'physical - with path':
+    if 'physical' in testcase:
         assert db.in_memory is False
 
-    if name == 'in memory - with path':
-        assert db.in_memory is True
 
 
 class TestDatabase(LorelieTestCase):

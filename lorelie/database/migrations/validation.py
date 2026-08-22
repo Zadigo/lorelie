@@ -24,10 +24,22 @@ def validate_id(value: Any):
 def validate_date(value: Any):
     if value is None:
         return None
-    try:
-        d = datetime.datetime.strptime(str(value), '%Y-%m-%dT%H:%M:%S.%f%z')
-    except ValueError:
-        d = datetime.datetime.strptime(str(value), '%Y-%m-%d %H:%M:%S.%f')
+
+    str_times = [
+        '%Y-%m-%dT%H:%M:%S.%f%z',
+        '%Y-%m-%d %H:%M:%S.%f%z',
+        '%Y-%m-%d %H:%M:%S.%f',
+    ]
+
+    for str_time in str_times:
+        try:
+            d = datetime.datetime.strptime(value, str_time)
+            break
+        except ValueError:
+            continue
+    else:
+        raise ValueError(f"Time data '{value}' does not match any of the expected formats")
+
     return str(d)
 
 

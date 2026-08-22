@@ -70,7 +70,7 @@ class SchemaTable(pydantic.BaseModel):
 
 
 class JsonSchema(pydantic.BaseModel):
-    name: str
+    name: str | None = None
     tables: list[SchemaTable]
 
 

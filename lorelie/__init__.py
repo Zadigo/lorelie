@@ -46,7 +46,7 @@ class LogQueries:
         if table is not None:
             try:
                 container = self.by_table[table.name]
-            except:
+            except KeyError:
                 pass
             else:
                 container.append(statement)

@@ -96,7 +96,12 @@ class Migrations:
         ])
 
     def __repr__(self):
-        return f'<{self.__class__.__name__} {self.file_id}>'
+        try:
+            # Avoids the error that is raised when 
+            # the migrations class is initialized
+            return f'<{self.__class__.__name__} {self.file_id}>'
+        except AttributeError:
+            return f'<{self.__class__.__name__} (uninitialized)>'
 
     @property
     def in_memory(self):

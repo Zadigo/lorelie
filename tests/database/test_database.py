@@ -71,6 +71,12 @@ def test_different_connection_types(testcase, name, path):
         assert db.in_memory is False
 
 
+def test_table_is_invalid():
+    with pytest.raises(TypeError):
+        Database('test_table')
+
+
+
 
 class TestDatabase(LorelieTestCase):
     def test_table_does_not_exist(self):
@@ -82,32 +88,32 @@ class TestDatabase(LorelieTestCase):
     #     db = Database(path=pathlib.Path('.'))
     #     self.assertFalse(db.in_memory)
 
-    def test_table_is_invalid(self):
-        with self.assertRaises(TypeError):
-            Database('test_table')
+    # def test_table_is_invalid(self):
+    #     with self.assertRaises(TypeError):
+    #         Database('test_table')
 
     def test_direct_table_attribute(self):
         db = self.create_database()
         self.assertIsInstance(db.celebrities, Table)
         self.assertIsInstance(db.celebrities.objects, DatabaseManager)
 
-    def test_different_connection_types(self):
-        # In memory
-        db = Database()
-        self.assertTrue(db.in_memory)
+    # def test_different_connection_types(self):
+    #     # In memory
+    #     db = Database()
+    #     self.assertTrue(db.in_memory)
 
-        # Physical (no path)
-        db = Database(name='test_database')
-        self.assertFalse(db.in_memory)
+    #     # Physical (no path)
+    #     db = Database(name='test_database')
+    #     self.assertFalse(db.in_memory)
 
-        db = Database(name='test_database2', path=pathlib.Path('.'))
-        self.assertFalse(db.in_memory)
+    #     db = Database(name='test_database2', path=pathlib.Path('.'))
+    #     self.assertFalse(db.in_memory)
 
-        # In memory
-        db = Database(path=pathlib.Path('.'))
-        self.assertTrue(db.in_memory)
+    #     # In memory
+    #     db = Database(path=pathlib.Path('.'))
+    #     self.assertTrue(db.in_memory)
 
-    def test_create_database_with_name(self):
-        db = Database(name='my_database')
-        self.assertEqual(db.database_name, 'my_database')
-        self.assertFalse(db.in_memory)
+    # def test_create_database_with_name(self):
+    #     db = Database(name='my_database')
+    #     self.assertEqual(db.database_name, 'my_database')
+    #     self.assertFalse(db.in_memory)

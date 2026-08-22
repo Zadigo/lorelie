@@ -12,6 +12,6 @@ class TestMasterRegistry(LorelieTestCase):
 
     def test_register_and_get_table(self):
         table = Table('testing', fields=[CharField('name')])
-        database = Database(table)
+        Database(table)
 
         self.assertTrue(len(registry.known_tables.keys()) > 0)

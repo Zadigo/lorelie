@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 from typing import Annotated, Any
 
 import pydantic
@@ -24,8 +24,10 @@ def validate_id(value: Any):
 def validate_date(value: Any):
     if value is None:
         return None
-    # d = datetime.strptime(value, '%Y-%m-%d %H:%M:%S.%f%z').replace(tzinfo=datetime.UTC)
-    d = datetime.strptime(value, '%Y-%m-%dT%H:%M:%S.%f%z')
+    try:
+        d = datetime.datetime.strptime(str(value), '%Y-%m-%dT%H:%M:%S.%f%z')
+    except ValueError:
+        d = datetime.datetime.strptime(str(value), '%Y-%m-%d %H:%M:%S.%f')
     return str(d)
 
 
@@ -85,31 +87,29 @@ class JsonMigrationSchema(pydantic.BaseModel):
     number: int
     migrated: bool = False
     in_memory: bool = False
-    database_schema: dict = pydantic.Field(default_factory=JsonSchema)
+    database_schema: JsonSchema | None = pydantic.Field(default=None)
 
     @model_validator(mode='before')
     @classmethod
-    def validte_schema(cls, data: Any):
+    def validate_schema(cls, data: Any):
+        print(data)
         return data
 
     @property
     def _table_names(self) -> set[str]:
-        tables = self.database_schema.get('tables', [])
-        return {item['name'] for item in tables}
+        if self.database_schema is None:
+            return set()
+        return {item.name for item in self.database_schema.tables}
 
     def get_table_indexes(self, table_name: str) -> list[TypeDeconstructedIndex]:
         table = self.get_table(table_name)
-        if table is None:
-            return []
-
-        return table.get('indexes', [])
+        return table.indexes if table is not None else []
 
     def get_table(self, table_name: str) -> SchemaTable | None:
         """Returns the table schema for a given table
         in the current migration schema"""
-        tables = self.database_schema.get('tables', [])
-        for item in tables:
-            if item.get('name', '') == table_name:
+        for item in self.database_schema.tables:
+            if item.name == table_name:
                 return SchemaTable(**item)
         return None
 
@@ -117,9 +117,7 @@ class JsonMigrationSchema(pydantic.BaseModel):
         """Returns the fields map for a given table
         in the current migration schema"""
         json_table = self.get_table(table_name)
-        if json_table is not None:
-            return json_table.fields
-        return None
+        return json_table.fields if json_table is not None else None
 
     def get_table_field(self, table_name: str, field_name: str) -> NullableType[TypeDeconstructedField]:
         """Returns the field parameters for a given field

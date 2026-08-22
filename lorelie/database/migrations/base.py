@@ -101,6 +101,10 @@ class Migrations:
     @property
     def in_memory(self):
         return self.database_name is None
+    
+    @property
+    def get_date(self):
+        return datetime.datetime.now(tz=datetime.UTC).isoformat()
 
     def _build_migration_table(self, name: str = 'migrations'):
         """Creates a migrations table in the database
@@ -190,7 +194,7 @@ class Migrations:
             # Create a blank migration file
             instance = JsonMigrationSchema(
                 id=secrets.token_hex(5),
-                date=datetime.datetime.now(tz=datetime.UTC).isoformat(),
+                date=self.get_date,
                 number=0,
                 migrated=False,
                 schema={}
@@ -440,7 +444,7 @@ class Migrations:
             with open(self.migrations_sql_path, mode='r') as fr:
                 content = fr.read().splitlines()
 
-            f.write(f'\n-- Migration executed on {datetime.datetime.now(tz=datetime.UTC)}\n')
+            f.write(f'\n-- Migration executed on {self.get_date}\n')
 
             if isinstance(statement_or_statements, list):
                 for statement in statement_or_statements:
@@ -466,7 +470,7 @@ class Migrations:
 
         self.JSON_MIGRATIONS_SCHEMA.migrated = True
         self.JSON_MIGRATIONS_SCHEMA.id = secrets.token_hex(5)
-        self.JSON_MIGRATIONS_SCHEMA.date = datetime.datetime.now(tz=datetime.UTC).isoformat()
+        self.JSON_MIGRATIONS_SCHEMA.date = self.get_date
         self.JSON_MIGRATIONS_SCHEMA.number += 1
 
         final_migration = dict(self.JSON_MIGRATIONS_SCHEMA)
@@ -494,7 +498,7 @@ class Migrations:
                         database=self.database.database_name,
                         migration=final_migration
                     )
-                except Exception:
+                except KeyError:
                     raise TypeError(
                         "Could not log migration "
                         "in the migrations table."

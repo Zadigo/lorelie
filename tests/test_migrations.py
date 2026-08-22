@@ -2,8 +2,6 @@ import json
 import pathlib
 from unittest.mock import patch
 
-import pytest
-
 from lorelie.database.base import Database
 from lorelie.database.indexes import Index
 from lorelie.database.migrations import JsonMigrationSchema, Migrations
@@ -12,9 +10,9 @@ from lorelie.fields.base import CharField
 from lorelie.test.testcases import LorelieTestCase
 
 
-@pytest.fixture
-def test_migration_schema():
-    return 
+def test_migration_validation(load_empty_migration_json, load_full_migration_json):
+    JsonMigrationSchema(**load_empty_migration_json)
+    JsonMigrationSchema(**load_full_migration_json) 
 
 
 class TestSchemaDataclass(LorelieTestCase):

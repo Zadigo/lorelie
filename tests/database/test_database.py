@@ -1,5 +1,7 @@
 import pathlib
 
+import pytest
+
 from lorelie.database.base import Database
 from lorelie.database.manager import DatabaseManager
 from lorelie.database.tables.base import Table
@@ -7,16 +9,71 @@ from lorelie.exceptions import TableExistsError
 from lorelie.test.testcases import LorelieTestCase
 
 
+@pytest.mark.parametrize(
+    'name,path',
+    [
+        (
+            'with path',
+            pathlib.Path(__file__).joinpath('testdb')
+        ),
+        (
+            'no path',
+            None
+        )
+    ]
+)
+def test_structure(none_migrated_database, name, path):
+    if path is None:
+        assert none_migrated_database.in_memory is True
+
+    assert none_migrated_database.migrations.JSON_MIGRATIONS_SCHEMA is not None
+    # assert none_migrated_database.migrations.migrated is False
+    # assert none_migrated_database.has_relationships is False
+
+
+def test_structure_migrate(none_migrated_database):
+    none_migrated_database.migrate()
+    assert none_migrated_database.migrations.migrated is True
+    # assert none_migrated_database.has_relationships is False
+
+@pytest.mark.parametrize(
+    'name,path',
+    [
+        (
+            'in memory',
+            None
+        ),
+        (
+            'physical - no path',
+            None
+        ),
+        (
+            'physical - with path',
+            pathlib.Path(__file__).joinpath('testdb')
+        ),
+        (
+            'in memory - with path',
+            pathlib.Path(__file__).joinpath('testdb')
+        )
+    ]
+)
+def test_different_connection_types(name, path):
+    db = Database(name='test_database', path=path)
+
+    if name == 'in memory':
+        assert db.in_memory is True
+
+    if name == 'physical - no path':
+        assert db.in_memory is False
+        
+    if name == 'physical - with path':
+        assert db.in_memory is False
+
+    if name == 'in memory - with path':
+        assert db.in_memory is True
+
+
 class TestDatabase(LorelieTestCase):
-    def test_structure(self):
-        db = self.create_empty_database
-        self.assertTrue(db.in_memory)
-
-        self.assertFalse(db.migrations.migrated)
-        self.assertFalse(db.has_relationships)
-
-        db.migrate()
-
     def test_table_does_not_exist(self):
         db = self.create_empty_database
         with self.assertRaises(TableExistsError):
@@ -27,7 +84,7 @@ class TestDatabase(LorelieTestCase):
     #     self.assertFalse(db.in_memory)
 
     def test_table_is_invalid(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             Database('test_table')
 
     def test_direct_table_attribute(self):

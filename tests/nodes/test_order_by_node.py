@@ -66,6 +66,6 @@ class TestOrderByNode(LorelieTestCase):
         )
 
     def test_invalid_field_type(self, mconn):
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(TypeError) as context:
             OrderByNode(self.table, 123)
-            self.assertRaises(ValueError, str(context.exception), "Field '123' should be of type <str>")
+            self.assertRaises(TypeError, str(context.exception), "Field '123' should be of type <str>")

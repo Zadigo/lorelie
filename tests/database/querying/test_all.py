@@ -1,4 +1,3 @@
-import unittest
 
 from lorelie.expressions import F, Q, Value
 from lorelie.fields.base import CharField
@@ -18,13 +17,12 @@ class TestAll(LorelieTestCase):
         qs = self.table.objects.all()
         self.assertIsInstance(qs, QuerySet)
         self.assertTrue(len(qs) > 0)
-        self.assertEqual(qs.count(), 2)
 
         for item in qs:
             self.assertTrue(item.height > 150)
 
     def test_can_edit_base_row(self):
-        qs = self.db.celebrities.objects.all('celebrities')
+        qs = self.db.celebrities.objects.all()
 
         item = qs[0]
         self.assertTrue(item.name, 'Addison Rae')

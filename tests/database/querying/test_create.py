@@ -1,4 +1,5 @@
 import dataclasses
+
 from lorelie.backends import BaseRow
 from lorelie.exceptions import FieldExistsError
 from lorelie.test.testcases import LorelieTestCase

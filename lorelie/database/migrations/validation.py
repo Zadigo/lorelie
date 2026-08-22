@@ -120,6 +120,9 @@ class JsonMigrationSchema(pydantic.BaseModel):
     def get_table(self, table_name: str) -> SchemaTable | None:
         """Returns the table schema for a given table
         in the current migration schema"""
+        if self.database_schema is None:
+            return None
+        
         for item in self.database_schema.tables:
             if item.name == table_name:
                 return SchemaTable(**item)
